@@ -28,6 +28,14 @@ public class FeedController : MonoBehaviour
     {
         pet.position -= Vector3.up * 0.2f;
     }
+    public void FeedWithPhoto(Texture2D photo)
+    {
+        // TODO：之後存進相簿
+        Debug.Log("Pet eats photo!");
+
+        Feed(); // 直接沿用你已完成的 Feed 動畫與 UI
+    }
+
 }
 
 

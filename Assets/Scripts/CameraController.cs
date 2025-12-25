@@ -1,12 +1,18 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class CameraController : MonoBehaviour
 {
     public RawImage cameraPreview;
+    public Button captureButton;
+    TMP_Text buttonText;
     public FeedController feedController;
 
     WebCamTexture webcamTexture;
+    Texture2D capturedPhoto;
+
+    bool hasPhoto = false;
 
     void Start()
     {
@@ -14,21 +20,49 @@ public class CameraController : MonoBehaviour
         cameraPreview.texture = webcamTexture;
         webcamTexture.Play();
 
-        Debug.Log("WebCam started: " + webcamTexture.isPlaying);
+        buttonText = captureButton.GetComponentInChildren<TMP_Text>();
+
+        buttonText.text = "Camera";
     }
 
-    public void TakePhotoAndFeed()
+    public void OnButtonPressed()
     {
-        // 1️拍照
-        Texture2D photo = new Texture2D(
+        if (!hasPhoto)
+        {
+            TakePhoto();
+        }
+        else
+        {
+            FeedPhoto();
+        }
+    }
+
+    void TakePhoto()
+    {
+        capturedPhoto = new Texture2D(
             webcamTexture.width,
             webcamTexture.height
         );
-        photo.SetPixels(webcamTexture.GetPixels());
-        photo.Apply();
+        capturedPhoto.SetPixels(webcamTexture.GetPixels());
+        capturedPhoto.Apply();
 
-        // 2️丟給 FeedController（餵食）
-        feedController.FeedWithPhoto(photo);
+        AlbumManager.Instance.AddPhoto(capturedPhoto);
+
+        // Freeze 畫面
+        cameraPreview.texture = capturedPhoto;
+
+        hasPhoto = true;
+        buttonText.text = "Feed";
+
+
+    }
+
+    void FeedPhoto()
+    {
+        cameraPreview.gameObject.SetActive(false);
+        captureButton.gameObject.SetActive(false);
+
+        feedController.FeedWithPhoto(capturedPhoto);
     }
 }
 

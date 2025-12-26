@@ -106,6 +106,7 @@ GameObject:
   - component: {fileID: 4683240556184438740}
   - component: {fileID: 7511224690905976107}
   - component: {fileID: 2758396158909669502}
+  - component: {fileID: 5869291177412696126}
   m_Layer: 0
   m_Name: SpriteSkin
   m_TagString: Untagged
@@ -214,9 +215,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hearts: {fileID: 5333275085476501253}
-  flyingPhotoObjectName: FlyingPhoto
   photoFadeTime: 0.15
   photoShrinkMultiplier: 0.2
+  vfxRootName: VFX_PhotoFly
+  flyingPhotoName: FlyingPhoto
+--- !u!114 &5869291177412696126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5258062831881623492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26f09bfeb3429c6449a540b6ccd70540, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  anim: {fileID: 7511224690905976107}
+  events: {fileID: 2758396158909669502}
 --- !u!1 &6842845894073840541
 GameObject:
   m_ObjectHideFlags: 0

@@ -2,39 +2,63 @@
 using UnityEngine.UI;
 using TMPro;
 
+public enum CameraState
+{
+    Idle,
+    Preview,
+    Frozen
+}
+
 public class CameraController : MonoBehaviour
 {
+    [Header("UI")]
     public RawImage cameraPreview;
-    public Button captureButton;
-    TMP_Text buttonText;
+    public Button mainButton;
+    public TMP_Text buttonText;
+    
     public FeedController feedController;
-
     WebCamTexture webcamTexture;
     Texture2D capturedPhoto;
 
-    bool hasPhoto = false;
+    CameraState state = CameraState.Idle;
 
     void Start()
+    {
+        cameraPreview.gameObject.SetActive(false);
+        buttonText.text = "Camera";
+    }
+
+    public void OnMainButtonPressed()
+    {
+
+        Debug.Log("Button pressed in state: " + state);
+
+        switch (state)
+        {
+            case CameraState.Idle:
+                StartCamera();
+                break;
+
+            case CameraState.Preview:
+                TakePhoto();
+                break;
+
+            case CameraState.Frozen:
+                FeedPhoto();
+                break;
+        }
+    }
+
+    void StartCamera()
     {
         webcamTexture = new WebCamTexture();
         cameraPreview.texture = webcamTexture;
         webcamTexture.Play();
 
-        buttonText = captureButton.GetComponentInChildren<TMP_Text>();
+        cameraPreview.gameObject.SetActive(true);
 
-        buttonText.text = "Camera";
-    }
-
-    public void OnButtonPressed()
-    {
-        if (!hasPhoto)
-        {
-            TakePhoto();
-        }
-        else
-        {
-            FeedPhoto();
-        }
+        state = CameraState.Preview;
+        buttonText.text = "Shot";
     }
 
     void TakePhoto()
@@ -46,23 +70,41 @@ public class CameraController : MonoBehaviour
         capturedPhoto.SetPixels(webcamTexture.GetPixels());
         capturedPhoto.Apply();
 
-        AlbumManager.Instance.AddPhoto(capturedPhoto);
-
-        // Freeze 畫面
         cameraPreview.texture = capturedPhoto;
 
-        hasPhoto = true;
+        state = CameraState.Frozen;
         buttonText.text = "Feed";
-
-
     }
 
     void FeedPhoto()
     {
-        cameraPreview.gameObject.SetActive(false);
-        captureButton.gameObject.SetActive(false);
+        Debug.Log("Feed with photo");
 
-        feedController.FeedWithPhoto(capturedPhoto);
+        if (feedController != null)
+            feedController.FeedWithPhoto(capturedPhoto);
+
+        // ⭐ 重點 1：關掉畫面
+        cameraPreview.gameObject.SetActive(false);
+
+        // ⭐ 重點 2：按鈕還活著
+        mainButton.gameObject.SetActive(true);
+
+        // ⭐ 重點 3：回到初始狀態
+        ResetFlow();
+  
+    }
+
+    void ResetFlow()
+    {
+        if (webcamTexture != null)
+        {
+            webcamTexture.Stop();
+            webcamTexture = null;
+        }
+
+        cameraPreview.gameObject.SetActive(false);
+
+        state = CameraState.Idle;
+        buttonText.text = "Camera";
     }
 }
-

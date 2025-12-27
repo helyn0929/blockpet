@@ -6,24 +6,32 @@ public class AlbumUI : MonoBehaviour
     public Transform content;
     public GameObject photoItemPrefab;
 
-    void Start()
+    public void AddPhoto(Texture2D photo)
     {
-        Refresh();
-    }
+        GameObject item = Instantiate(photoItemPrefab, content);
+        item.GetComponent<RawImage>().texture = photo;
+    }   
 
+    // 打開相簿時用
     public void Refresh()
     {
-        // 清空舊的照片
         foreach (Transform child in content)
         {
             Destroy(child.gameObject);
         }
 
-        // 依序產生照片
         foreach (var data in AlbumManager.Instance.photos)
         {
-            GameObject item = Instantiate(photoItemPrefab, content);
-            item.GetComponent<RawImage>().texture = data.photo;
+            AddPhotoItem(data.photo);
         }
     }
+
+    // Feed 新照片時用
+    public void AddPhotoItem(Texture2D photo)
+    {
+        Debug.Log("Adding photo to album UI");
+        GameObject item = Instantiate(photoItemPrefab, content);
+        item.GetComponent<RawImage>().texture = photo;
+    }
 }
+

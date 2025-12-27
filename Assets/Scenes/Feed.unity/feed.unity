@@ -189,6 +189,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 432296175890027480, guid: 4fa52f0865c5eac4fb69ba9a37372c52, type: 3}
   m_PrefabInstance: {fileID: 29004513}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &235205936
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 235205938}
+  - component: {fileID: 235205937}
+  m_Layer: 0
+  m_Name: AlbumUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &235205937
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 235205936}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 355df578835723647ad1b8032ae7f847, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  content: {fileID: 1463528716}
+  photoItemPrefab: {fileID: 8042446300223052882, guid: 0a93b03a6200c4a49823c42d2adf6151, type: 3}
+--- !u!4 &235205938
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 235205936}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.17171383, y: 0.67823446, z: -0.65565014}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &259305907
 GameObject:
   m_ObjectHideFlags: 0
@@ -1212,7 +1258,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cameraPreview: {fileID: 2024086003}
-  captureButton: {fileID: 1966443295}
+  mainButton: {fileID: 1966443295}
+  buttonText: {fileID: 259305909}
   feedController: {fileID: 1545556820}
 --- !u!4 &1009347550
 Transform:
@@ -1792,6 +1839,7 @@ MonoBehaviour:
   pet: {fileID: 29004515}
   petAnimator: {fileID: 29004514}
   feedScale: 0.15
+  albumUI: {fileID: 235205937}
   feedButton: {fileID: 1966443293}
   fedText: {fileID: 735499187}
 --- !u!1 &1966443293
@@ -1879,7 +1927,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1009347549}
         m_TargetAssemblyTypeName: CameraController, Assembly-CSharp
-        m_MethodName: OnButtonPressed
+        m_MethodName: OnMainButtonPressed
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1959,7 +2007,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.99371064, g: 0.99371064, b: 0.99371064, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1989,7 +2037,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2024086002}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2133,3 +2181,4 @@ SceneRoots:
   - {fileID: 1009347550}
   - {fileID: 1168750591}
   - {fileID: 1238001853}
+  - {fileID: 235205938}

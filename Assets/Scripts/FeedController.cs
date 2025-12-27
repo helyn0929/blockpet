@@ -5,6 +5,7 @@ public class FeedController : MonoBehaviour
     public Transform pet;
     public Animator petAnimator;
     public float feedScale = 0.15f;
+    public AlbumUI albumUI;
 
 
     public GameObject feedButton;   
@@ -32,14 +33,22 @@ public class FeedController : MonoBehaviour
     }
     public void FeedWithPhoto(Texture2D photo)
     {
+        // 1. 播放吃動畫
         if (petAnimator != null)
-        {
-            petAnimator.SetTrigger("Eat"); // connection
-        }
-        // TODO：之後存進相簿
-        Debug.Log("Pet eats photo!");
+            petAnimator.SetTrigger("Eat");
 
-        Feed(); // 直接沿用你已完成的 Feed 動畫與 UI
+        // 2. 存進相簿資料
+        AlbumManager.Instance.AddPhoto(photo);
+
+        // 3. 更新相簿 UI
+
+        if (albumUI != null)
+            albumUI.AddPhotoItem(photo);
+        else
+            Debug.LogError("AlbumUI not assigned");
+
+        // 4. 顯示 Fed!
+        Feed();
     }
 
 }

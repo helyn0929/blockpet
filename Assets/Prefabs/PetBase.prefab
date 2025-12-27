@@ -56,8 +56,8 @@ Transform:
   m_GameObject: {fileID: 1190075046837406031}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 40, y: 40, z: 40}
+  m_LocalPosition: {x: 0, y: 0, z: -7}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 293303613587878891}
@@ -343,6 +343,10 @@ PrefabInstance:
     - target: {fileID: 246574438356666907, guid: d999ce9a1cdb6c945bb1c94036e55d93, type: 3}
       propertyPath: m_Name
       value: VFX_PhotoFly
+      objectReference: {fileID: 0}
+    - target: {fileID: 246574438356666907, guid: d999ce9a1cdb6c945bb1c94036e55d93, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 834433423298614607, guid: d999ce9a1cdb6c945bb1c94036e55d93, type: 3}
       propertyPath: m_IsActive

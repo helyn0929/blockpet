@@ -3,101 +3,36 @@ using UnityEngine;
 
 public class PetAnimationEvents : MonoBehaviour
 {
-    [Header("VFX")]
     public ParticleSystem hearts;
 
-    [Header("Photo fade settings")]
-    public float photoFadeTime = 0.15f;
-    public float photoShrinkMultiplier = 0.2f;
+    [Header("直接把 Hierarchy 裡的 FlyingPhoto 拖進來")]
+    public SpriteRenderer flyingPhotoSR; 
 
-    [Header("Find FlyingPhoto (path first)")]
-    public string vfxRootName = "VFX_PhotoFly";
-    public string flyingPhotoName = "FlyingPhoto";
-
-    private Coroutine running;
-
-    // Animation Event calls this: OnEatBite(string)
     public void OnEatBite(string note)
     {
-        // ���n�ױ��A���T�O�u�ʵe�ƥ󦳶i�ӡv
-        Debug.LogWarning($"[PetAnimationEvents] OnEatBite called. note='{note}'");
-
-        // hearts
         if (hearts != null) hearts.Play();
 
-        // ���Ӥ�
-        var sr = FindFlyingPhotoSpriteRenderer();
-        if (sr == null)
+        // 核心邏輯：只針對拖進來的 FlyingPhoto 進行淡出隱藏
+        if (flyingPhotoSR != null)
         {
-            Debug.LogWarning("[PetAnimationEvents] FlyingPhoto NOT found.");
-            return;
+            StartCoroutine(FadeOutPhoto(flyingPhotoSR));
         }
-
-        // ����W�@�� coroutine
-        if (running != null) StopCoroutine(running);
-        running = StartCoroutine(FadeAndShrinkThenDisable(sr, photoFadeTime, photoShrinkMultiplier));
     }
 
-    private SpriteRenderer FindFlyingPhotoSpriteRenderer()
+    IEnumerator FadeOutPhoto(SpriteRenderer sr)
     {
-        // A) VFX_PhotoFly/FlyingPhoto
-        var vfx = GameObject.Find(vfxRootName);
-        if (vfx != null)
+        float t = 0;
+        float duration = 0.2f;
+        while (t < duration)
         {
-            var t = vfx.transform.Find(flyingPhotoName);
-            if (t != null)
-            {
-                var sr = t.GetComponent<SpriteRenderer>();
-                if (sr != null) return sr;
-                sr = t.GetComponentInChildren<SpriteRenderer>(true);
-                if (sr != null) return sr;
-            }
-        }
-
-        // B) fallback: name contains FlyingPhoto
-        var srs = Object.FindObjectsOfType<SpriteRenderer>(true);
-        foreach (var sr in srs)
-        {
-            if (sr != null && sr.gameObject.name.Contains(flyingPhotoName))
-                return sr;
-        }
-
-        return null;
-    }
-
-    private IEnumerator FadeAndShrinkThenDisable(SpriteRenderer sr, float t, float endScaleMul)
-    {
-        if (sr == null) yield break;
-
-        Transform tr = sr.transform;
-
-        Vector3 startScale = tr.localScale;
-        Vector3 endScale = startScale * endScaleMul;
-
-        Color c = sr.color;
-        float startA = c.a;
-
-        float time = 0f;
-        while (time < t)
-        {
-            if (sr == null) yield break;
-
-            time += Time.deltaTime;
-            float k = Mathf.Clamp01(time / t);
-
-            tr.localScale = Vector3.Lerp(startScale, endScale, k);
-            c.a = Mathf.Lerp(startA, 0f, k);
-            sr.color = c;
-
+            t += Time.deltaTime;
+            float p = t / duration;
+            // 漸變透明度
+            sr.color = new Color(1, 1, 1, 1 - p);
             yield return null;
         }
-
-        c.a = 0f;
-        sr.color = c;
-        tr.localScale = endScale;
-
         sr.gameObject.SetActive(false);
-
-        running = null;
+        // 重置顏色透明度以便下次使用
+        sr.color = new Color(1, 1, 1, 1);
     }
 }

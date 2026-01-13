@@ -3,35 +3,33 @@ using UnityEngine.UI;
 
 public class AlbumUI : MonoBehaviour
 {
+    public static AlbumUI Instance;
     public Transform content;
     public GameObject photoItemPrefab;
 
-    public void AddPhoto(Texture2D photo)
+    void Awake()
     {
-        GameObject item = Instantiate(photoItemPrefab, content);
-        item.GetComponent<RawImage>().texture = photo;
-    }   
+        Instance = this;
+    }
 
-    // ¥´¶}¬ÛÃ¯®É¥Î
+    // ç•¶ FeedController é¤µé£ŸæˆåŠŸæ™‚å‘¼å«
+    public void AddPhotoItem(Texture2D photo)
+    {
+        if (photoItemPrefab == null || content == null) return;
+
+        GameObject item = Instantiate(photoItemPrefab, content);
+        RawImage ri = item.GetComponent<RawImage>();
+        if (ri != null) ri.texture = photo;
+        
+        Debug.Log("[AlbumUI] æˆåŠŸåœ¨ UI ç”Ÿæˆä¸€å¼µç…§ç‰‡");
+    }
+
     public void Refresh()
     {
-        foreach (Transform child in content)
-        {
-            Destroy(child.gameObject);
-        }
-
+        foreach (Transform child in content) Destroy(child.gameObject);
         foreach (var data in AlbumManager.Instance.photos)
         {
             AddPhotoItem(data.photo);
         }
     }
-
-    // Feed ·s·Ó¤ù®É¥Î
-    public void AddPhotoItem(Texture2D photo)
-    {
-        Debug.Log("Adding photo to album UI");
-        GameObject item = Instantiate(photoItemPrefab, content);
-        item.GetComponent<RawImage>().texture = photo;
-    }
 }
-

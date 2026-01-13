@@ -4,23 +4,18 @@ using UnityEngine;
 public class AlbumManager : MonoBehaviour
 {
     public static AlbumManager Instance;
-
     public List<PhotoData> photos = new List<PhotoData>();
 
     void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     public void AddPhoto(Texture2D photo)
     {
         PhotoData data = new PhotoData(photo);
         photos.Add(data);
-
-        Debug.Log("Photo added to album. Total: " + photos.Count);
+        Debug.Log($"[AlbumManager] 照片已存入 List，目前總數: {photos.Count}");
     }
 }
-

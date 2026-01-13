@@ -94,7 +94,7 @@ public class CameraController : MonoBehaviour
   
     }
 
-    void ResetFlow()
+    public void ResetFlow()
     {
         if (webcamTexture != null)
         {

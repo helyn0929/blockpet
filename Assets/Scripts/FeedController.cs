@@ -2,55 +2,65 @@ using UnityEngine;
 
 public class FeedController : MonoBehaviour
 {
+    [Header("真正的那隻狗 (PetBase)")]
     public Transform pet;
     public Animator petAnimator;
-    public float feedScale = 0.15f;
+    
+    [Header("那張會飛的照片 (FlyingPhoto)")]
+    public GameObject flyingPhotoObject; 
+
+    [Header("UI 引用")]
     public AlbumUI albumUI;
-
-
     public GameObject feedButton;   
     public GameObject fedText;     
 
-    public void Feed()
+    private Vector3 _petStartPos;
+
+    void Awake()
+    {
+        // 紀錄初始位置，防止連續點擊導致位置偏移
+        if (pet != null) _petStartPos = pet.position;
+    }
+
+    public void FeedWithPhoto(Texture2D photo)
+    {
+        // 1. 觸發動畫
+        if (petAnimator != null) petAnimator.SetTrigger("Eat");
+
+        // 2. 顯示飛行的照片
+        if (flyingPhotoObject != null) flyingPhotoObject.SetActive(true);
+
+        // 3. 存入資料並更新相簿 UI
+        if (AlbumManager.Instance != null) AlbumManager.Instance.AddPhoto(photo);
+        if (albumUI != null) albumUI.AddPhotoItem(photo);
+
+        // 4. 執行餵食回饋 (僅跳動)
+        ApplyFeedEffect();
+    }
+
+    void ApplyFeedEffect()
     {
         if (pet == null) return;
 
-        //fake eating animation
-        pet.localScale += Vector3.one * feedScale;
-        pet.localScale = Vector3.Min(pet.localScale, Vector3.one * 1.5f);
+        // 【已移除放大邏輯】狗狗現在不會變大
+        
+        // 跳動效果：使用絕對座標，確保狗狗會回到正確位置
+        pet.position = _petStartPos + Vector3.up * 0.2f;
+        Invoke(nameof(ResetPetPos), 0.2f);
 
-        pet.position += Vector3.up * 0.2f;
-        Invoke(nameof(ResetPetPosition), 0.2f);
-
-        // UI ���A����
-        feedButton.SetActive(false);
-        fedText.SetActive(true);
+        // UI 狀態切換
+        if(feedButton != null) feedButton.SetActive(false);
+        if(fedText != null) fedText.SetActive(true);
+        
+        // 1.5 秒後重置按鈕，可以繼續拍照
+        Invoke(nameof(ResetFlow), 1.5f);
     }
 
-    void ResetPetPosition()
+    void ResetPetPos() => pet.position = _petStartPos;
+
+    void ResetFlow()
     {
-        pet.position -= Vector3.up * 0.2f;
+        if(feedButton != null) feedButton.SetActive(true);
+        if(fedText != null) fedText.SetActive(false);
     }
-    public void FeedWithPhoto(Texture2D photo)
-    {
-        // 1. ����Y�ʵe
-        if (petAnimator != null)
-            petAnimator.SetTrigger("Eat");
-
-        // 2. �s�i��ï���
-        AlbumManager.Instance.AddPhoto(photo);
-
-        // 3. ��s��ï UI
-
-        if (albumUI != null)
-            albumUI.AddPhotoItem(photo);
-        else
-            Debug.LogError("AlbumUI not assigned");
-
-        // 4. ��� Fed!
-        Feed();
-    }
-
 }
-
-

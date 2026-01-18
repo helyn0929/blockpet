@@ -27,12 +27,14 @@ public class FeedController : MonoBehaviour
         // 1. 觸發動畫
         if (petAnimator != null) petAnimator.SetTrigger("Eat");
 
+        SaveManager.Instance.SavePhoto(photo);
+
         // 2. 顯示飛行的照片
         if (flyingPhotoObject != null) flyingPhotoObject.SetActive(true);
 
-        // 3. 存入資料並更新相簿 UI
-        if (AlbumManager.Instance != null) AlbumManager.Instance.AddPhoto(photo);
-        if (albumUI != null) albumUI.AddPhotoItem(photo);
+        // 3. 存入資料並更新相簿 UI(short memory)
+        //if (AlbumManager.Instance != null) AlbumManager.Instance.AddPhoto(photo);
+        //if (albumUI != null) albumUI.AddPhotoItem(photo);
 
         // 4. 執行餵食回饋 (僅跳動)
         ApplyFeedEffect();

@@ -3,33 +3,31 @@ using UnityEngine.UI;
 
 public class AlbumUI : MonoBehaviour
 {
-    public static AlbumUI Instance;
     public Transform content;
     public GameObject photoItemPrefab;
 
-    void Awake()
+    void OnEnable()
     {
-        Instance = this;
+        ReloadFromSave();
     }
 
-    // 當 FeedController 餵食成功時呼叫
-    public void AddPhotoItem(Texture2D photo)
+    void ReloadFromSave()
     {
-        if (photoItemPrefab == null || content == null) return;
+        if (SaveManager.Instance == null) return;
 
-        GameObject item = Instantiate(photoItemPrefab, content);
-        RawImage ri = item.GetComponent<RawImage>();
-        if (ri != null) ri.texture = photo;
-        
-        Debug.Log("[AlbumUI] 成功在 UI 生成一張照片");
-    }
+        foreach (Transform c in content)
+            Destroy(c.gameObject);
 
-    public void Refresh()
-    {
-        foreach (Transform child in content) Destroy(child.gameObject);
-        foreach (var data in AlbumManager.Instance.photos)
+        foreach (var meta in SaveManager.Instance.data.photos)
         {
-            AddPhotoItem(data.photo);
+            Texture2D photo = SaveManager.Instance.LoadPhoto(meta);
+            if (photo == null) continue;
+
+            GameObject item = Instantiate(photoItemPrefab, content);
+            RawImage ri = item.GetComponent<RawImage>();
+            if (ri != null) ri.texture = photo;
         }
+
+        Debug.Log("[AlbumUI] Reloaded from SaveManager");
     }
 }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -83,13 +83,13 @@ public class CameraController : MonoBehaviour
         if (feedController != null)
             feedController.FeedWithPhoto(capturedPhoto);
 
-        // ⭐ 重點 1：關掉畫面
+        // 重點 1：關掉畫面
         cameraPreview.gameObject.SetActive(false);
 
-        // ⭐ 重點 2：按鈕還活著
+        // 重點 2：按鈕還活著
         mainButton.gameObject.SetActive(true);
 
-        // ⭐ 重點 3：回到初始狀態
+        // 重點 3：回到初始狀態
         ResetFlow();
   
     }

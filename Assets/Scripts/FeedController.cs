@@ -24,6 +24,11 @@ public class FeedController : MonoBehaviour
 
     public void FeedWithPhoto(Texture2D photo)
     {
+        if (photo == null)
+        {
+            Debug.LogWarning("[FeedController] FeedWithPhoto called with null photo");
+            return;
+        }
         // 1. 觸發動畫
         if (petAnimator != null) petAnimator.SetTrigger("Eat");
 
@@ -43,8 +48,6 @@ public class FeedController : MonoBehaviour
     void ApplyFeedEffect()
     {
         if (pet == null) return;
-
-        // 【已移除放大邏輯】狗狗現在不會變大
         
         // 跳動效果：使用絕對座標，確保狗狗會回到正確位置
         pet.position = _petStartPos + Vector3.up * 0.2f;

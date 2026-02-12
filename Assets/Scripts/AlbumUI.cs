@@ -31,3 +31,7 @@ public class AlbumUI : MonoBehaviour
         Debug.Log("[AlbumUI] Reloaded from SaveManager");
     }
 }
+
+// 未來 Phase 3
+// TMP_Text timeText = item.GetComponentInChildren<TMP_Text>();
+// timeText.text = meta.timestamp.Substring(11, 5);

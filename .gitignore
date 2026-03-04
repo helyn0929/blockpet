@@ -1,0 +1,13 @@
+/[Aa]ssets/Firebase/
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Build]/
+/[Logs]/
+*.csproj
+*.unityproj
+*.sln
+*.user
+*.userprefs
+.vs/
+.vscode/

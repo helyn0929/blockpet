@@ -79,8 +79,6 @@ public class FirebaseManager : MonoBehaviour
         string json = args.Snapshot.GetRawJsonValue();
         ChatMessage msg = JsonUtility.FromJson<ChatMessage>(json);
 
-        Debug.Log($"[Firebase] New message from : {json}");
-
         // 將 UI 更新任務排入主執行緒隊列
         lock (_mainThreadQueue) {
             _mainThreadQueue.Enqueue(() => {

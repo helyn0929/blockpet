@@ -26,5 +26,7 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:39782728703:ios:74fdb4b539bd11e0fdddca</string>
+	<key>DATABASE_URL</key>
+	<string>https://blockpet-fc23b-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

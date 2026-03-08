@@ -49,7 +49,7 @@ public class CameraController : MonoBehaviour
         if (DateTime.TryParse(SaveManager.Instance.data.lastCaptureTime, out DateTime lastTime))
         {
             TimeSpan elapsed = DateTime.Now - lastTime;
-            double remainingSeconds = 900 - elapsed.TotalSeconds; // 15 分鐘冷閱
+            double remainingSeconds = 300 - elapsed.TotalSeconds; // 5 分鐘冷卻
 
             if (remainingSeconds > 0)
             {

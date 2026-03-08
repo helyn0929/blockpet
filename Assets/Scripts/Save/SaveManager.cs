@@ -7,6 +7,8 @@ public class SaveManager : MonoBehaviour
     public static SaveManager Instance;
 
     public static System.Action OnSaveDataChanged;
+    /// <summary>Fired when a photo is saved successfully (for economy, etc.).</summary>
+    public static System.Action OnPhotoSaved;
 
     [Header("Runtime Data")]
     public SaveData data = new SaveData();
@@ -69,6 +71,8 @@ public class SaveManager : MonoBehaviour
 
             Debug.Log("[SaveManager] Photo saved: " + fileName);
             Debug.Log("[SaveManager] Total photos: " + data.photos.Count);
+
+            OnPhotoSaved?.Invoke();
         }
         catch (System.Exception e)
         {

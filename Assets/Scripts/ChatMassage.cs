@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 // 加上 [Serializable] 讓 Unity 的 JsonUtility 可以處理它
 [Serializable]
@@ -18,4 +19,11 @@ public class ChatMessage
         // 取得當前 UTC 時間的 Unix 秒數
         this.timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     }
+}
+
+/// <summary>Wrapper for saving/loading chat history as JSON (sender + content per message).</summary>
+[Serializable]
+public class ChatHistorySave
+{
+    public List<ChatMessage> messages = new List<ChatMessage>();
 }

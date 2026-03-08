@@ -1,0 +1,155 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+/// <summary>
+/// Randomized pet collection: 10 pet types. Pets 1–5 need 10 new photos; Pets 6–10 need 5 new photos.
+/// Progress is relative to startingPhotoCount. On completion, a new random pet is drawn and UI resets.
+/// </summary>
+public class PetCollectionManager : MonoBehaviour
+{
+    public static PetCollectionManager Instance;
+
+    const string PrefsPetIndex = "PetCollection_CurrentPetIndex";
+    const string PrefsStartingCount = "PetCollection_StartingPhotoCount";
+
+    /// <summary>Pets 0–4 need 10 photos; pets 5–9 need 5 photos.</summary>
+    static int GetTargetAmountForPet(int petIndex)
+    {
+        return petIndex < 5 ? 10 : 5;
+    }
+
+    [Header("UI")]
+    [SerializeField] Slider progressSlider;
+    [SerializeField] TextMeshProUGUI progressPercentText;
+    [SerializeField] TextMeshProUGUI progressCountText;
+    [SerializeField] TextMeshProUGUI petNameText;
+
+    int currentPetIndex;
+    int startingPhotoCount;
+
+    int CurrentPhotoCount => SaveManager.Instance != null && SaveManager.Instance.data?.photos != null
+        ? SaveManager.Instance.data.photos.Count
+        : 0;
+
+    int CurrentProgress => Mathf.Max(0, CurrentPhotoCount - startingPhotoCount);
+    int TargetAmount => GetTargetAmountForPet(currentPetIndex);
+
+    void Awake()
+    {
+        if (Instance != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        // Load persisted state first so album progress continues after restart
+        LoadFromPlayerPrefs();
+        EnsureValidState();
+        RefreshAllUI();
+    }
+
+    void Start()
+    {
+        // Re-validate after SaveManager has loaded so CurrentPhotoCount is correct; save if state changed
+        EnsureValidState();
+        RefreshAllUI();
+    }
+
+    void OnEnable()
+    {
+        SaveManager.OnPhotoSaved += OnPhotoSaved;
+    }
+
+    void OnDisable()
+    {
+        SaveManager.OnPhotoSaved -= OnPhotoSaved;
+    }
+
+    void LoadFromPlayerPrefs()
+    {
+        currentPetIndex = PlayerPrefs.GetInt(PrefsPetIndex, 0);
+        startingPhotoCount = PlayerPrefs.GetInt(PrefsStartingCount, 0);
+    }
+
+    /// <summary>Call whenever currentPetIndex or startingPhotoCount change so progress persists after restart.</summary>
+    void SaveToPlayerPrefs()
+    {
+        PlayerPrefs.SetInt(PrefsPetIndex, currentPetIndex);
+        PlayerPrefs.SetInt(PrefsStartingCount, startingPhotoCount);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>Ensure we're not past target (e.g. after load) and complete pets until we're on a valid one.</summary>
+    void EnsureValidState()
+    {
+        int total = CurrentPhotoCount;
+        int progress = CurrentProgress;
+        int target = TargetAmount;
+
+        while (progress >= target && target > 0)
+        {
+            // Complete current pet and draw next
+            currentPetIndex = Random.Range(0, 10);
+            startingPhotoCount = total;
+            SaveToPlayerPrefs();
+            progress = CurrentProgress;
+            target = TargetAmount;
+        }
+    }
+
+    void OnPhotoSaved()
+    {
+        int total = CurrentPhotoCount;
+        int progress = CurrentProgress;
+        int target = TargetAmount;
+
+        if (progress >= target && target > 0)
+        {
+            // Pet completed: random new pet, offset from current count
+            currentPetIndex = Random.Range(0, 10);
+            startingPhotoCount = total;
+            SaveToPlayerPrefs();
+        }
+
+        RefreshAllUI();
+    }
+
+    void RefreshAllUI()
+    {
+        int progress = CurrentProgress;
+        int target = TargetAmount;
+
+        // Slider (0–1)
+        if (progressSlider != null)
+        {
+            progressSlider.minValue = 0f;
+            progressSlider.maxValue = 1f;
+            progressSlider.value = target > 0 ? Mathf.Clamp01((float)progress / target) : 0f;
+        }
+
+        // Percentage
+        if (progressPercentText != null)
+        {
+            float pct = target > 0 ? (100f * progress / target) : 0f;
+            progressPercentText.text = $"{Mathf.FloorToInt(pct)}%";
+        }
+
+        // Progress count e.g. "3 / 10"
+        if (progressCountText != null)
+            progressCountText.text = $"{progress} / {target}";
+
+        // Dynamic name by current pet index (Dog for 0–4, Cat for 5–9); updates immediately when pet changes
+        if (petNameText != null)
+            petNameText.text = GetPetDisplayName(currentPetIndex);
+    }
+
+    /// <summary>Display name by current pet index: 0–4 = Dog, 5–9 = Cat.</summary>
+    static string GetPetDisplayName(int petIndex)
+    {
+        return petIndex >= 5 ? "Cat" : "Dog";
+    }
+}

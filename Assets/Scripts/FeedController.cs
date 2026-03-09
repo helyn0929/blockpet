@@ -29,6 +29,14 @@ public class FeedController : MonoBehaviour
             Debug.LogWarning("[FeedController] FeedWithPhoto called with null photo");
             return;
         }
+
+        // Require Firebase Auth before allowing photo contribution (shared progress)
+        if (FirebaseManager.Instance == null || !FirebaseManager.Instance.IsLoggedIn)
+        {
+            Debug.LogWarning("[FeedController] Sign in with Firebase to contribute photos.");
+            return;
+        }
+
         // 1. 觸發動畫
         if (petAnimator != null) petAnimator.SetTrigger("Eat");
 

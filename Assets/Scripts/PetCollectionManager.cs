@@ -1,29 +1,23 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Firebase.Database;
-using System;
-using System.Collections.Generic;
 
 /// <summary>
-/// Shared pet collection progress via Firebase. Pets 0–4 need 10 photos; 5–9 need 5.
-/// Listens to SharedPets/Pet_XX/CurrentCount for real-time bar; pushes increment on photo save (when logged in).
+/// Randomized pet collection: 10 pet types. Pets 1–5 need 10 new photos; Pets 6–10 need 5 new photos.
+/// Progress is relative to startingPhotoCount. On completion, a new random pet is drawn and UI resets.
 /// </summary>
 public class PetCollectionManager : MonoBehaviour
 {
     public static PetCollectionManager Instance;
 
     const string PrefsPetIndex = "PetCollection_CurrentPetIndex";
-    const string SharedPetsPath = "SharedPets";
-    const string CurrentCountKey = "CurrentCount";
+    const string PrefsStartingCount = "PetCollection_StartingPhotoCount";
 
     /// <summary>Pets 0–4 need 10 photos; pets 5–9 need 5 photos.</summary>
-    public static int GetTargetAmountForPet(int petIndex)
+    static int GetTargetAmountForPet(int petIndex)
     {
         return petIndex < 5 ? 10 : 5;
     }
-
-    static string PetKey(int index) => "Pet_" + index.ToString("D2");
 
     [Header("UI")]
     [SerializeField] Slider progressSlider;
@@ -32,11 +26,13 @@ public class PetCollectionManager : MonoBehaviour
     [SerializeField] TextMeshProUGUI petNameText;
 
     int currentPetIndex;
-    int sharedProgressCount; // from Firebase for current pet
-    EventHandler<ValueChangedEventArgs> currentPetListener;
-    DatabaseReference currentPetRef;
-    Queue<Action> mainThreadQueue = new Queue<Action>();
+    int startingPhotoCount;
 
+    int CurrentPhotoCount => SaveManager.Instance != null && SaveManager.Instance.data?.photos != null
+        ? SaveManager.Instance.data.photos.Count
+        : 0;
+
+    int CurrentProgress => Mathf.Max(0, CurrentPhotoCount - startingPhotoCount);
     int TargetAmount => GetTargetAmountForPet(currentPetIndex);
 
     void Awake()
@@ -50,22 +46,16 @@ public class PetCollectionManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        // Load persisted state first so album progress continues after restart
         LoadFromPlayerPrefs();
-        SubscribeToCurrentPet();
+        EnsureValidState();
         RefreshAllUI();
-    }
-
-    void Update()
-    {
-        lock (mainThreadQueue)
-        {
-            while (mainThreadQueue.Count > 0)
-                mainThreadQueue.Dequeue().Invoke();
-        }
     }
 
     void Start()
     {
+        // Re-validate after SaveManager has loaded so CurrentPhotoCount is correct; save if state changed
+        EnsureValidState();
         RefreshAllUI();
     }
 
@@ -77,112 +67,60 @@ public class PetCollectionManager : MonoBehaviour
     void OnDisable()
     {
         SaveManager.OnPhotoSaved -= OnPhotoSaved;
-        UnsubscribeFromCurrentPet();
     }
 
     void LoadFromPlayerPrefs()
     {
         currentPetIndex = PlayerPrefs.GetInt(PrefsPetIndex, 0);
+        startingPhotoCount = PlayerPrefs.GetInt(PrefsStartingCount, 0);
     }
 
+    /// <summary>Call whenever currentPetIndex or startingPhotoCount change so progress persists after restart.</summary>
     void SaveToPlayerPrefs()
     {
         PlayerPrefs.SetInt(PrefsPetIndex, currentPetIndex);
+        PlayerPrefs.SetInt(PrefsStartingCount, startingPhotoCount);
         PlayerPrefs.Save();
     }
 
-    DatabaseReference GetSharedPetCountRef(int petIndex)
+    /// <summary>Ensure we're not past target (e.g. after load) and complete pets until we're on a valid one.</summary>
+    void EnsureValidState()
     {
-        var root = FirebaseManager.Instance?.GetDatabaseRoot();
-        if (root == null) return null;
-        return root.Child(SharedPetsPath).Child(PetKey(petIndex)).Child(CurrentCountKey);
-    }
-
-    void UnsubscribeFromCurrentPet()
-    {
-        if (currentPetRef != null && currentPetListener != null)
-        {
-            currentPetRef.ValueChanged -= currentPetListener;
-            currentPetRef = null;
-            currentPetListener = null;
-        }
-    }
-
-    void SubscribeToCurrentPet()
-    {
-        UnsubscribeFromCurrentPet();
-        var refCount = GetSharedPetCountRef(currentPetIndex);
-        if (refCount == null) return;
-
-        currentPetRef = refCount;
-        currentPetListener = (sender, args) =>
-        {
-            if (args.DatabaseError != null)
-            {
-                Debug.LogWarning("[PetCollection] Firebase error: " + args.DatabaseError.Message);
-                return;
-            }
-            long val = 0;
-            if (args.Snapshot.Exists && args.Snapshot.Value != null)
-            {
-                if (args.Snapshot.Value is long l) val = l;
-                else if (args.Snapshot.Value is int i) val = i;
-            }
-            int count = (int)Mathf.Clamp(val, 0, int.MaxValue);
-            lock (mainThreadQueue)
-            {
-                mainThreadQueue.Enqueue(() =>
-                {
-                    sharedProgressCount = count;
-                    CheckCompletionAndAdvancePet();
-                    RefreshAllUI();
-                });
-            }
-        };
-        currentPetRef.ValueChanged += currentPetListener;
-    }
-
-    void CheckCompletionAndAdvancePet()
-    {
+        int total = CurrentPhotoCount;
+        int progress = CurrentProgress;
         int target = TargetAmount;
-        if (target <= 0 || sharedProgressCount < target) return;
 
-        currentPetIndex = UnityEngine.Random.Range(0, 10);
-        SaveToPlayerPrefs();
-        UnsubscribeFromCurrentPet();
-        SubscribeToCurrentPet();
+        while (progress >= target && target > 0)
+        {
+            // Complete current pet and draw next
+            currentPetIndex = Random.Range(0, 10);
+            startingPhotoCount = total;
+            SaveToPlayerPrefs();
+            progress = CurrentProgress;
+            target = TargetAmount;
+        }
     }
 
     void OnPhotoSaved()
     {
-        if (FirebaseManager.Instance == null || !FirebaseManager.Instance.IsLoggedIn)
-            return;
+        int total = CurrentPhotoCount;
+        int progress = CurrentProgress;
+        int target = TargetAmount;
 
-        var refCount = GetSharedPetCountRef(currentPetIndex);
-        if (refCount == null) return;
-
-        refCount.RunTransaction(mutableData =>
+        if (progress >= target && target > 0)
         {
-            long current = 0;
-            if (mutableData.Value != null)
-            {
-                if (mutableData.Value is long l) current = l;
-                else if (mutableData.Value is int i) current = i;
-            }
-            mutableData.Value = current + 1;
-            return TransactionResult.Success(mutableData);
-        }).ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-                Debug.LogWarning("[PetCollection] Increment failed: " + t.Exception?.Message);
-        });
+            // Pet completed: random new pet, offset from current count
+            currentPetIndex = Random.Range(0, 10);
+            startingPhotoCount = total;
+            SaveToPlayerPrefs();
+        }
 
         RefreshAllUI();
     }
 
     void RefreshAllUI()
     {
-        int progress = sharedProgressCount;
+        int progress = CurrentProgress;
         int target = TargetAmount;
 
         // Slider (0–1)

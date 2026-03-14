@@ -13,7 +13,12 @@
           "package_name": "com.linnTech.blockpet"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "39782728703-9kf4c6p1lggr12b4t78nblohavu226td.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBMRpIKaVSLQxdD2jTiyAx7hiW2ZMpOBgo"
@@ -21,7 +26,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "39782728703-9kf4c6p1lggr12b4t78nblohavu226td.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "39782728703-9kf7f2feei6ot7qu2lh16b60c7tn8su9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.linnTech.blockpet"
+              }
+            }
+          ]
         }
       }
     }

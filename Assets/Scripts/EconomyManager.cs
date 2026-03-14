@@ -49,6 +49,12 @@ public class EconomyManager : MonoBehaviour
         SaveManager.OnPhotoSaved -= AddMoneyFromPhoto;
     }
 
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     void LoadMoney()
     {
         currentMoney = PlayerPrefs.GetInt(PlayerPrefsKey, 0);
@@ -91,6 +97,9 @@ public class EconomyManager : MonoBehaviour
 
         while (elapsed < countUpDuration)
         {
+            if (moneyText == null)
+                yield break;
+
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / countUpDuration);
             t = 1f - (1f - t) * (1f - t); // ease-out quadratic
@@ -99,8 +108,11 @@ public class EconomyManager : MonoBehaviour
             yield return null;
         }
 
-        displayedMoney = to;
-        RefreshMoneyUI();
+        if (moneyText != null)
+        {
+            displayedMoney = to;
+            RefreshMoneyUI();
+        }
         countUpRoutine = null;
     }
 

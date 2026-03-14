@@ -25,8 +25,12 @@ public class ChatUIHandler : MonoBehaviour
 
     void Awake()
     {
-        // 初始化單例
         if (Instance == null) Instance = this;
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     void Start()
@@ -39,6 +43,7 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnSendMessage()
     {
+        if (inputField == null) return;
         if (string.IsNullOrEmpty(inputField.text)) return;
 
         if (FirebaseManager.Instance != null)

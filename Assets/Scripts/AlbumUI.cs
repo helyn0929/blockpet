@@ -35,11 +35,14 @@ public class AlbumUI : MonoBehaviour
         foreach (Transform c in content)
             Destroy(c.gameObject);
 
-        // 2. 核心邏輯：依照日期 (Month Day) 分組
-        // 從 "2026-03-02 10:15:00" 擷取索引 5 開始的 5 個字元得到 "03-02"
-        var groupedPhotos = SaveManager.Instance.data.photos
-            .GroupBy(p => p.timestamp.Substring(5, 5)) 
-            .OrderByDescending(g => g.Key); // 讓最新的日期排在最上面
+        // 2. 核心邏輯：依照日期 (Month Day) 分組；跳過 timestamp 為 null 或過短的項目，避免 Substring 崩潰
+        const int minTimestampLength = 16; // "yyyy-MM-dd HH:mm" 至少 16
+        var validPhotos = SaveManager.Instance.data.photos
+            .Where(p => p != null && !string.IsNullOrEmpty(p.timestamp) && p.timestamp.Length >= 10)
+            .ToList();
+        var groupedPhotos = validPhotos
+            .GroupBy(p => p.timestamp.Length >= 10 ? p.timestamp.Substring(5, 5) : "00-00")
+            .OrderByDescending(g => g.Key);
 
         foreach (var group in groupedPhotos)
         {

@@ -29,6 +29,12 @@ public class FeedController : MonoBehaviour
             Debug.LogWarning("[FeedController] FeedWithPhoto called with null photo");
             return;
         }
+        if (SaveManager.Instance == null)
+        {
+            Debug.LogWarning("[FeedController] SaveManager.Instance is null, cannot save photo.");
+            return;
+        }
+
         // 1. 觸發動畫
         if (petAnimator != null) petAnimator.SetTrigger("Eat");
 

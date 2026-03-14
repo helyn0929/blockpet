@@ -32,7 +32,7 @@ public class PetHealthManager : MonoBehaviour
 
     void CalculateOfflineDecay()
     {
-        // 檢查文字欄位是否為空
+        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
         if (string.IsNullOrEmpty(SaveManager.Instance.data.lastUpdateTime)) return;
 
         // 這裡必須解析文字欄位 (lastUpdateTime)
@@ -53,6 +53,7 @@ public class PetHealthManager : MonoBehaviour
 
     public void AddHealth()
     {
+        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
         SaveManager.Instance.data.currentHealth += healAmount;
         if (SaveManager.Instance.data.currentHealth > maxHealth)
             SaveManager.Instance.data.currentHealth = maxHealth;
@@ -62,7 +63,7 @@ public class PetHealthManager : MonoBehaviour
 
     void UpdateUI()
     {
-        if (healthSlider != null)
-            healthSlider.value = SaveManager.Instance.data.currentHealth;
+        if (healthSlider == null || SaveManager.Instance == null || SaveManager.Instance.data == null) return;
+        healthSlider.value = SaveManager.Instance.data.currentHealth;
     }
 }

@@ -3,12 +3,13 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Toggle album panel open/closed when the album entry button is pressed.
-/// Assign the album button and album panel in the Inspector; the button's onClick will toggle the panel.
+/// Album cannot be opened while the camera is in Preview or Frozen state.
 /// </summary>
 public class AlbumPanelToggle : MonoBehaviour
 {
     [SerializeField] Button albumButton;
     [SerializeField] GameObject albumPanel;
+    [SerializeField] CameraController cameraController;
 
     void Start()
     {
@@ -18,12 +19,26 @@ public class AlbumPanelToggle : MonoBehaviour
             return;
         }
 
+        if (cameraController == null)
+            cameraController = FindObjectOfType<CameraController>();
+
         albumButton.onClick.RemoveAllListeners();
         albumButton.onClick.AddListener(ToggleAlbum);
     }
 
     public void ToggleAlbum()
     {
-        albumPanel.SetActive(!albumPanel.activeSelf);
+        if (albumPanel == null) return;
+
+        if (albumPanel.activeSelf)
+        {
+            albumPanel.SetActive(false);
+            return;
+        }
+
+        if (cameraController != null && cameraController.IsCameraActive())
+            return;
+
+        albumPanel.SetActive(true);
     }
 }

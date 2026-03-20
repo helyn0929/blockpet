@@ -4,4 +4,18 @@
   <projectSetting name="com.google.external-dependency-managerAnalyticsEnabled" value="True" />
   <projectSetting name="com.google.firebaseAnalyticsCookie" value="d85d42dc67f54b4c8d5b6174e7b3a2df" />
   <projectSetting name="com.google.firebaseAnalyticsEnabled" value="True" />
+  <projectSetting name="Google.IOSResolver.AllowEmptyPodfileGeneration" value="True" />
+  <projectSetting name="Google.IOSResolver.AutoPodToolInstallInEditor" value="False" />
+  <projectSetting name="Google.IOSResolver.CocoapodsIntegrationMethod" value="2" />
+  <projectSetting name="Google.IOSResolver.PodfileAddUseFrameworks" value="True" />
+  <projectSetting name="Google.IOSResolver.PodfileAllowPodsInMultipleTargets" value="True" />
+  <projectSetting name="Google.IOSResolver.PodfileAlwaysAddMainTarget" value="True" />
+  <projectSetting name="Google.IOSResolver.PodfileEnabled" value="True" />
+  <projectSetting name="Google.IOSResolver.PodfileStaticLinkFrameworks" value="True" />
+  <projectSetting name="Google.IOSResolver.PodToolExecutionViaShellEnabled" value="True" />
+  <projectSetting name="Google.IOSResolver.PodToolShellExecutionSetLang" value="True" />
+  <projectSetting name="Google.IOSResolver.SwiftFrameworkSupportWorkaroundEnabled" value="True" />
+  <projectSetting name="Google.IOSResolver.SwiftLanguageVersion" value="5.0" />
+  <projectSetting name="Google.IOSResolver.SwiftPackageManagerEnabled" value="True" />
+  <projectSetting name="Google.IOSResolver.VerboseLoggingEnabled" value="False" />
 </projectSettings>

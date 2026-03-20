@@ -6,7 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
 using Google;
 #endif
 
@@ -62,7 +62,7 @@ public class FirebaseManager : MonoBehaviour
 
     public void SignInWithGoogle()
     {
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
         if (auth == null)
         {
             lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
@@ -76,12 +76,12 @@ public class FirebaseManager : MonoBehaviour
         GoogleSignIn.Configuration = configuration;
         GoogleSignIn.DefaultInstance.SignIn().ContinueWith(OnGoogleSignInFinished);
 #else
-        Debug.LogWarning("Google Sign-In is only supported on Android and iOS.");
+        Debug.LogWarning("Google Sign-In is unavailable: define GOOGLE_SIGN_IN and install the Google Sign-In SDK (Android/iOS), or use another sign-in method.");
         lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
 #endif
     }
 
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
     void OnGoogleSignInFinished(Task<GoogleSignInUser> task)
     {
         if (task.IsCanceled)

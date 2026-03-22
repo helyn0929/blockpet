@@ -23,6 +23,13 @@ public class CameraController : MonoBehaviour
     WebCamTexture webcamTexture;
     Texture2D capturedPhoto;
     CameraState state = CameraState.Idle;
+    bool isFrontCamera;
+
+    /// <summary>When true, CameraUIManager handles all button labels and cooldown display.</summary>
+    [HideInInspector] public bool uiManagedExternally;
+
+    public CameraState CurrentState => state;
+    public bool IsFrontCamera => isFrontCamera;
 
     void Awake()
     {
@@ -73,7 +80,7 @@ public class CameraController : MonoBehaviour
     void Update()
     {
         // 只有在 Idle 狀態時，才檢查並顯示冷卻倒數
-        if (state == CameraState.Idle)
+        if (state == CameraState.Idle && !uiManagedExternally)
         {
             UpdateCooldownDisplay();
         }
@@ -121,7 +128,7 @@ public class CameraController : MonoBehaviour
         }
     }
 
-    void StartCamera()
+    public void StartCamera()
     {
         ClearOtherPanelsBeforeCamera();
         if (albumPanel != null) albumPanel.SetActive(false);
@@ -129,16 +136,50 @@ public class CameraController : MonoBehaviour
         if (cameraPreview != null && cameraPreview.transform != null)
             cameraPreview.transform.SetAsLastSibling();
 
-        webcamTexture = new WebCamTexture();
-        if (cameraPreview != null) cameraPreview.texture = webcamTexture;
-        webcamTexture.Play();
+        StartWebcam(isFrontCamera);
+
         if (cameraPreview != null && cameraPreview.gameObject != null)
             cameraPreview.gameObject.SetActive(true);
         state = CameraState.Preview;
         if (buttonText != null) buttonText.text = "Shot";
     }
 
-    void TakePhoto()
+    /// <summary>Toggle between front and rear camera while keeping the preview alive.</summary>
+    public void SwitchCamera()
+    {
+        if (state != CameraState.Preview) return;
+
+        isFrontCamera = !isFrontCamera;
+        StartWebcam(isFrontCamera);
+    }
+
+    void StartWebcam(bool front)
+    {
+        if (webcamTexture != null)
+        {
+            webcamTexture.Stop();
+            webcamTexture = null;
+        }
+
+        string deviceName = PickDevice(front);
+        webcamTexture = string.IsNullOrEmpty(deviceName)
+            ? new WebCamTexture()
+            : new WebCamTexture(deviceName);
+
+        if (cameraPreview != null) cameraPreview.texture = webcamTexture;
+        webcamTexture.Play();
+    }
+
+    static string PickDevice(bool front)
+    {
+        foreach (var d in WebCamTexture.devices)
+            if (d.isFrontFacing == front) return d.name;
+
+        // Fallback: if requested facing isn't available, return first device.
+        return WebCamTexture.devices.Length > 0 ? WebCamTexture.devices[0].name : null;
+    }
+
+    public void TakePhoto()
     {
         if (webcamTexture == null) return;
         capturedPhoto = new Texture2D(webcamTexture.width, webcamTexture.height);
@@ -149,7 +190,24 @@ public class CameraController : MonoBehaviour
         if (buttonText != null) buttonText.text = "Feed";
     }
 
-    void FeedPhoto()
+    /// <summary>From Frozen → Preview: restore live webcam feed so the user can retake.</summary>
+    public void RetakePhoto()
+    {
+        if (state != CameraState.Frozen) return;
+
+        if (webcamTexture == null || !webcamTexture.isPlaying)
+        {
+            StartCamera();
+            return;
+        }
+
+        if (cameraPreview != null) cameraPreview.texture = webcamTexture;
+        capturedPhoto = null;
+        state = CameraState.Preview;
+        if (buttonText != null) buttonText.text = "Shot";
+    }
+
+    public void FeedPhoto()
     {
         if (feedController != null)
             feedController.FeedWithPhoto(capturedPhoto);

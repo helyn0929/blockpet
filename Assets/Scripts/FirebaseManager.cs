@@ -42,6 +42,20 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    /// <summary>Returns the current Firebase user ID, or null if not signed in.</summary>
+    public string GetUserId()
+    {
+        return auth?.CurrentUser?.UserId;
+    }
+
+    /// <summary>Returns the display name from the Firebase user, or "Guest".</summary>
+    public string GetDisplayName()
+    {
+        var user = auth?.CurrentUser;
+        if (user == null) return "Guest";
+        return string.IsNullOrEmpty(user.DisplayName) ? "Guest" : user.DisplayName;
+    }
+
     void OnDestroy()
     {
         if (Instance == this)

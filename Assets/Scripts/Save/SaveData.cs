@@ -11,6 +11,9 @@ public class SaveData
     public string lastUpdateTime; 
 
     public string lastCaptureTime;
+
+    /// <summary>File name of the user's avatar image (stored in persistentDataPath/avatars/).</summary>
+    public string avatarFileName;
 }
 
 //json's root

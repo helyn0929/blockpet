@@ -11,6 +11,7 @@ public class LoginUIHandler : MonoBehaviour
     [Header("UI References")]
     public CanvasGroup loginPanel;
     public GameObject mainGameUI;
+    public GameObject mainRoomBackground;
     public TextMeshProUGUI statusText;
     public GameObject loadingIcon;
 
@@ -24,6 +25,9 @@ public class LoginUIHandler : MonoBehaviour
 
         if (mainGameUI != null)
             mainGameUI.SetActive(false);
+
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(false);
 
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
@@ -90,15 +94,43 @@ public class LoginUIHandler : MonoBehaviour
         if (success)
         {
             if (statusText != null) statusText.text = "Login Successful!";
-            StartCoroutine(FadeOutAndStartGame());
+
+            if (AvatarManager.Instance != null)
+                AvatarManager.Instance.LoadAvatarFromSave();
+
+            StartCoroutine(PostLoginFlow());
         }
+    }
+
+    IEnumerator PostLoginFlow()
+    {
+        // First-time user: prompt them to pick an avatar before entering the game.
+        if (AvatarManager.Instance != null && !AvatarManager.Instance.HasAvatar)
+        {
+            if (statusText != null) statusText.text = "Choose your avatar!";
+
+            bool pickFinished = false;
+            AvatarManager.Instance.PickAvatarFromGallery((picked) =>
+            {
+                pickFinished = true;
+            });
+
+            // Wait until the gallery picker completes (selected or cancelled).
+            while (!pickFinished)
+                yield return null;
+        }
+
+        yield return StartCoroutine(FadeOutAndStartGame());
     }
 
     IEnumerator FadeOutAndStartGame()
     {
-        // First: show main game
+        // First: show main game + world background
         if (mainGameUI != null)
             mainGameUI.SetActive(true);
+
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(true);
 
         // Second: lerp loginPanel CanvasGroup alpha from 1 to 0
         if (loginPanel != null && fadeDuration > 0f)

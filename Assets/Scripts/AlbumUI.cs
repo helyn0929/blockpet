@@ -36,7 +36,6 @@ public class AlbumUI : MonoBehaviour
             Destroy(c.gameObject);
 
         // 2. 核心邏輯：依照日期 (Month Day) 分組；跳過 timestamp 為 null 或過短的項目，避免 Substring 崩潰
-        const int minTimestampLength = 16; // "yyyy-MM-dd HH:mm" 至少 16
         var validPhotos = SaveManager.Instance.data.photos
             .Where(p => p != null && !string.IsNullOrEmpty(p.timestamp) && p.timestamp.Length >= 10)
             .ToList();

@@ -120,6 +120,8 @@ public class CameraController : MonoBehaviour
 
     public void OnMainButtonPressed()
     {
+        if (uiManagedExternally) return;
+
         switch (state)
         {
             case CameraState.Idle: StartCamera(); break;

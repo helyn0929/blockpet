@@ -30,14 +30,24 @@ public class CameraUIManager : MonoBehaviour
     [SerializeField] TMP_Text chatButtonText;
     [SerializeField] TMP_Text albumButtonText;
 
-    [Header("Home-State Labels")]
-    [SerializeField] string homeCameraLabel = "Camera";
-    [SerializeField] string homeChatLabel   = "Chat";
-    [SerializeField] string homeAlbumLabel  = "Album";
-
     [Header("Panels")]
     [SerializeField] GameObject chatPanel;
     [SerializeField] GameObject albumPanel;
+
+    [Header("Camera Button Sprites")]
+    [SerializeField] Sprite iconCamera;
+    [SerializeField] Sprite iconCooldown;
+    [SerializeField] Sprite iconShot;
+    [SerializeField] Sprite iconFeed;
+
+    [Header("Chat Button Sprites")]
+    [SerializeField] Sprite iconChat;
+    [SerializeField] Sprite iconFrontCam;
+    [SerializeField] Sprite iconBackCam;
+
+    [Header("Album Button Sprites")]
+    [SerializeField] Sprite iconAlbum;
+    [SerializeField] Sprite iconTurnOut;
 
     [Header("Dependencies")]
     [SerializeField] CameraController cameraController;
@@ -165,7 +175,7 @@ public class CameraUIManager : MonoBehaviour
         if (cameraController != null)
             cameraController.SwitchCamera();
 
-        UpdateCameraSwitchLabel();
+        UpdateCameraSwitchSprite();
     }
 
     void ExitCameraMode()
@@ -213,26 +223,36 @@ public class CameraUIManager : MonoBehaviour
         switch (mode)
         {
             case UIMode.Home:
-                SetLabel(cameraButtonText, homeCameraLabel);
-                SetLabel(chatButtonText,   homeChatLabel);
-                SetLabel(albumButtonText,  homeAlbumLabel);
+                SetLabel(cameraButtonText, "");
+                SetLabel(chatButtonText,   "");
+                SetLabel(albumButtonText,  "");
+                SetButtonSprite(cameraButton, iconCamera);
+                SetButtonSprite(chatButton,   iconChat);
+                SetButtonSprite(albumButton,  iconAlbum);
                 SetInteractable(cameraButton, true);
                 SetInteractable(chatButton,   true);
                 SetInteractable(albumButton,  true);
                 break;
 
             case UIMode.CameraPreview:
-                SetLabel(cameraButtonText, "Shot");
-                SetLabel(albumButtonText,  "Turn Out");
+                SetLabel(cameraButtonText, "");
+                SetLabel(chatButtonText,   "");
+                SetLabel(albumButtonText,  "");
+                SetButtonSprite(cameraButton, iconShot);
+                SetButtonSprite(albumButton,  iconTurnOut);
                 SetInteractable(cameraButton, true);
                 SetInteractable(chatButton,   true);
                 SetInteractable(albumButton,  true);
-                UpdateCameraSwitchLabel();
+                UpdateCameraSwitchSprite();
                 break;
 
             case UIMode.PhotoTaken:
-                SetLabel(cameraButtonText, "Feed");
-                SetLabel(albumButtonText,  "Turn Out");
+                SetLabel(cameraButtonText, "");
+                SetLabel(chatButtonText,   "");
+                SetLabel(albumButtonText,  "");
+                SetButtonSprite(cameraButton, iconFeed);
+                SetButtonSprite(chatButton,   iconChat);
+                SetButtonSprite(albumButton,  iconTurnOut);
                 SetInteractable(cameraButton, true);
                 SetInteractable(chatButton,   false);
                 SetInteractable(albumButton,  true);
@@ -240,11 +260,11 @@ public class CameraUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>Sets the chat button label to reflect which camera will be activated next.</summary>
-    void UpdateCameraSwitchLabel()
+    /// <summary>Swaps the chat button sprite to show which camera will be activated next.</summary>
+    void UpdateCameraSwitchSprite()
     {
         if (cameraController == null) return;
-        SetLabel(chatButtonText, cameraController.IsFrontCamera ? "Back" : "Front");
+        SetButtonSprite(chatButton, cameraController.IsFrontCamera ? iconBackCam : iconFrontCam);
     }
 
     // ================================================================
@@ -258,7 +278,8 @@ public class CameraUIManager : MonoBehaviour
         if (SaveManager.Instance == null || SaveManager.Instance.data == null ||
             string.IsNullOrEmpty(SaveManager.Instance.data.lastCaptureTime))
         {
-            cameraButtonText.text = homeCameraLabel;
+            cameraButtonText.text = "";
+            SetButtonSprite(cameraButton, iconCamera);
             cameraButton.interactable = true;
             return;
         }
@@ -271,13 +292,15 @@ public class CameraUIManager : MonoBehaviour
             if (remaining > 0)
             {
                 cameraButton.interactable = false;
+                SetButtonSprite(cameraButton, iconCooldown);
                 TimeSpan t = TimeSpan.FromSeconds(remaining);
                 cameraButtonText.text = string.Format("{0:D2}:{1:D2}", t.Minutes, t.Seconds);
             }
             else
             {
                 cameraButton.interactable = true;
-                cameraButtonText.text = homeCameraLabel;
+                SetButtonSprite(cameraButton, iconCamera);
+                cameraButtonText.text = "";
             }
         }
     }
@@ -301,5 +324,12 @@ public class CameraUIManager : MonoBehaviour
     static void SetInteractable(Button btn, bool value)
     {
         if (btn != null) btn.interactable = value;
+    }
+
+    static void SetButtonSprite(Button btn, Sprite sprite)
+    {
+        if (btn == null || sprite == null) return;
+        Image img = btn.GetComponent<Image>();
+        if (img != null) img.sprite = sprite;
     }
 }

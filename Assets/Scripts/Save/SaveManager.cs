@@ -63,8 +63,9 @@ public class SaveManager : MonoBehaviour
             byte[] bytes = photo.EncodeToPNG();
             File.WriteAllBytes(fullPath, bytes);
 
-            // Record meta
-            PhotoMeta meta = new PhotoMeta(fileName);
+            // Record meta with the current user's avatar
+            string takerAvatar = data.avatarFileName;
+            PhotoMeta meta = new PhotoMeta(fileName, takerAvatar);
             data.photos.Add(meta);
 
             Save();
@@ -73,6 +74,7 @@ public class SaveManager : MonoBehaviour
             Debug.Log("[SaveManager] Total photos: " + data.photos.Count);
 
             OnPhotoSaved?.Invoke();
+            OnSaveDataChanged?.Invoke();
         }
         catch (System.Exception e)
         {

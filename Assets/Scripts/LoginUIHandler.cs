@@ -15,6 +15,12 @@ public class LoginUIHandler : MonoBehaviour
     public TextMeshProUGUI statusText;
     public GameObject loadingIcon;
 
+    [Header("Gameplay HUD (hidden until login succeeds)")]
+    [Tooltip("Optional override. If empty, finds EconomyManager in the scene.")]
+    [SerializeField] EconomyManager economyManager;
+    [Tooltip("Optional override. If empty, finds PetCollectionManager in the scene.")]
+    [SerializeField] PetCollectionManager petCollectionManager;
+
     [Header("Settings")]
     public float fadeDuration = 0.5f;
 
@@ -31,6 +37,25 @@ public class LoginUIHandler : MonoBehaviour
 
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
+
+        ResolveHudManagers();
+        SetGameplayHudVisible(false);
+    }
+
+    void ResolveHudManagers()
+    {
+        if (economyManager == null)
+            economyManager = FindObjectOfType<EconomyManager>();
+        if (petCollectionManager == null)
+            petCollectionManager = FindObjectOfType<PetCollectionManager>();
+    }
+
+    void SetGameplayHudVisible(bool visible)
+    {
+        if (economyManager != null)
+            economyManager.gameObject.SetActive(visible);
+        if (petCollectionManager != null)
+            petCollectionManager.gameObject.SetActive(visible);
     }
 
     void OnEnable()
@@ -125,12 +150,14 @@ public class LoginUIHandler : MonoBehaviour
 
     IEnumerator FadeOutAndStartGame()
     {
-        // First: show main game + world background
+        // First: show main game + world background + economy / pet progress HUD
         if (mainGameUI != null)
             mainGameUI.SetActive(true);
 
         if (mainRoomBackground != null)
             mainRoomBackground.SetActive(true);
+
+        SetGameplayHudVisible(true);
 
         // Second: lerp loginPanel CanvasGroup alpha from 1 to 0
         if (loginPanel != null && fadeDuration > 0f)

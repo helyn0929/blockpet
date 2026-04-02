@@ -30,9 +30,13 @@ public class CameraUIManager : MonoBehaviour
     [SerializeField] TMP_Text chatButtonText;
     [SerializeField] TMP_Text albumButtonText;
 
-    [Header("Panels")]
+    [Header("Panels (legacy — used only if Page Manager is not assigned)")]
     [SerializeField] GameObject chatPanel;
     [SerializeField] GameObject albumPanel;
+
+    [Header("Page system")]
+    [Tooltip("When set, Home uses ShowChatPage / ShowAlbumPage instead of toggling loose panels.")]
+    [SerializeField] PageManager pageManager;
 
     [Header("Camera Button Sprites")]
     [SerializeField] Sprite iconCamera;
@@ -60,6 +64,12 @@ public class CameraUIManager : MonoBehaviour
 
     UIMode mode = UIMode.Home;
     public UIMode CurrentMode => mode;
+
+    void Awake()
+    {
+        if (pageManager == null)
+            pageManager = FindObjectOfType<PageManager>();
+    }
 
     void Start()
     {
@@ -137,8 +147,13 @@ public class CameraUIManager : MonoBehaviour
 
     void EnterCameraMode()
     {
-        if (chatPanel  != null) chatPanel.SetActive(false);
-        if (albumPanel != null) albumPanel.SetActive(false);
+        if (pageManager != null)
+            pageManager.ShowHomePage();
+        else
+        {
+            if (chatPanel  != null) chatPanel.SetActive(false);
+            if (albumPanel != null) albumPanel.SetActive(false);
+        }
 
         if (cameraController != null)
             cameraController.StartCamera();
@@ -192,12 +207,26 @@ public class CameraUIManager : MonoBehaviour
 
     void ToggleChatPanel()
     {
+        if (pageManager != null)
+        {
+            pageManager.ShowChatPage();
+            return;
+        }
+
         if (chatPanel != null)
             chatPanel.SetActive(!chatPanel.activeSelf);
     }
 
     void ToggleAlbumPanel()
     {
+        if (pageManager != null)
+        {
+            if (cameraController != null && cameraController.IsCameraActive())
+                return;
+            pageManager.ShowAlbumPage();
+            return;
+        }
+
         if (albumPanel == null) return;
 
         if (albumPanel.activeSelf)

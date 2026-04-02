@@ -13,6 +13,12 @@ public class AlbumUI : MonoBehaviour
     [Header("Date Header")]
     public GameObject dateHeaderPrefab;
 
+    [Header("Album leave / back")]
+    [Tooltip("Drag the UI Button that should close the album and return to Home. Optional if you use Button → OnClick → LeaveAlbum instead.")]
+    public Button albumLeaveButton;
+    [Tooltip("Optional. If empty, AlbumUI finds a PageManager in the scene at runtime.")]
+    public PageManager pageManager;
+
     [Header("Grid Layout")]
     [Tooltip("Number of photos per row.")]
     [SerializeField] int columns = 2;
@@ -22,6 +28,27 @@ public class AlbumUI : MonoBehaviour
     [SerializeField] float padding = 10f;
 
     float contentWidth;
+
+    void Awake()
+    {
+        if (pageManager == null)
+            pageManager = FindObjectOfType<PageManager>();
+        if (albumLeaveButton != null)
+            albumLeaveButton.onClick.AddListener(LeaveAlbum);
+    }
+
+    void OnDestroy()
+    {
+        if (albumLeaveButton != null)
+            albumLeaveButton.onClick.RemoveListener(LeaveAlbum);
+    }
+
+    /// <summary>Returns to home (for Leave button wiring in the Inspector).</summary>
+    public void LeaveAlbum()
+    {
+        if (pageManager != null)
+            pageManager.ShowHomePage();
+    }
 
     void OnEnable()
     {

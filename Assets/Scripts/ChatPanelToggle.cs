@@ -10,13 +10,22 @@ using UnityEngine.UI;
 public class ChatPanelToggle : MonoBehaviour
 {
     [SerializeField] Button chatButton;
+    [Tooltip("Legacy: chat panel root. Not needed if Page Manager is set.")]
     [SerializeField] GameObject chatPanel;
+    [Tooltip("When set, opens Chat page (no toggle). Use with CameraUIManager disabled.")]
+    [SerializeField] PageManager pageManager;
 
     void Start()
     {
-        if (chatButton == null || chatPanel == null)
+        if (chatButton == null)
         {
-            Debug.LogWarning("[ChatPanelToggle] Assign Chat Button and Chat Panel in the Inspector.");
+            Debug.LogWarning("[ChatPanelToggle] Assign Chat Button in the Inspector.");
+            return;
+        }
+
+        if (pageManager == null && chatPanel == null)
+        {
+            Debug.LogWarning("[ChatPanelToggle] Assign Chat Panel or Page Manager.");
             return;
         }
 
@@ -26,6 +35,9 @@ public class ChatPanelToggle : MonoBehaviour
 
     public void ToggleChat()
     {
-        chatPanel.SetActive(!chatPanel.activeSelf);
+        if (pageManager != null)
+            pageManager.ShowChatPage();
+        else if (chatPanel != null)
+            chatPanel.SetActive(!chatPanel.activeSelf);
     }
 }

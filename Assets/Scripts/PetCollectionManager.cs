@@ -44,6 +44,18 @@ public class PetCollectionManager : MonoBehaviour
         }
 
         Instance = this;
+        // Keep under a Canvas so progress slider / TMP still render. DontDestroyOnLoad + SetParent(null) breaks Screen Space UI.
+        Canvas hostCanvas = GetComponentInParent<Canvas>();
+        if (hostCanvas != null)
+            transform.SetParent(hostCanvas.transform, false);
+        else
+        {
+            Canvas any = FindObjectOfType<Canvas>();
+            if (any != null)
+                transform.SetParent(any.transform, false);
+            else if (transform.parent != null)
+                transform.SetParent(null);
+        }
         DontDestroyOnLoad(gameObject);
 
         // Load persisted state first so album progress continues after restart

@@ -11,8 +11,10 @@ public class CameraController : MonoBehaviour
     public RawImage cameraPreview;
     public Button mainButton;
     public TMP_Text buttonText;
-    [Tooltip("Album panel to hide when opening camera (avoids Album showing over Camera).")]
+    [Tooltip("Album page/panel to hide when opening camera (avoids Album showing over Camera).")]
     public GameObject albumPanel;
+    [Tooltip("When set, opening the camera returns UI to Home (closes Chat/Album pages).")]
+    [SerializeField] PageManager pageManager;
     [Tooltip("Camera preview panel to show when opening camera; optional.")]
     public GameObject cameraPreviewPanel;
 
@@ -25,6 +27,9 @@ public class CameraController : MonoBehaviour
     CameraState state = CameraState.Idle;
     bool isFrontCamera;
 
+    Quaternion _previewBaseRotation;
+    Vector3 _previewBaseScale;
+
     /// <summary>When true, CameraUIManager handles all button labels and cooldown display.</summary>
     [HideInInspector] public bool uiManagedExternally;
 
@@ -33,13 +38,23 @@ public class CameraController : MonoBehaviour
 
     void Awake()
     {
+        if (pageManager == null)
+            pageManager = FindObjectOfType<PageManager>();
+
         if (albumPanel == null)
         {
-            var go = GameObject.Find("AlbumPanel");
+            var go = GameObject.Find("AlbumPage") ?? GameObject.Find("AlbumPanel");
             if (go != null) albumPanel = go;
         }
         if (cameraPreviewPanel == null && cameraPreview != null && cameraPreview.gameObject != null)
             cameraPreviewPanel = cameraPreview.gameObject;
+
+        if (cameraPreview != null)
+        {
+            var rt = cameraPreview.rectTransform;
+            _previewBaseRotation = rt.localRotation;
+            _previewBaseScale = rt.localScale;
+        }
     }
 
     void Start()
@@ -73,17 +88,51 @@ public class CameraController : MonoBehaviour
     /// <summary>Hides album and other panels so they don't overlap the camera. Call before opening camera.</summary>
     public void ClearOtherPanelsBeforeCamera()
     {
-        if (albumPanel != null) albumPanel.SetActive(false);
+        if (pageManager != null)
+            pageManager.ShowHomePage();
+        else if (albumPanel != null)
+            albumPanel.SetActive(false);
         if (cameraPreviewPanel != null) cameraPreviewPanel.SetActive(false);
     }
 
     void Update()
     {
+        // iOS/Android: sensor buffer is often sideways; WebCamTexture reports how much to rotate the preview.
+        if (state == CameraState.Preview && webcamTexture != null && webcamTexture.isPlaying)
+            ApplyWebcamPreviewOrientation();
+
         // 只有在 Idle 狀態時，才檢查並顯示冷卻倒數
         if (state == CameraState.Idle && !uiManagedExternally)
         {
             UpdateCooldownDisplay();
         }
+    }
+
+    /// <summary>
+    /// Aligns RawImage with <see cref="WebCamTexture.videoRotationAngle"/> and <see cref="WebCamTexture.videoVerticallyMirrored"/> (required on most phones, especially iOS).
+    /// </summary>
+    void ApplyWebcamPreviewOrientation()
+    {
+        if (cameraPreview == null || webcamTexture == null)
+            return;
+
+        var rt = cameraPreview.rectTransform;
+        float angle = webcamTexture.videoRotationAngle;
+        rt.localRotation = _previewBaseRotation * Quaternion.AngleAxis(-angle, Vector3.forward);
+
+        Vector3 s = _previewBaseScale;
+        if (webcamTexture.videoVerticallyMirrored)
+            s.y *= -1f;
+        rt.localScale = s;
+    }
+
+    void ResetPreviewOrientation()
+    {
+        if (cameraPreview == null)
+            return;
+        var rt = cameraPreview.rectTransform;
+        rt.localRotation = _previewBaseRotation;
+        rt.localScale = _previewBaseScale;
     }
 
     // 整合後的冷卻檢查邏輯
@@ -133,7 +182,7 @@ public class CameraController : MonoBehaviour
     public void StartCamera()
     {
         ClearOtherPanelsBeforeCamera();
-        if (albumPanel != null) albumPanel.SetActive(false);
+        if (pageManager == null && albumPanel != null) albumPanel.SetActive(false);
         if (cameraPreviewPanel != null) cameraPreviewPanel.SetActive(true);
         if (cameraPreview != null && cameraPreview.transform != null)
             cameraPreview.transform.SetAsLastSibling();
@@ -168,7 +217,11 @@ public class CameraController : MonoBehaviour
             ? new WebCamTexture()
             : new WebCamTexture(deviceName);
 
-        if (cameraPreview != null) cameraPreview.texture = webcamTexture;
+        if (cameraPreview != null)
+        {
+            cameraPreview.texture = webcamTexture;
+            ResetPreviewOrientation();
+        }
         webcamTexture.Play();
     }
 
@@ -236,6 +289,7 @@ public class CameraController : MonoBehaviour
         if (webcamTexture != null) { webcamTexture.Stop(); webcamTexture = null; }
         if (cameraPreview != null && cameraPreview.gameObject != null)
             cameraPreview.gameObject.SetActive(false);
+        ResetPreviewOrientation();
         state = CameraState.Idle;
     }
 

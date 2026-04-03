@@ -316,7 +316,7 @@ public class CameraUIManager : MonoBehaviour
         if (DateTime.TryParse(SaveManager.Instance.data.lastCaptureTime, out DateTime lastTime))
         {
             TimeSpan elapsed = DateTime.Now - lastTime;
-            double remaining = 300 - elapsed.TotalSeconds;
+            double remaining = 30 - elapsed.TotalSeconds;
 
             if (remaining > 0)
             {

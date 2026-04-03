@@ -8,6 +8,9 @@ using TMPro;
 /// </summary>
 public class LoginUIHandler : MonoBehaviour
 {
+    /// <summary>True after login flow has shown the economy / pet HUD. PageManager uses this so wallet stays hidden during login even on Home.</summary>
+    public static bool GameplayHudReleased { get; private set; }
+
     [Header("UI References")]
     public CanvasGroup loginPanel;
     public GameObject mainGameUI;
@@ -38,6 +41,7 @@ public class LoginUIHandler : MonoBehaviour
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
 
+        GameplayHudReleased = false;
         ResolveHudManagers();
         SetGameplayHudVisible(false);
     }
@@ -52,6 +56,9 @@ public class LoginUIHandler : MonoBehaviour
 
     void SetGameplayHudVisible(bool visible)
     {
+        if (visible)
+            GameplayHudReleased = true;
+
         if (economyManager != null)
             economyManager.gameObject.SetActive(visible);
         if (petCollectionManager != null)

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System;
 using TMPro;
 
 public class AlbumUI : MonoBehaviour
@@ -19,6 +20,17 @@ public class AlbumUI : MonoBehaviour
     [Tooltip("Optional. If empty, AlbumUI finds a PageManager in the scene at runtime.")]
     public PageManager pageManager;
 
+    [Header("Scroll view (fill screen)")]
+    [Tooltip("Assign the album Scroll View, or leave empty to use the first ScrollRect under this object.")]
+    [SerializeField] ScrollRect albumScrollRect;
+    [Tooltip("Stretch ScrollRect to fill its parent (AlbumPage). Turn off if you lay out the scroll area manually.")]
+    [SerializeField] bool fitScrollViewToParent = true;
+    [Tooltip("Shrink scroll area from album panel edges (canvas units). Use top inset if a title/leave bar sits above the list.")]
+    [SerializeField] float scrollInsetLeft;
+    [SerializeField] float scrollInsetRight;
+    [SerializeField] float scrollInsetTop;
+    [SerializeField] float scrollInsetBottom;
+
     [Header("Grid Layout")]
     [Tooltip("Number of photos per row.")]
     [SerializeField] int columns = 2;
@@ -33,6 +45,8 @@ public class AlbumUI : MonoBehaviour
     {
         if (pageManager == null)
             pageManager = FindObjectOfType<PageManager>();
+        if (albumScrollRect == null)
+            albumScrollRect = GetComponentInChildren<ScrollRect>(true);
         if (albumLeaveButton != null)
             albumLeaveButton.onClick.AddListener(LeaveAlbum);
     }
@@ -53,6 +67,8 @@ public class AlbumUI : MonoBehaviour
     void OnEnable()
     {
         Debug.Log("[AlbumUI] OnEnable called");
+        ApplyScrollViewScreenFit();
+        EnsureScrollContentWidthStretchesViewport();
         CacheContentWidth();
         ConfigureContentLayout();
         ReloadFromSave();
@@ -65,6 +81,54 @@ public class AlbumUI : MonoBehaviour
         SaveManager.OnSaveDataChanged -= ReloadFromSave;
     }
 
+    /// <summary>
+    /// Makes the ScrollRect + Viewport use stretch anchors so the list uses the full album panel (minus optional insets).
+    /// </summary>
+    void ApplyScrollViewScreenFit()
+    {
+        if (!fitScrollViewToParent || albumScrollRect == null)
+            return;
+
+        var rt = albumScrollRect.transform as RectTransform;
+        if (rt == null || rt.parent is not RectTransform)
+            return;
+
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = new Vector2(scrollInsetLeft, scrollInsetBottom);
+        rt.offsetMax = new Vector2(-scrollInsetRight, -scrollInsetTop);
+
+        RectTransform viewport = albumScrollRect.viewport;
+        if (viewport != null)
+        {
+            viewport.anchorMin = Vector2.zero;
+            viewport.anchorMax = Vector2.one;
+            viewport.offsetMin = Vector2.zero;
+            viewport.offsetMax = Vector2.zero;
+        }
+    }
+
+    /// <summary>
+    /// Scroll content should span the viewport width so <see cref="CacheContentWidth"/> and grids match the device.
+    /// </summary>
+    void EnsureScrollContentWidthStretchesViewport()
+    {
+        if (albumScrollRect == null || albumScrollRect.viewport == null || content == null)
+            return;
+        if (content is not RectTransform contentRect)
+            return;
+
+        RectTransform vp = albumScrollRect.viewport;
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0.5f, 1f);
+        contentRect.offsetMin = new Vector2(0f, contentRect.offsetMin.y);
+        contentRect.offsetMax = new Vector2(0f, contentRect.offsetMax.y);
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(vp);
+    }
+
     void CacheContentWidth()
     {
         if (content == null) return;
@@ -75,8 +139,12 @@ public class AlbumUI : MonoBehaviour
         if (contentWidth <= 0)
         {
             Canvas.ForceUpdateCanvases();
+            if (albumScrollRect != null && albumScrollRect.viewport != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(albumScrollRect.viewport);
             contentWidth = contentRect.rect.width;
         }
+        if (contentWidth <= 0f && albumScrollRect != null && albumScrollRect.viewport != null)
+            contentWidth = Mathf.Max(1f, albumScrollRect.viewport.rect.width);
         Debug.Log($"[AlbumUI] contentWidth={contentWidth}");
     }
 
@@ -184,22 +252,95 @@ public class AlbumUI : MonoBehaviour
 
                 GameObject item = Instantiate(photoItemPrefab, gridContainer.transform);
 
-                RawImage ri = item.GetComponentInChildren<RawImage>();
-                if (ri != null) ri.texture = photo;
+                RawImage userAvatar = item.transform.Find("UserAvatarMask/UserAvatar")?.GetComponent<RawImage>();
+
+                RawImage ri = FindPrimaryThumbnailRawImage(item, userAvatar);
+                if (ri != null)
+                {
+                    ri.texture = photo;
+                    ri.raycastTarget = true;
+                }
 
                 TMP_Text timeText = item.transform.Find("TimeText")?.GetComponent<TMP_Text>();
                 if (timeText != null && meta.timestamp.Length >= 16)
                     timeText.text = meta.timestamp.Substring(11, 5);
 
-                RawImage userAvatar = item.transform.Find("UserAvatarMask/UserAvatar")?.GetComponent<RawImage>();
                 if (userAvatar != null && AvatarManager.Instance != null && AvatarManager.Instance.CurrentAvatar != null)
                     userAvatar.texture = AvatarManager.Instance.CurrentAvatar;
+
+                WirePhotoItemClick(item, meta, ri);
             }
         }
 
         Canvas.ForceUpdateCanvases();
         if (content.TryGetComponent<RectTransform>(out var rect))
             LayoutRebuilder.ForceRebuildLayoutImmediate(rect);
+    }
+
+    /// <summary>
+    /// Prefer named children, then the largest non-avatar RawImage (GetComponentInChildren order often picks the tiny UserAvatar first).
+    /// </summary>
+    static RawImage FindPrimaryThumbnailRawImage(GameObject item, RawImage userAvatar)
+    {
+        if (item == null)
+            return null;
+
+        Transform t = item.transform.Find("Photo");
+        if (t != null && t.TryGetComponent<RawImage>(out var named))
+            return named;
+        t = item.transform.Find("Thumbnail");
+        if (t != null && t.TryGetComponent<RawImage>(out var named2))
+            return named2;
+
+        RawImage best = null;
+        float bestArea = -1f;
+        foreach (RawImage candidate in item.GetComponentsInChildren<RawImage>(true))
+        {
+            if (candidate == null || candidate == userAvatar)
+                continue;
+            if (IsUnderUserAvatarHierarchy(candidate.transform))
+                continue;
+
+            float area = candidate.rectTransform.rect.width * candidate.rectTransform.rect.height;
+            if (area > bestArea)
+            {
+                bestArea = area;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    static bool IsUnderUserAvatarHierarchy(Transform tr)
+    {
+        while (tr != null)
+        {
+            if (tr.name.IndexOf("UserAvatar", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+            tr = tr.parent;
+        }
+        return false;
+    }
+
+    static void WirePhotoItemClick(GameObject item, PhotoMeta meta, RawImage thumbnailGraphic)
+    {
+        if (item == null || meta == null)
+            return;
+
+        PhotoItemClick click = item.GetComponent<PhotoItemClick>();
+        if (click == null)
+            click = item.AddComponent<PhotoItemClick>();
+
+        Button btn = item.GetComponent<Button>();
+        if (thumbnailGraphic != null && btn != null)
+        {
+            btn.targetGraphic = thumbnailGraphic;
+            btn.transition = Selectable.Transition.None;
+            btn.navigation = new Navigation { mode = Navigation.Mode.None };
+        }
+
+        click.Initialize(meta);
     }
 
     /// <summary>Converts "2026-03-28" to "2026, Mar 28".</summary>

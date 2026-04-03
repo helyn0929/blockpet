@@ -5,6 +5,8 @@ public class PhotoMeta
 {
     public string fileName;
     public string timestamp;
+    /// <summary>Optional user caption; shown on photo detail when set.</summary>
+    public string caption;
     /// <summary>Avatar file name of the user who took this photo (stored in avatars/ folder).</summary>
     public string takerAvatarFileName;
 

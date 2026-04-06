@@ -1,0 +1,236 @@
+/* =========================================
+   Blockpet Login Screen - Unity USS Stylesheet
+   Converted from React/Tailwind source
+   ========================================= */
+
+/* ---------- ROOT ---------- */
+.root {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(15, 23, 42); /* slate-900 */
+}
+
+/* ---------- HERO SECTION ---------- */
+.hero-section {
+    width: 720px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 64px;
+    padding-bottom: 32px;
+    padding-left: 24px;
+    padding-right: 24px;
+    /* Gradient background: violet-100 → purple-50 → pink-100 */
+    background-color: rgb(237, 233, 254); /* approximated violet-100 top */
+    flex-grow: 1;
+}
+
+/* ---------- LOGO ---------- */
+.logo-container {
+    width: 128px;
+    height: 128px;
+    border-radius: 24px;
+    background-color: rgb(168, 85, 247);  /* purple-500 */
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    /* Rotation: use USS rotate (Unity 2022+) */
+    /* rotate: 12deg; -- set via C# if needed: logoContainer.transform.rotation = Quaternion.Euler(0,0,12); */
+}
+
+.logo-emoji {
+    font-size: 56px;
+    -unity-text-align: middle-center;
+    color: white;
+    /* rotate: -12deg; -- set via C#: logoEmoji.transform.rotation = Quaternion.Euler(0,0,-12); */
+}
+
+/* ---------- APP TITLE ---------- */
+.app-title {
+    font-size: 48px;
+    color: rgb(30, 27, 75);    /* deep purple-ish */
+    -unity-text-align: upper-center;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+.app-subtitle {
+    font-size: 18px;
+    color: rgb(100, 116, 139); /* slate-500 */
+    -unity-text-align: middle-center;
+}
+
+/* ---------- PET ROW ---------- */
+.pet-row {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 32px;
+}
+
+.pet-emoji {
+    font-size: 36px;
+    margin-left: 8px;
+    margin-right: 8px;
+    -unity-text-align: middle-center;
+}
+
+/* ---------- LOGIN CARD ---------- */
+.login-card {
+    width: 720px;
+    background-color: rgb(255, 255, 255);
+    border-top-left-radius: 48px;
+    border-top-right-radius: 48px;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    padding-left: 32px;
+    padding-right: 32px;
+    /* Shadow approximated via border */
+    border-width: 0px;
+    /* Unity doesn't support box-shadow natively; use a shadow panel behind if needed */
+}
+
+/* ---------- CARD HEADINGS ---------- */
+.welcome-title {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: rgb(30, 41, 59);    /* slate-800 */
+    -unity-text-align: upper-center;
+    margin-bottom: 8px;
+}
+
+.welcome-subtitle {
+    font-size: 16px;
+    color: rgb(100, 116, 139); /* slate-500 */
+    -unity-text-align: middle-center;
+    margin-bottom: 32px;
+}
+
+/* ---------- BUTTONS (shared) ---------- */
+.btn {
+    width: 100%;
+    border-radius: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    border-width: 0;
+    cursor: link;
+    transition-duration: 0.2s;
+}
+
+.btn:hover {
+    background-color: rgb(248, 250, 252);
+}
+
+.btn:active {
+    opacity: 0.85;
+}
+
+.btn-label {
+    font-size: 18px;
+    margin-left: 12px;
+    -unity-font-style: bold;
+}
+
+.btn-label-dark {
+    color: rgb(51, 65, 85);    /* slate-700 */
+}
+
+.btn-label-light {
+    color: rgb(255, 255, 255);
+}
+
+/* ---------- GOOGLE BUTTON ---------- */
+.btn-google {
+    background-color: rgb(255, 255, 255);
+    border-width: 2px;
+    border-color: rgb(203, 213, 225); /* slate-300 */
+}
+
+.btn-google:hover {
+    background-color: rgb(248, 250, 252); /* slate-50 */
+    border-color: rgb(148, 163, 184);     /* slate-400 */
+}
+
+/* Google 'G' icon placeholder — replace with actual Texture2D in Inspector */
+.google-icon {
+    width: 24px;
+    height: 24px;
+    background-color: rgb(66, 133, 244); /* Google blue as fallback */
+    border-radius: 12px;
+}
+
+/* ---------- APPLE BUTTON ---------- */
+.btn-apple {
+    background-color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-color: rgb(0, 0, 0);
+}
+
+.btn-apple:hover {
+    background-color: rgb(15, 23, 42); /* slate-900 */
+}
+
+.apple-icon-label {
+    font-size: 22px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- EMAIL BUTTON ---------- */
+.btn-email {
+    /* Gradient purple→pink approximated with solid purple-500 */
+    /* For true gradient, use a custom shader or UI Toolkit gradient (Unity 2023+) */
+    background-color: rgb(168, 85, 247); /* purple-500 */
+    border-width: 0;
+    margin-bottom: 24px;
+}
+
+.btn-email:hover {
+    background-color: rgb(147, 51, 234); /* purple-600 */
+}
+
+.email-icon-label {
+    font-size: 20px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- DIVIDER ---------- */
+.divider-row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 8px;
+    margin-bottom: 24px;
+}
+
+.divider-line {
+    flex-grow: 1;
+    height: 1px;
+    background-color: rgb(203, 213, 225); /* slate-300 */
+}
+
+.divider-text {
+    font-size: 14px;
+    color: rgb(100, 116, 139); /* slate-500 */
+    margin-left: 16px;
+    margin-right: 16px;
+    -unity-text-align: middle-center;
+}
+
+/* ---------- TERMS ---------- */
+.terms-text {
+    font-size: 13px;
+    color: rgb(100, 116, 139); /* slate-500 */
+    -unity-text-align: middle-center;
+    white-space: normal;
+    padding-left: 16px;
+    padding-right: 16px;
+}

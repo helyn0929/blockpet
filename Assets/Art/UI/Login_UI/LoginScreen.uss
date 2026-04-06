@@ -71,11 +71,18 @@
 }
 
 .pet-emoji {
-    font-size: 36px;
+    width: 56px;
+    height: 56px;
     margin-left: 8px;
     margin-right: 8px;
-    -unity-text-align: middle-center;
+    background-color: rgba(0,0,0,0);
+    border-radius: 0;
 }
+
+.pet-dog     { background-image: resource("Icons/pet-dog"); }
+.pet-cat     { background-image: resource("Icons/pet-cat"); }
+.pet-hamster { background-image: resource("Icons/pet-hamster"); }
+.pet-rabbit  { background-image: resource("Icons/pet-rabbit"); }
 
 /* ---------- LOGIN CARD ---------- */
 .login-card {
@@ -159,12 +166,12 @@
     border-color: rgb(148, 163, 184);     /* slate-400 */
 }
 
-/* Google 'G' icon placeholder — replace with actual Texture2D in Inspector */
 .google-icon {
     width: 24px;
     height: 24px;
-    background-color: rgb(66, 133, 244); /* Google blue as fallback */
-    border-radius: 12px;
+    background-image: resource("Icons/google-icon");
+    background-color: rgba(0,0,0,0);
+    border-radius: 0;
 }
 
 /* ---------- APPLE BUTTON ---------- */
@@ -178,10 +185,12 @@
     background-color: rgb(15, 23, 42); /* slate-900 */
 }
 
-.apple-icon-label {
-    font-size: 22px;
-    color: rgb(255, 255, 255);
-    -unity-text-align: middle-center;
+.apple-icon {
+    width: 24px;
+    height: 24px;
+    background-image: resource("Icons/apple-icon");
+    background-color: rgba(0,0,0,0);
+    border-radius: 0;
 }
 
 /* ---------- EMAIL BUTTON ---------- */
@@ -197,10 +206,12 @@
     background-color: rgb(147, 51, 234); /* purple-600 */
 }
 
-.email-icon-label {
-    font-size: 20px;
-    color: rgb(255, 255, 255);
-    -unity-text-align: middle-center;
+.email-icon {
+    width: 24px;
+    height: 24px;
+    background-image: resource("Icons/email-icon");
+    background-color: rgba(0,0,0,0);
+    border-radius: 0;
 }
 
 /* ---------- DIVIDER ---------- */

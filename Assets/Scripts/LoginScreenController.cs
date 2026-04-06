@@ -81,7 +81,7 @@ public class LoginScreenController : MonoBehaviour
 
     void StartPetBounce()
     {
-        var pets = _root.Query<Label>(className: "pet-emoji").ToList();
+        var pets = _root.Query<VisualElement>(className: "pet-emoji").ToList();
         long staggerMs = 0L;
         foreach (var pet in pets)
         {
@@ -91,7 +91,7 @@ public class LoginScreenController : MonoBehaviour
         }
     }
 
-    void ScheduleBounceLoop(Label label)
+    void ScheduleBounceLoop(VisualElement label)
     {
         // Up
         label.schedule.Execute(() =>

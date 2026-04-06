@@ -8,10 +8,10 @@
             <ui:Label name="app-title" text="Blockpet" class="app-title" />
             <ui:Label name="app-subtitle" text="Feed, Snap &amp; Earn Coins!" class="app-subtitle" />
             <ui:VisualElement name="pet-row" class="pet-row">
-                <ui:Label name="pet1" text="🐶" class="pet-emoji" />
-                <ui:Label name="pet2" text="🐱" class="pet-emoji" />
-                <ui:Label name="pet3" text="🐹" class="pet-emoji" />
-                <ui:Label name="pet4" text="🐰" class="pet-emoji" />
+                <ui:VisualElement name="pet1" class="pet-emoji pet-dog" />
+                <ui:VisualElement name="pet2" class="pet-emoji pet-cat" />
+                <ui:VisualElement name="pet3" class="pet-emoji pet-hamster" />
+                <ui:VisualElement name="pet4" class="pet-emoji pet-rabbit" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="login-card" class="login-card">
@@ -22,7 +22,7 @@
                 <ui:Label text="Continue with Google" class="btn-label btn-label-dark" />
             </ui:Button>
             <ui:Button name="btn-apple" class="btn btn-apple">
-                <ui:Label class="apple-icon-label" />
+                <ui:VisualElement name="apple-icon" class="apple-icon" />
                 <ui:Label text="Continue with Apple" class="btn-label btn-label-light" />
             </ui:Button>
             <ui:VisualElement name="divider-row" class="divider-row">
@@ -31,7 +31,7 @@
                 <ui:VisualElement name="divider-line-right" class="divider-line" />
             </ui:VisualElement>
             <ui:Button name="btn-email" class="btn btn-email">
-                <ui:Label text="✉" class="email-icon-label" />
+                <ui:VisualElement name="email-icon" class="email-icon" />
                 <ui:Label text="Continue with Email" class="btn-label btn-label-light" />
             </ui:Button>
             <ui:Label name="terms-text" text="By continuing, you agree to our Terms of Service and Privacy Policy" class="terms-text" />

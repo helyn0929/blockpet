@@ -11,7 +11,9 @@ public class ChatKeyboardAvoidance : MonoBehaviour
     [SerializeField] TMP_InputField inputField;
     [Tooltip("RectTransform to move (usually the input bar root). Defaults to this object.")]
     [SerializeField] RectTransform targetToMove;
+#pragma warning disable CS0414
     [SerializeField] float extraPadding = 8f;
+#pragma warning restore CS0414
 
     RectTransform _rt;
     Vector2 _defaultAnchoredPosition;

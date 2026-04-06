@@ -23,6 +23,31 @@ public class EconomyManager : MonoBehaviour
 
     public int CurrentMoney => currentMoney;
 
+    /// <summary>Spend soft currency for shops. Returns false if insufficient balance.</summary>
+    public bool TrySpend(int amount)
+    {
+        if (amount < 0 || currentMoney < amount)
+            return false;
+        currentMoney -= amount;
+        SaveMoney();
+        if (countUpRoutine != null)
+            StopCoroutine(countUpRoutine);
+        displayedMoney = currentMoney;
+        RefreshMoneyUI();
+        return true;
+    }
+
+    public void AddCoins(int amount)
+    {
+        if (amount <= 0) return;
+        currentMoney += amount;
+        SaveMoney();
+        if (countUpRoutine != null)
+            StopCoroutine(countUpRoutine);
+        displayedMoney = currentMoney;
+        RefreshMoneyUI();
+    }
+
     void Awake()
     {
         if (Instance != null)

@@ -11,6 +11,7 @@ public class PageManager : MonoBehaviour
     [SerializeField] GameObject chatPage;
     [SerializeField] GameObject albumPage;
     [SerializeField] GameObject photoDetailPage;
+    [SerializeField] GameObject marketPage;
 
     [Header("Startup")]
     [Tooltip("If set, runs once in Start() so play mode always begins on that page.")]
@@ -59,6 +60,17 @@ public class PageManager : MonoBehaviour
     public void ShowChatPage() => ShowOnly(chatPage, false);
 
     public void ShowAlbumPage() => ShowOnly(albumPage, false);
+
+    /// <summary>Full-screen market (shop + dressing preview). HUD hidden like other sub-pages.</summary>
+    public void ShowMarketPage()
+    {
+        if (marketPage == null)
+        {
+            Debug.LogWarning("[PageManager] Assign Market Page in the Inspector.");
+            return;
+        }
+        ShowOnly(marketPage, false);
+    }
 
     /// <summary>True when the Photo Detail root is assigned (for diagnostics).</summary>
     public bool HasPhotoDetailPage => photoDetailPage != null;
@@ -145,6 +157,7 @@ public class PageManager : MonoBehaviour
         SetActiveSafe(chatPage, false);
         SetActiveSafe(albumPage, false);
         SetActiveSafe(photoDetailPage, false);
+        SetActiveSafe(marketPage, false);
     }
 
     void ShowOnly(GameObject page, bool isHomePage)

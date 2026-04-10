@@ -31,6 +31,24 @@ public class ChatUIHandler : MonoBehaviour
     public Transform chatContent;    // 拖入 Scroll View 裡的 Content
     public ScrollRect scrollRect;    // 拖入 Scroll View 本身，用於自動捲動
 
+    [Header("Group chat header (new)")]
+    [SerializeField] PageManager pageManager;
+    [SerializeField] Button backButton;
+    [SerializeField] TMP_Text roomNameText;
+    [SerializeField] TMP_Text memberCountText;
+    [Tooltip("Optional: header root button/area reserved for future room switching (no switching implemented).")]
+    [SerializeField] Button roomSwitcherButton;
+    [Tooltip("Shown once in Start() if room/member labels are assigned. Your game code can replace this anytime by calling SetRoomHeader (e.g. when joining a Firebase room).")]
+    [SerializeField] string startupRoomDisplayName = "Chat";
+    [Tooltip("Shown as \"N members\" when N > 0. Use SetRoomHeader from code when you have a live count.")]
+    [SerializeField] int startupMemberCount;
+
+    [Header("Reply UI (new)")]
+    [SerializeField] GroupChatReplyPreview replyPreview;
+    [Tooltip("Optional. Shown when no message is selected for reply (e.g. “Tap a message to reply”).")]
+    [SerializeField] TMP_Text tapToReplyHintText;
+    ChatMessage _activeReplyTarget;
+
     [Header("Modern full-screen chat (recommended hierarchy)")]
     [Tooltip("Uses layered layout: full-screen BG → semi-transparent message panel → Scroll View inside panel → header + input as overlays. Turn off to use legacy insets only.")]
     [SerializeField] bool useModernChatLayout;
@@ -95,6 +113,10 @@ public class ChatUIHandler : MonoBehaviour
     [Tooltip("If set, applies sprites to this child by name instead of the first Image found.")]
     [SerializeField] string bubbleBackgroundImageName;
 
+    [Header("Group chat avatars")]
+    [Tooltip("Assign a sprite (e.g. from Art/UI/Chatroom_UI/avatar_test01 — set texture as Sprite 2D). Used when no per-user avatar is available.")]
+    [SerializeField] Sprite defaultChatAvatarSprite;
+
     [Header("Bubble layout (Content Size Fitter)")]
     [Tooltip("Adds Content Size Fitter (Preferred) + LayoutElement on bubble root; sizes TMP to text with max width.")]
     [SerializeField] bool useBubbleAutoSize = true;
@@ -127,6 +149,12 @@ public class ChatUIHandler : MonoBehaviour
     {
         if (_instance == this)
             _instance = null;
+        if (_cachedAvatarSpriteFromTex != null)
+        {
+            Destroy(_cachedAvatarSpriteFromTex);
+            _cachedAvatarSpriteFromTex = null;
+            _cachedAvatarTex = null;
+        }
     }
 
     void OnEnable()
@@ -142,12 +170,40 @@ public class ChatUIHandler : MonoBehaviour
         if (sendButton != null)
             sendButton.onClick.AddListener(OnSendMessage);
 
+        if (backButton != null)
+            backButton.onClick.AddListener(OnBackClicked);
+
+        if (roomNameText != null || memberCountText != null)
+            SetRoomHeader(startupRoomDisplayName, startupMemberCount);
+
         LoadChatHistoryAndRebuildUI();
 
         if (useModernChatLayout)
             StartCoroutine(ApplyModernLayoutAfterFirstFrame());
 
         EnsureChatContentVerticalLayoutForBubbles();
+
+        RefreshReplyUiHints();
+    }
+
+    void OnBackClicked()
+    {
+        if (pageManager == null)
+            pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+            pageManager.ShowHomePage();
+    }
+
+    /// <summary>
+    /// Updates the chat screen title and member subtitle. Call from your lobby / party / Firebase flow when the player enters a room.
+    /// Example: <c>ChatUIHandler.Instance?.SetRoomHeader(teamName, onlineCount);</c>
+    /// </summary>
+    public void SetRoomHeader(string roomName, int memberCount)
+    {
+        if (roomNameText != null)
+            roomNameText.text = roomName ?? string.Empty;
+        if (memberCountText != null)
+            memberCountText.text = memberCount <= 0 ? string.Empty : $"{memberCount} members";
     }
 
     IEnumerator ApplyModernLayoutAfterFirstFrame()
@@ -485,8 +541,12 @@ public class ChatUIHandler : MonoBehaviour
             return;
 
         float bottom = scrollBottomExtraInset;
-        if (resizeScrollAboveInputBar && pinnedInputBarHeight > 0f)
-            bottom += pinnedInputBarHeight;
+        if (resizeScrollAboveInputBar)
+        {
+            if (pinnedInputBarHeight > 0f)
+                bottom += pinnedInputBarHeight;
+            bottom += GetActiveReplyPreviewHeight();
+        }
 
         float top = Mathf.Max(0f, scrollTopInset);
         float left = Mathf.Max(0f, scrollLeftInset);
@@ -494,6 +554,17 @@ public class ChatUIHandler : MonoBehaviour
 
         scrollRt.offsetMin = new Vector2(left, bottom);
         scrollRt.offsetMax = new Vector2(-right, -top);
+    }
+
+    float GetActiveReplyPreviewHeight()
+    {
+        if (replyPreview == null) return 0f;
+        if (!replyPreview.isActiveAndEnabled) return 0f;
+        RectTransform rt = replyPreview.transform as RectTransform;
+        if (rt == null) return 0f;
+        float h = rt.rect.height;
+        if (h < 1f) h = rt.sizeDelta.y;
+        return Mathf.Max(0f, h);
     }
 
     string GetLocalSenderDisplayName()
@@ -516,13 +587,57 @@ public class ChatUIHandler : MonoBehaviour
 
         if (FirebaseManager.Instance != null)
         {
-            FirebaseManager.Instance.SendChatMessage(GetLocalSenderDisplayName(), inputField.text);
+            ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), inputField.text);
+            if (_activeReplyTarget != null)
+            {
+                outgoing.replyToMessageId = _activeReplyTarget.messageId;
+                outgoing.replyToDisplayName = ChatMessage.GetBestDisplayName(_activeReplyTarget);
+                outgoing.replyToMessagePreview = MakeReplyPreviewSnippet(_activeReplyTarget.message);
+            }
+
+            FirebaseManager.Instance.SendChatMessage(outgoing);
             inputField.text = ""; 
+            ClearReply();
         }
         else
         {
             Debug.LogError("找不到 FirebaseManager 物件！");
         }
+    }
+
+    static string MakeReplyPreviewSnippet(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        s = s.Replace("\n", " ").Replace("\r", " ");
+        const int max = 90;
+        if (s.Length <= max) return s;
+        return s.Substring(0, max).TrimEnd() + "…";
+    }
+
+    void SetReply(ChatMessage target)
+    {
+        _activeReplyTarget = target;
+        if (replyPreview != null && target != null)
+            replyPreview.Set(ChatMessage.GetBestDisplayName(target), MakeReplyPreviewSnippet(target.message), ClearReply);
+        RefreshReplyUiHints();
+    }
+
+    void ClearReply()
+    {
+        _activeReplyTarget = null;
+        if (replyPreview != null)
+            replyPreview.Clear();
+        RefreshReplyUiHints();
+    }
+
+    void RefreshReplyUiHints()
+    {
+        if (tapToReplyHintText == null)
+            return;
+        bool pickingReply = _activeReplyTarget != null;
+        tapToReplyHintText.gameObject.SetActive(!pickingReply);
+        if (!pickingReply && string.IsNullOrEmpty(tapToReplyHintText.text))
+            tapToReplyHintText.text = "Tap a message to reply";
     }
 
     /// <summary>Call after rotation or safe-area changes if layout does not update automatically.</summary>
@@ -566,6 +681,44 @@ public class ChatUIHandler : MonoBehaviour
         if (row != null && !isSelf)
             AddChatRowFlexSpacer(row.transform);
 
+        // New reusable prefab path (avatar + name + reply quote + bubble)
+        GroupChatMessageView view = newMsg.GetComponentInChildren<GroupChatMessageView>(true);
+        if (view != null)
+        {
+            Sprite avatar = ResolveAvatarSprite(msg);
+            view.Bind(msg, avatar, isSelf);
+
+            // Apply bubble sprites if configured
+            Image bg = view.BubbleBackground;
+            if (bg != null)
+            {
+                Sprite pick = isSelf ? chatBubbleSelf : chatBubbleOther;
+                if (pick != null)
+                {
+                    bg.sprite = pick;
+                    bg.type = Image.Type.Sliced;
+                }
+            }
+
+            // Button makes taps reliable inside ScrollRect (IPointerClick alone is often swallowed).
+            if (bg != null)
+            {
+                bg.raycastTarget = true;
+                Button bubbleButton = view.GetComponent<Button>();
+                if (bubbleButton == null)
+                    bubbleButton = view.gameObject.AddComponent<Button>();
+                bubbleButton.transition = Selectable.Transition.None;
+                bubbleButton.navigation = new Navigation { mode = Navigation.Mode.None };
+                bubbleButton.targetGraphic = bg;
+                ChatMessage captured = msg;
+                bubbleButton.onClick.RemoveAllListeners();
+                bubbleButton.onClick.AddListener(() => OnMessageClickedForReply(captured));
+            }
+
+            // Let prefab handle its own layout; do not force TMP injection below.
+            return;
+        }
+
         Image bubbleImage = null;
         if (!string.IsNullOrEmpty(bubbleBackgroundImageName))
         {
@@ -593,6 +746,46 @@ public class ChatUIHandler : MonoBehaviour
             textComponent.text = isSelf ? msg.message : $"{msg.userName}: {msg.message}";
 
         ApplyBubbleAutoLayout(newMsg, textComponent);
+    }
+
+    void OnMessageClickedForReply(ChatMessage msg)
+    {
+        if (msg == null) return;
+        // Don’t allow replying to money/system empty messages if you add them later.
+        SetReply(msg);
+    }
+
+    Texture2D _cachedAvatarTex;
+    Sprite _cachedAvatarSpriteFromTex;
+
+    Sprite ResolveAvatarSprite(ChatMessage msg)
+    {
+        if (IsMessageFromLocalUser(msg) && AvatarManager.Instance != null && AvatarManager.Instance.CurrentAvatar != null)
+        {
+            Texture2D tex = AvatarManager.Instance.CurrentAvatar;
+            if (tex != _cachedAvatarTex || _cachedAvatarSpriteFromTex == null)
+            {
+                if (_cachedAvatarSpriteFromTex != null)
+                    Destroy(_cachedAvatarSpriteFromTex);
+                _cachedAvatarTex = tex;
+                try
+                {
+                    _cachedAvatarSpriteFromTex = Sprite.Create(
+                        tex,
+                        new Rect(0f, 0f, tex.width, tex.height),
+                        new Vector2(0.5f, 0.5f),
+                        100f);
+                }
+                catch
+                {
+                    _cachedAvatarSpriteFromTex = null;
+                }
+            }
+            if (_cachedAvatarSpriteFromTex != null)
+                return _cachedAvatarSpriteFromTex;
+        }
+
+        return defaultChatAvatarSprite;
     }
 
     void EnsureChatContentVerticalLayoutForBubbles()

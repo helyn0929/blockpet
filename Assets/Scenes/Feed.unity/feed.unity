@@ -246,7 +246,7 @@ MonoBehaviour:
   scrollBottomExtraInset: 0
   scrollLeftInset: 0
   scrollRightInset: 0
-  messagePrefab: {fileID: 8830306275139304705, guid: 4516dc5667efbd44b9358e34ebbe5f2c, type: 3}
+  messagePrefab: {fileID: 7758300010000001, guid: 4516dc5667efbd44b9358e34ebbe5f2c, type: 3}
   chatBubbleSelf: {fileID: 21300000, guid: 930bfa3d41b9c5547afbf2bca4e74b86, type: 3}
   chatBubbleOther: {fileID: 21300000, guid: 943254eb65c7f4e409e8bf8e8e0c1139, type: 3}
   bubbleBackgroundImageName: helyn

@@ -162,7 +162,7 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
-    // 發送訊息到資料庫
+    // 發送訊息到資料庫 (legacy signature)
     public void SendChatMessage(string name, string message)
     {
         if (dbRef == null) {
@@ -171,7 +171,24 @@ public class FirebaseManager : MonoBehaviour
         }
         
         ChatMessage newMessage = new ChatMessage(name, message);
-        string json = JsonUtility.ToJson(newMessage);
+        SendChatMessage(newMessage);
+    }
+
+    // 發送訊息到資料庫 (supports replies / richer fields)
+    public void SendChatMessage(ChatMessage message)
+    {
+        if (dbRef == null) {
+            Debug.LogError("資料庫尚未連線成功，請稍候！");
+            return;
+        }
+
+        if (message == null) return;
+        if (string.IsNullOrEmpty(message.messageId))
+            message.messageId = System.Guid.NewGuid().ToString("N");
+        if (string.IsNullOrEmpty(message.displayName))
+            message.displayName = message.userName;
+
+        string json = JsonUtility.ToJson(message);
         
         // 在 "ChatRoom" 下建立唯一 Key 並存入
         dbRef.Child("ChatRoom").Push().SetRawJsonValueAsync(json);

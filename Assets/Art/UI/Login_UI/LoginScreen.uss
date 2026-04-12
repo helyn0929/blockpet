@@ -16,16 +16,16 @@
 /* ---------- HERO SECTION ---------- */
 .hero-section {
     width: 720px;
+    min-height: 320px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding-top: 64px;
-    padding-bottom: 32px;
+    padding-bottom: 48px;
     padding-left: 24px;
     padding-right: 24px;
-    /* Gradient background: violet-100 → purple-50 → pink-100 */
-    background-color: rgb(237, 233, 254); /* approximated violet-100 top */
-    flex-grow: 1;
+    background-color: rgb(237, 233, 254);
+    flex-shrink: 0;
 }
 
 /* ---------- LOGO ---------- */
@@ -77,6 +77,9 @@
     margin-right: 8px;
     background-color: rgba(0,0,0,0);
     border-radius: 0;
+    transition-property: translate;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-in-out;
 }
 
 .pet-dog   { background-image: resource("Icons/pet-dog"); }

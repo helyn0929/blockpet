@@ -218,6 +218,15 @@ MonoBehaviour:
   sendButton: {fileID: 1790439837}
   chatContent: {fileID: 1847391879}
   scrollRect: {fileID: 1348617346}
+  pageManager: {fileID: 0}
+  backButton: {fileID: 0}
+  roomNameText: {fileID: 0}
+  memberCountText: {fileID: 0}
+  roomSwitcherButton: {fileID: 0}
+  startupRoomDisplayName: Chat
+  startupMemberCount: 0
+  replyPreview: {fileID: 0}
+  tapToReplyHintText: {fileID: 0}
   useModernChatLayout: 1
   enforceModernSiblingOrder: 1
   chatHeaderBar: {fileID: 272235345}
@@ -250,6 +259,7 @@ MonoBehaviour:
   chatBubbleSelf: {fileID: 21300000, guid: 930bfa3d41b9c5547afbf2bca4e74b86, type: 3}
   chatBubbleOther: {fileID: 21300000, guid: 943254eb65c7f4e409e8bf8e8e0c1139, type: 3}
   bubbleBackgroundImageName: helyn
+  defaultChatAvatarSprite: {fileID: 0}
   useBubbleAutoSize: 1
   bubbleMaxWidth: 280
   bubbleTextPadding: {x: 14, y: 10}
@@ -1798,8 +1808,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 196646694}
   m_HandleRect: {fileID: 196646693}
   m_Direction: 2
-  m_Value: 1.0000006
-  m_Size: 0.6654419
+  m_Value: 0
+  m_Size: 0.9995351
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2110,6 +2120,72 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 308988975}
   m_CullTransparentMesh: 1
+--- !u!1 &322471125
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 322471126}
+  - component: {fileID: 322471128}
+  - component: {fileID: 322471127}
+  m_Layer: 5
+  m_Name: LoginUIDocument
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &322471126
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322471125}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1083364127}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &322471127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322471125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ae79cd1c15d0f478488d512cef301d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  loginUIHandler: {fileID: 1083364129}
+--- !u!114 &322471128
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322471125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_PanelSettings: {fileID: 11400000, guid: 7944681680d4aa54191502594067ceb3, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 9197481963319205126, guid: 434f1bac98715344dbee633ea1bbf19f, type: 3}
+  m_SortingOrder: 20
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -6132,7 +6208,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1083364127
 RectTransform:
   m_ObjectHideFlags: 0
@@ -6150,6 +6226,7 @@ RectTransform:
   - {fileID: 460372422}
   - {fileID: 218712967}
   - {fileID: 772127844}
+  - {fileID: 322471126}
   m_Father: {fileID: 2096103132}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -12069,7 +12146,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0.0010187346}
   m_SizeDelta: {x: 0, y: 300}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &1790439835

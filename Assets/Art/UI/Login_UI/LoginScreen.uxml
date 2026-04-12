@@ -9,9 +9,9 @@
             <ui:Label name="app-subtitle" text="Feed, Snap &amp; Earn Coins!" class="app-subtitle" />
             <ui:VisualElement name="pet-row" class="pet-row">
                 <ui:VisualElement name="pet1" class="pet-emoji pet-dog" />
-                <ui:VisualElement name="pet2" class="pet-emoji pet-cat" />
-                <ui:VisualElement name="pet3" class="pet-emoji pet-hamster" />
-                <ui:VisualElement name="pet4" class="pet-emoji pet-rabbit" />
+                <ui:VisualElement name="pet2" class="pet-emoji pet-bull" />
+                <ui:VisualElement name="pet3" class="pet-emoji pet-mouse" />
+                <ui:VisualElement name="pet4" class="pet-emoji pet-fox" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="login-card" class="login-card">

@@ -79,10 +79,10 @@
     border-radius: 0;
 }
 
-.pet-dog     { background-image: resource("Icons/pet-dog"); }
-.pet-cat     { background-image: resource("Icons/pet-cat"); }
-.pet-hamster { background-image: resource("Icons/pet-hamster"); }
-.pet-rabbit  { background-image: resource("Icons/pet-rabbit"); }
+.pet-dog   { background-image: resource("Icons/pet-dog"); }
+.pet-bull  { background-image: resource("Icons/pet-bull"); }
+.pet-mouse { background-image: resource("Icons/pet-mouse"); }
+.pet-fox   { background-image: resource("Icons/pet-fox"); }
 
 /* ---------- LOGIN CARD ---------- */
 .login-card {

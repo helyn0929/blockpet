@@ -126,8 +126,10 @@ public class ChatUIHandler : MonoBehaviour
     [SerializeField] Vector2 bubbleTextPadding = new Vector2(14f, 10f);
     [Tooltip("If chat Content has VerticalLayoutGroup, disable width stretch so bubbles stay narrow.")]
     [SerializeField] bool chatContentIntrinsicBubbleWidth = true;
-    [Tooltip("Others’ bubbles on the left, yours on the right (full-width row + flexible spacer).")]
+    [Tooltip("Full-width row + flexible spacer so messages can sit on opposite sides of the thread.")]
     [SerializeField] bool alignBubblesBySenderSide = true;
+    [Tooltip("When Align Bubbles By Sender Side is on: if true, yours on the right and others on the left; if false, yours on the left and others on the right.")]
+    [SerializeField] bool mineMessagesOnRight = true;
 
     List<ChatMessage> localHistory = new List<ChatMessage>();
     string ChatHistoryPath => Path.Combine(Application.persistentDataPath, ChatHistoryFileName);
@@ -672,14 +674,19 @@ public class ChatUIHandler : MonoBehaviour
         if (alignBubblesBySenderSide)
         {
             row = CreateChatBubbleRowShell();
-            if (isSelf)
+            bool spacerFirst = mineMessagesOnRight ? isSelf : !isSelf;
+            if (spacerFirst)
                 AddChatRowFlexSpacer(row.transform);
         }
 
         Transform bubbleParent = row != null ? row.transform : chatContent;
         GameObject newMsg = Instantiate(messagePrefab, bubbleParent);
-        if (row != null && !isSelf)
-            AddChatRowFlexSpacer(row.transform);
+        if (row != null)
+        {
+            bool spacerAfter = mineMessagesOnRight ? !isSelf : isSelf;
+            if (spacerAfter)
+                AddChatRowFlexSpacer(row.transform);
+        }
 
         // New reusable prefab path (avatar + name + reply quote + bubble)
         GroupChatMessageView view = newMsg.GetComponentInChildren<GroupChatMessageView>(true);

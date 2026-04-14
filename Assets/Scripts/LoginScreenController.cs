@@ -15,10 +15,12 @@ public class LoginScreenController : MonoBehaviour
     UIDocument _doc;
     VisualElement _root;
 
-    // Bounce animation state
-    const float BounceHeight = 10f;
-    const long   BounceDownMs = 300;
-    const long   BounceUpMs   = 300;
+    // Jump animation state
+    const float JumpHeight = 15f;   // px upward
+    const long  JumpUpMs   = 200;   // matches USS transition-duration
+    const long  JumpDownMs = 200;
+    const long  JumpRestMs = 80;    // pause at bottom before next pet jumps
+    const long  StaggerMs  = 280;   // delay between each pet's jump
 
     void Awake()
     {
@@ -77,34 +79,35 @@ public class LoginScreenController : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    // ── Pet bounce animation ─────────────────────────────────────────────────
+    // ── Pet jump animation ───────────────────────────────────────────────────
 
     void StartPetBounce()
     {
         var pets = _root.Query<VisualElement>(className: "pet-emoji").ToList();
-        long staggerMs = 0L;
-        foreach (var pet in pets)
-        {
-            long capturedDelay = staggerMs;
-            pet.schedule.Execute(() => ScheduleBounceLoop(pet)).StartingIn(capturedDelay);
-            staggerMs += 300L;
-        }
+        if (pets.Count == 0) return;
+        ScheduleJumpSequence(pets, 0);
     }
 
-    void ScheduleBounceLoop(VisualElement label)
+    void ScheduleJumpSequence(System.Collections.Generic.List<VisualElement> pets, int index)
     {
-        // Up
-        label.schedule.Execute(() =>
-            label.style.translate = new StyleTranslate(new Translate(0, -BounceHeight, 0))
+        var pet = pets[index];
+
+        // Jump up (USS transition smooths this)
+        pet.schedule.Execute(() =>
+            pet.style.translate = new StyleTranslate(new Translate(0, -JumpHeight, 0))
         ).ExecuteLater(0);
 
-        // Down
-        label.schedule.Execute(() =>
-            label.style.translate = new StyleTranslate(new Translate(0, 0, 0))
-        ).ExecuteLater(BounceDownMs);
+        // Land back down
+        pet.schedule.Execute(() =>
+            pet.style.translate = new StyleTranslate(new Translate(0, 0, 0))
+        ).ExecuteLater(JumpUpMs);
 
-        // Loop
-        label.schedule.Execute(() => ScheduleBounceLoop(label))
-            .ExecuteLater(BounceDownMs + BounceUpMs + 600L); // 600 ms rest between bounces
+        // Next pet jumps after this one starts landing, then loop back
+        int next = (index + 1) % pets.Count;
+        long loopDelay = (next == 0) ? JumpUpMs + JumpDownMs + JumpRestMs : StaggerMs;
+
+        pet.schedule.Execute(() =>
+            ScheduleJumpSequence(pets, next)
+        ).ExecuteLater(loopDelay);
     }
 }

@@ -17,6 +17,12 @@ public class FirebaseManager : MonoBehaviour
 
     DatabaseReference dbRef;
     FirebaseAuth auth;
+    bool _chatListening;
+    Query _chatQuery;
+    bool _chatInitialLoaded;
+    [Header("Editor convenience")]
+    [Tooltip("In Unity Editor, automatically sign in anonymously so chat history/listener works without a login UI.")]
+    [SerializeField] bool autoAnonymousSignInInEditor = true;
 
     private Queue<Action> _mainThreadQueue = new Queue<Action>();
 
@@ -35,7 +41,13 @@ public class FirebaseManager : MonoBehaviour
                 dbRef = FirebaseDatabase.GetInstance(app).RootReference;
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log("Firebase Initialized Successfully!");
-                StartListeningForMessages();
+                // IMPORTANT: many RTDB security rules require an authenticated user.
+                // Start listening after sign-in so global history actually loads.
+                TryStartListeningForMessages();
+#if UNITY_EDITOR
+                if (autoAnonymousSignInInEditor && auth != null && auth.CurrentUser == null)
+                    SignInAnonymously();
+#endif
             } else {
                 Debug.LogError($"Could not resolve all Firebase dependencies: {dependencyStatus}");
             }
@@ -127,6 +139,8 @@ public class FirebaseManager : MonoBehaviour
                 {
                     bool success = firebaseTask.IsCompleted && !firebaseTask.IsFaulted && !firebaseTask.IsCanceled;
                     OnLoginSuccess?.Invoke(success);
+                    if (success)
+                        TryStartListeningForMessages();
                 });
             }
         });
@@ -157,6 +171,8 @@ public class FirebaseManager : MonoBehaviour
                 _mainThreadQueue.Enqueue(() => {
                     bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
                     OnLoginSuccess?.Invoke(success);
+                    if (success)
+                        TryStartListeningForMessages();
                 });
             }
         });
@@ -191,17 +207,110 @@ public class FirebaseManager : MonoBehaviour
         string json = JsonUtility.ToJson(message);
         
         // 在 "ChatRoom" 下建立唯一 Key 並存入
-        dbRef.Child("ChatRoom").Push().SetRawJsonValueAsync(json);
+        dbRef.Child("ChatRoom").Push().SetRawJsonValueAsync(json).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.LogError("[FirebaseManager] SendChatMessage failed: " + (t.Exception?.Flatten().InnerException?.Message ?? t.Exception?.ToString()));
+            else if (t.IsCanceled)
+                Debug.LogWarning("[FirebaseManager] SendChatMessage canceled.");
+        });
     }
 
-    void StartListeningForMessages()
+    void TryStartListeningForMessages()
     {
-        // 監聽新訊息事件
-        dbRef.Child("ChatRoom").ChildAdded += HandleChildAdded;
+        if (_chatListening) return;
+        if (dbRef == null || auth == null)
+            return;
+        if (auth.CurrentUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("[FirebaseManager] Chat listen skipped: not signed in (auth.CurrentUser is null).");
+#endif
+            return;
+        }
+
+        _chatListening = true;
+
+        // Global history: explicitly fetch, then start live updates.
+        _chatQuery = dbRef.Child("ChatRoom")
+            .OrderByChild("timestamp")
+            .LimitToLast(200);
+
+        _chatQuery.GetValueAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+            {
+                Debug.LogError("[FirebaseManager] Chat history GetValueAsync failed: " + (t.Exception?.Flatten().InnerException?.Message ?? t.Exception?.ToString()));
+                lock (_mainThreadQueue)
+                    _mainThreadQueue.Enqueue(ResetChatListenState);
+                return;
+            }
+            if (t.IsCanceled)
+            {
+                Debug.LogWarning("[FirebaseManager] Chat history GetValueAsync canceled.");
+                lock (_mainThreadQueue)
+                    _mainThreadQueue.Enqueue(ResetChatListenState);
+                return;
+            }
+
+            var snap = t.Result;
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    if (_chatQuery == null || !_chatListening)
+                        return;
+
+                    if (snap != null && snap.ChildrenCount > 0)
+                    {
+                        foreach (var child in snap.Children)
+                        {
+                            string json = child.GetRawJsonValue();
+                            ChatMessage msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
+                            if (msg != null && ChatUIHandler.Instance != null)
+                                ChatUIHandler.Instance.DisplayMessage(msg);
+                        }
+                    }
+
+                    if (_chatQuery == null || !_chatListening)
+                        return;
+
+                    _chatInitialLoaded = true;
+                    // After initial load, listen for new messages. StartAt is not used because timestamps can collide; ChatUIHandler dedupes by messageId.
+                    _chatQuery.ChildAdded += HandleChildAdded;
+                });
+            }
+        });
+    }
+
+    /// <summary>Unsubscribes from live chat updates (e.g. user left chat page intentionally). Call <see cref="EnsureChatListening"/> when opening chat again.</summary>
+    public void StopChatListening()
+    {
+        ResetChatListenState();
+    }
+
+    /// <summary>Starts RTDB chat listener if signed in and not already listening.</summary>
+    public void EnsureChatListening()
+    {
+        TryStartListeningForMessages();
+    }
+
+    void ResetChatListenState()
+    {
+        if (_chatQuery != null)
+        {
+            _chatQuery.ChildAdded -= HandleChildAdded;
+            _chatQuery = null;
+        }
+
+        _chatListening = false;
+        _chatInitialLoaded = false;
     }
 
     void HandleChildAdded(object sender, ChildChangedEventArgs args)
     {
+        if (!_chatListening || !_chatInitialLoaded)
+            return;
         if (args.DatabaseError != null) {
             Debug.LogError(args.DatabaseError.Message + "");
             return;
@@ -213,8 +322,9 @@ public class FirebaseManager : MonoBehaviour
 
         lock (_mainThreadQueue) {
             _mainThreadQueue.Enqueue(() => {
-                if (ChatUIHandler.Instance != null)
-                    ChatUIHandler.Instance.DisplayMessage(msg);
+                if (!_chatListening || ChatUIHandler.Instance == null)
+                    return;
+                ChatUIHandler.Instance.DisplayMessage(msg);
             });
         }
     }

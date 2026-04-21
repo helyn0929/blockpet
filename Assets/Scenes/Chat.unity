@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 8951545}
   - component: {fileID: 8951544}
   - component: {fileID: 8951546}
+  - component: {fileID: 437920001}
   m_Layer: 5
   m_Name: ChatPanel
   m_TagString: Untagged
@@ -255,6 +256,31 @@ MonoBehaviour:
   bubbleTextPadding: {x: 14, y: 10}
   chatContentIntrinsicBubbleWidth: 1
   alignBubblesBySenderSide: 1
+  mineMessagesOnRight: 1
+  useWebViewUi: 1
+  webViewBridge: {fileID: 437920001}
+  legacyUiRootsToHideWhenWebView:
+  - {fileID: 1263414608}
+  - {fileID: 272235344}
+  - {fileID: 1100977041}
+  - {fileID: 1449131925}
+--- !u!114 &437920001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8951541}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6789012345678abcdef00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  chatUIHandler: {fileID: 8951546}
+  webLayoutTarget: {fileID: 8951542}
+  editorWebViewCanvas: {fileID: 2096103131}
+  streamingAssetsRelativePath: chat-ui/index.html
+  updateMarginsEachFrame: 1
 --- !u!1 &53607745
 GameObject:
   m_ObjectHideFlags: 0

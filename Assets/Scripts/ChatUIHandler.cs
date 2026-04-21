@@ -4,6 +4,8 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System;
+using System.Text;
 
 public class ChatUIHandler : MonoBehaviour
 {
@@ -131,6 +133,19 @@ public class ChatUIHandler : MonoBehaviour
     [Tooltip("When Align Bubbles By Sender Side is on: if true, yours on the right and others on the left; if false, yours on the left and others on the right.")]
     [SerializeField] bool mineMessagesOnRight = true;
 
+    [Header("React WebView (primary UI)")]
+    [Tooltip("When enabled with an assigned bridge, messages render in the WebView React UI instead of uGUI bubbles. Default on; disable only for legacy bubble debugging.")]
+    [SerializeField] bool useWebViewUi = true;
+    [SerializeField] ChatWebViewBridge webViewBridge;
+    [Tooltip("Hidden while WebView UI is active (e.g. legacy header, message list, input bar).")]
+    [SerializeField] GameObject[] legacyUiRootsToHideWhenWebView;
+    [Header("Editor IME workaround")]
+    [Tooltip("Unity Editor WebView text input often can't type Chinese IME reliably. When enabled, keep the native TMP composer visible (send still goes through Firebase) and ask the web UI to hide its composer.")]
+    [SerializeField] bool keepNativeComposerInEditorForIme = true;
+
+    string _headerRoomName;
+    int _headerMemberCount;
+
     List<ChatMessage> localHistory = new List<ChatMessage>();
     string ChatHistoryPath => Path.Combine(Application.persistentDataPath, ChatHistoryFileName);
     Coroutine _smoothScrollRoutine;
@@ -145,6 +160,24 @@ public class ChatUIHandler : MonoBehaviour
         }
 
         _instance = this;
+        _headerRoomName = startupRoomDisplayName;
+        _headerMemberCount = startupMemberCount;
+
+    }
+
+    bool IsWebViewActive()
+    {
+#if UNITY_EDITOR
+        return false;
+#else
+        return useWebViewUi && webViewBridge != null;
+#endif
+    }
+
+    /// <summary>Used by <see cref="ChatWebViewBridge"/> to skip native WebView setup when legacy UI is active.</summary>
+    public bool IsWebViewChatEnabled()
+    {
+        return IsWebViewActive();
     }
 
     void OnDestroy()
@@ -163,13 +196,41 @@ public class ChatUIHandler : MonoBehaviour
     {
         if (useModernChatLayout)
             ApplyModernChatLayout();
+
+        if (FirebaseManager.Instance != null)
+            FirebaseManager.Instance.EnsureChatListening();
     }
 
     void Start()
     {
         ApplyChatRoomLayout();
 
-        if (sendButton != null)
+        // In some scenes these references might not be wired (or were wired to legacy objects that got replaced).
+        // Auto-wire to ensure WebView mode can reliably hide legacy composer + bubble list.
+        AutoWireLegacyUiReferencesIfMissing();
+
+        if (IsWebViewActive() && legacyUiRootsToHideWhenWebView != null)
+        {
+            foreach (GameObject root in legacyUiRootsToHideWhenWebView)
+            {
+                if (root != null)
+                {
+                    if (ShouldKeepNativeComposerVisible() && (IsNativeComposerRoot(root) || IsNativeHeaderRoot(root)))
+                        continue;
+                    root.SetActive(false);
+                }
+            }
+        }
+
+        // Some scenes may not include the input bar root in legacyUiRootsToHideWhenWebView.
+        // In WebView mode we never want the legacy composer visible (unless Editor IME workaround is enabled).
+        if (IsWebViewActive() && !ShouldKeepNativeComposerVisible())
+        {
+            DisableAllLegacyComposersUnderThisPanel();
+        }
+
+        // In Editor IME workaround mode, allow the native Send button to send even while WebView renders the thread.
+        if (sendButton != null && (!IsWebViewActive() || ShouldKeepNativeComposerVisible()))
             sendButton.onClick.AddListener(OnSendMessage);
 
         if (backButton != null)
@@ -181,11 +242,69 @@ public class ChatUIHandler : MonoBehaviour
         LoadChatHistoryAndRebuildUI();
 
         if (useModernChatLayout)
-            StartCoroutine(ApplyModernLayoutAfterFirstFrame());
+        {
+            // PageManager can toggle this panel off during the first frame; starting a coroutine on an inactive object throws.
+            if (isActiveAndEnabled && gameObject.activeInHierarchy)
+                StartCoroutine(ApplyModernLayoutAfterFirstFrame());
+        }
 
         EnsureChatContentVerticalLayoutForBubbles();
 
         RefreshReplyUiHints();
+    }
+
+    void DisableAllLegacyComposersUnderThisPanel()
+    {
+        // If the legacy input bar remains visible in a scene, users might type into it and press Send,
+        // but in WebView mode we intentionally route sending through the web UI.
+        // So we hard-disable all TMP input fields under this chat panel.
+        TMP_InputField[] fields = GetComponentsInChildren<TMP_InputField>(true);
+        foreach (var f in fields)
+        {
+            if (f == null) continue;
+            // Disable the whole input root (usually InputField(TMP)).
+            f.gameObject.SetActive(false);
+        }
+
+        // Additionally, hide the known bar root if it's wired.
+        if (enterMessageBar != null)
+            enterMessageBar.gameObject.SetActive(false);
+        if (inputField != null)
+            inputField.gameObject.SetActive(false);
+        if (sendButton != null)
+            sendButton.gameObject.SetActive(false);
+    }
+
+    void AutoWireLegacyUiReferencesIfMissing()
+    {
+        // Only needed for hiding legacy UI; safe in both modes.
+        if (inputField == null)
+            inputField = GetComponentInChildren<TMP_InputField>(true);
+
+        if (sendButton == null)
+        {
+            // Prefer a sibling button near the input field if possible.
+            if (inputField != null && inputField.transform.parent != null)
+                sendButton = inputField.transform.parent.GetComponentInChildren<Button>(true);
+            if (sendButton == null)
+                sendButton = GetComponentInChildren<Button>(true);
+        }
+
+        if (enterMessageBar == null && inputField != null)
+        {
+            // Typical hierarchy: InputField(TMP) is the root bar, or it sits under the bar container.
+            enterMessageBar = inputField.transform as RectTransform;
+            if (enterMessageBar != null && enterMessageBar.parent is RectTransform prt)
+            {
+                // If the input field is nested (e.g. Text Area), promote to the bar root.
+                if (enterMessageBar.name.Contains("Text Area", StringComparison.OrdinalIgnoreCase) ||
+                    enterMessageBar.name.Contains("Placeholder", StringComparison.OrdinalIgnoreCase) ||
+                    enterMessageBar.name.Contains("Text", StringComparison.OrdinalIgnoreCase))
+                {
+                    enterMessageBar = prt;
+                }
+            }
+        }
     }
 
     void OnBackClicked()
@@ -202,10 +321,225 @@ public class ChatUIHandler : MonoBehaviour
     /// </summary>
     public void SetRoomHeader(string roomName, int memberCount)
     {
+        _headerRoomName = roomName ?? string.Empty;
+        _headerMemberCount = memberCount;
+
         if (roomNameText != null)
             roomNameText.text = roomName ?? string.Empty;
         if (memberCountText != null)
             memberCountText.text = memberCount <= 0 ? string.Empty : $"{memberCount} members";
+
+        if (IsWebViewActive())
+            webViewBridge.NotifyHeader(_headerRoomName, _headerMemberCount);
+    }
+
+    /// <summary>Called when the WebView page finishes loading so it can receive the current thread + header.</summary>
+    public void PushFullStateToWebView()
+    {
+        if (!IsWebViewActive())
+            return;
+        webViewBridge.RequestFullSync(
+            localHistory,
+            _headerRoomName,
+            _headerMemberCount,
+            GetLocalSenderDisplayName(),
+            mineMessagesOnRight,
+            GetHeaderAnimalImageBase64Png(),
+            ShouldKeepNativeComposerVisible());
+    }
+
+    /// <summary>Used by <see cref="ChatWebViewBridge"/> to avoid covering the native input bar when Editor IME workaround is active.</summary>
+    public RectTransform GetNativeComposerRectTransform()
+    {
+        return enterMessageBar;
+    }
+
+    bool ShouldKeepNativeComposerVisible()
+    {
+#if UNITY_EDITOR
+        return keepNativeComposerInEditorForIme;
+#else
+        return false;
+#endif
+    }
+
+    bool IsNativeComposerRoot(GameObject go)
+    {
+        if (go == null) return false;
+        Transform rt = go.transform;
+        if (enterMessageBar != null && (go == enterMessageBar.gameObject || enterMessageBar.IsChildOf(rt))) return true;
+        if (inputField != null && (go == inputField.gameObject || inputField.transform.IsChildOf(rt))) return true;
+        if (sendButton != null && (go == sendButton.gameObject || sendButton.transform.IsChildOf(rt))) return true;
+        return false;
+    }
+
+    bool IsNativeHeaderRoot(GameObject go)
+    {
+        if (go == null) return false;
+        if (chatHeaderBar == null) return false;
+        Transform rt = go.transform;
+        return go == chatHeaderBar.gameObject || chatHeaderBar.IsChildOf(rt);
+    }
+
+    void EnsureActiveHierarchy(Transform t)
+    {
+        if (t == null) return;
+
+        // If any parent was disabled (e.g. a legacy root got hidden), the TMP input can't receive focus.
+        // Walk up until this ChatUIHandler root and re-enable everything on the path.
+        Transform stop = transform;
+        Transform cur = t;
+        while (cur != null)
+        {
+            cur.gameObject.SetActive(true);
+            if (cur == stop)
+                break;
+            cur = cur.parent;
+        }
+    }
+
+    string GetHeaderAnimalImageBase64Png()
+    {
+        try
+        {
+            Texture2D tex = AvatarManager.Instance != null ? AvatarManager.Instance.CurrentAvatar : null;
+            if (tex == null)
+                return null;
+
+            byte[] png = null;
+            try
+            {
+                png = tex.EncodeToPNG();
+            }
+            catch
+            {
+                png = EncodeToPngViaReadback(tex);
+            }
+
+            if (png == null || png.Length == 0)
+                return null;
+
+            return Convert.ToBase64String(png);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    static byte[] EncodeToPngViaReadback(Texture2D tex)
+    {
+        if (tex == null) return null;
+        RenderTexture rt = null;
+        RenderTexture prev = RenderTexture.active;
+        try
+        {
+            rt = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
+            Graphics.Blit(tex, rt);
+            RenderTexture.active = rt;
+            Texture2D copy = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
+            copy.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+            copy.Apply(false, false);
+            byte[] png = copy.EncodeToPNG();
+            Destroy(copy);
+            return png;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            RenderTexture.active = prev;
+            if (rt != null) RenderTexture.ReleaseTemporary(rt);
+        }
+    }
+
+    /// <summary>Invoked from <see cref="ChatWebViewBridge"/> when the user sends from the React composer.</summary>
+    public void SendFromWebView(string text, string replyToMessageId, string replyToDisplayName, string replyToMessagePreview)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        if (FirebaseManager.Instance == null)
+        {
+            Debug.LogError("找不到 FirebaseManager 物件！");
+            return;
+        }
+
+        ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), text.Trim());
+        if (!string.IsNullOrEmpty(replyToMessageId))
+        {
+            outgoing.replyToMessageId = replyToMessageId;
+            outgoing.replyToDisplayName = replyToDisplayName ?? string.Empty;
+            outgoing.replyToMessagePreview = replyToMessagePreview ?? string.Empty;
+        }
+
+        FirebaseManager.Instance.SendChatMessage(outgoing);
+        ClearReply();
+    }
+
+    public void WebViewRequestBack()
+    {
+        OnBackClicked();
+    }
+
+    /// <summary>Stops Firebase chat listener, clears reply state, then navigates home (WebView <c>leaveChat</c>).</summary>
+    public void WebViewRequestLeaveChat()
+    {
+        ClearReply();
+        if (FirebaseManager.Instance != null)
+            FirebaseManager.Instance.StopChatListening();
+        OnBackClicked();
+    }
+
+    /// <summary>Syncs WebView reply selection to the same reply target used for TMP send (WebView <c>replySelect</c>). Empty id clears reply.</summary>
+    public void WebViewSelectReply(string messageId, string userName, string displayName, string messageBody)
+    {
+        if (string.IsNullOrEmpty(messageId))
+        {
+            ClearReply();
+            return;
+        }
+
+        ChatMessage match = null;
+        for (int i = localHistory.Count - 1; i >= 0; i--)
+        {
+            ChatMessage m = localHistory[i];
+            if (!string.IsNullOrEmpty(m.messageId) && m.messageId == messageId)
+            {
+                match = m;
+                break;
+            }
+        }
+
+        if (match != null)
+            SetReply(match);
+        else
+        {
+            var synthetic = new ChatMessage
+            {
+                messageId = messageId,
+                userName = userName ?? string.Empty,
+                displayName = string.IsNullOrEmpty(displayName) ? (userName ?? string.Empty) : displayName,
+                message = messageBody ?? string.Empty,
+                timestamp = 0
+            };
+            SetReply(synthetic);
+        }
+    }
+
+    public void WebViewRequestOpenAlbum()
+    {
+        if (pageManager == null)
+            pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+            pageManager.ShowAlbumPage();
+    }
+
+    public void WebViewClearReply()
+    {
+        ClearReply();
     }
 
     IEnumerator ApplyModernLayoutAfterFirstFrame()
@@ -630,6 +964,8 @@ public class ChatUIHandler : MonoBehaviour
         if (replyPreview != null)
             replyPreview.Clear();
         RefreshReplyUiHints();
+        if (IsWebViewActive() && webViewBridge != null)
+            webViewBridge.NotifyReplyCleared();
     }
 
     void RefreshReplyUiHints()
@@ -651,21 +987,37 @@ public class ChatUIHandler : MonoBehaviour
     // 由 FirebaseManager 監聽到新訊息時呼叫
     public void DisplayMessage(ChatMessage msg)
     {
-        if (messagePrefab == null || chatContent == null) return;
-        // 避免 Firebase 重連時重複加入已從本地載入的訊息
-        if (localHistory.Exists(m => m.userName == msg.userName && m.message == msg.message && m.timestamp == msg.timestamp))
+        if (!IsWebViewActive() && (messagePrefab == null || chatContent == null))
             return;
+        if (IsWebViewActive() && webViewBridge == null)
+            return;
+        // Avoid duplicates when Firebase replays history or reconnects.
+        if (!string.IsNullOrEmpty(msg.messageId))
+        {
+            if (localHistory.Exists(m => !string.IsNullOrEmpty(m.messageId) && m.messageId == msg.messageId))
+                return;
+        }
+        else
+        {
+            if (localHistory.Exists(m => m.userName == msg.userName && m.message == msg.message && m.timestamp == msg.timestamp))
+                return;
+        }
 
         localHistory.Add(msg);
         SaveChatHistoryToFile();
 
-        AddMessageBubbleToUI(msg);
+        if (IsWebViewActive())
+            webViewBridge.NotifyMessageAppended(msg);
+        else
+            AddMessageBubbleToUI(msg);
 
         ScrollToLatest();
     }
 
     void AddMessageBubbleToUI(ChatMessage msg)
     {
+        if (IsWebViewActive())
+            return;
         // May run before Start() if messages arrive while panel is still inactive.
         EnsureChatContentVerticalLayoutForBubbles();
 
@@ -758,6 +1110,8 @@ public class ChatUIHandler : MonoBehaviour
     void OnMessageClickedForReply(ChatMessage msg)
     {
         if (msg == null) return;
+        if (IsWebViewActive())
+            return;
         // Don’t allow replying to money/system empty messages if you add them later.
         SetReply(msg);
     }
@@ -913,7 +1267,10 @@ public class ChatUIHandler : MonoBehaviour
 
     void LoadChatHistoryAndRebuildUI()
     {
-        if (chatContent == null || messagePrefab == null) return;
+        if (!IsWebViewActive() && (chatContent == null || messagePrefab == null))
+            return;
+        if (IsWebViewActive() && webViewBridge == null)
+            return;
 
         localHistory.Clear();
         if (File.Exists(ChatHistoryPath))
@@ -930,16 +1287,25 @@ public class ChatUIHandler : MonoBehaviour
                 Debug.LogWarning("[ChatUIHandler] Load chat history failed: " + e.Message);
             }
         }
+#if UNITY_EDITOR
+        Debug.Log("[ChatUIHandler] Local history messages: " + (localHistory != null ? localHistory.Count : 0) + " (path: " + ChatHistoryPath + ")");
+#endif
 
-        // 清除現有泡泡
-        for (int i = chatContent.childCount - 1; i >= 0; i--)
-            Destroy(chatContent.GetChild(i).gameObject);
+        if (!IsWebViewActive() && chatContent != null)
+        {
+            // 清除現有泡泡
+            for (int i = chatContent.childCount - 1; i >= 0; i--)
+                Destroy(chatContent.GetChild(i).gameObject);
 
-        // 依序重建訊息泡泡，保留歷史
-        foreach (ChatMessage msg in localHistory)
-            AddMessageBubbleToUI(msg);
+            // 依序重建訊息泡泡，保留歷史
+            foreach (ChatMessage msg in localHistory)
+                AddMessageBubbleToUI(msg);
+        }
 
-        ScrollToLatest();
+        if (IsWebViewActive())
+            PushFullStateToWebView();
+        else
+            ScrollToLatest();
     }
 
     void ScrollToLatest()

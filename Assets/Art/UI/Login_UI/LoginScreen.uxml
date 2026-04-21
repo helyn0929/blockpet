@@ -3,7 +3,7 @@
     <ui:VisualElement name="root" class="root">
         <ui:VisualElement name="hero-section" class="hero-section">
             <ui:VisualElement name="logo-container" class="logo-container">
-                <ui:Label name="logo-emoji" text="🐾" class="logo-emoji" />
+                <ui:VisualElement name="logo-icon" class="logo-icon" />
             </ui:VisualElement>
             <ui:Label name="app-title" text="Blockpet" class="app-title" />
             <ui:Label name="app-subtitle" text="Feed, Snap &amp; Earn Coins!" class="app-subtitle" />

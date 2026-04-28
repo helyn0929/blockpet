@@ -25,7 +25,7 @@ public class ChatUIHandler : MonoBehaviour
         }
     }
 
-    const string ChatHistoryFileName = "chat_history.json";
+    const string ChatHistoryFileNamePrefix = "chat_history";
 
     [Header("UI 連結")]
     public TMP_InputField inputField; 
@@ -147,7 +147,16 @@ public class ChatUIHandler : MonoBehaviour
     int _headerMemberCount;
 
     List<ChatMessage> localHistory = new List<ChatMessage>();
-    string ChatHistoryPath => Path.Combine(Application.persistentDataPath, ChatHistoryFileName);
+    string ChatHistoryPath => Path.Combine(Application.persistentDataPath, GetChatHistoryFileName());
+
+    string GetChatHistoryFileName()
+    {
+        string room = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : "global";
+        if (string.IsNullOrEmpty(room)) room = "global";
+        // Keep file-system safe.
+        room = room.Replace("/", "_").Replace("\\", "_").Replace("..", "_");
+        return $"{ChatHistoryFileNamePrefix}_{room}.json";
+    }
     Coroutine _smoothScrollRoutine;
 
     void Awake()
@@ -199,6 +208,9 @@ public class ChatUIHandler : MonoBehaviour
 
         if (FirebaseManager.Instance != null)
             FirebaseManager.Instance.EnsureChatListening();
+
+        if (FirebaseManager.Instance != null)
+            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", _headerMemberCount);
     }
 
     void Start()
@@ -535,6 +547,18 @@ public class ChatUIHandler : MonoBehaviour
             pageManager = FindObjectOfType<PageManager>(true);
         if (pageManager != null)
             pageManager.ShowAlbumPage();
+    }
+
+    public void WebViewSetRoom(string roomId)
+    {
+        if (FirebaseManager.Instance == null)
+            return;
+
+        FirebaseManager.Instance.SetRoomId(roomId);
+        SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
+
+        // Reload per-room local history (and push fresh init to web UI).
+        LoadChatHistoryAndRebuildUI();
     }
 
     public void WebViewClearReply()

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage, UnityChatPayload } from './types'
 import { displayNameOf } from './types'
-import { notifyReady, notifyReplySelect, requestBack, requestLeaveChat, requestClearReply, requestOpenAlbum, sendMessage } from './bridge'
+import {
+  notifyReplySelect,
+  requestBack,
+  requestLeaveChat,
+  requestClearReply,
+  requestOpenAlbum,
+  sendMessage,
+} from './bridge'
 import './chat-screen.css'
 
 function previewSnippet(s: string): string {
@@ -14,8 +21,9 @@ function isSelfMessage(m: ChatMessage, local: string): boolean {
   return (m.userName ?? '') === local || (m.displayName ?? '') === local
 }
 
-export function ChatScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'init' }> }) {
+  const init = props.init
+  const [messages, setMessages] = useState<ChatMessage[]>(init.messages ?? [])
   const [memberCount, setMemberCount] = useState(0)
   const [localDisplayName, setLocalDisplayName] = useState('')
   const [mineOnRight, setMineOnRight] = useState(true)
@@ -72,6 +80,10 @@ export function ChatScreen() {
       case 'clearReply':
         setReplyTarget(null)
         break
+      case 'clearMessages':
+        setMessages([])
+        setReplyTarget(null)
+        break
       default:
         break
     }
@@ -83,10 +95,20 @@ export function ChatScreen() {
       applyPayload(ce.detail)
     }
     window.addEventListener('blockpet-chat', onUnity)
-    // Handshake so Unity knows the listener is attached.
-    notifyReady()
     return () => window.removeEventListener('blockpet-chat', onUnity)
   }, [applyPayload])
+
+  // When App switches rooms and passes a new init, apply it immediately.
+  useEffect(() => {
+    setMessages(init.messages ?? [])
+    setMemberCount(init.memberCount ?? 0)
+    setLocalDisplayName(init.localDisplayName ?? '')
+    setMineOnRight(!!init.mineMessagesOnRight)
+    setAnimalB64(init.animalImageBase64 && init.animalImageBase64.length > 0 ? init.animalImageBase64 : null)
+    setUseNativeComposer(!!init.useNativeComposer)
+    setReplyTarget(null)
+    setDraft('')
+  }, [init])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })

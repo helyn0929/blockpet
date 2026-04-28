@@ -22,9 +22,25 @@ export type UnityChatPayload =
       animalImageBase64?: string
       useNativeComposer?: boolean
     }
+  | {
+      kind: 'room'
+      roomId: string
+      localDisplayName?: string
+      rooms?: RoomSummary[]
+    }
   | { kind: 'append'; message: ChatMessage }
   | { kind: 'header'; roomName: string; memberCount: number }
   | { kind: 'clearReply' }
+  | { kind: 'clearMessages' }
+
+export type RoomSummary = {
+  roomId: string
+  name?: string
+  lastActiveAt?: string
+  petIndex?: number
+  currentHealth?: number
+  lastUpdateTime?: string
+}
 
 export function displayNameOf(m: ChatMessage): string {
   if (m.displayName && m.displayName.length > 0) return m.displayName

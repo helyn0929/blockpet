@@ -83,6 +83,7 @@ public class ChatWebViewBridge : MonoBehaviour
 
     void OnEnable()
     {
+        FirebaseManager.OnRoomChanged += OnRoomChanged;
         // When PageManager toggles pages, the MonoBehaviour stays alive but its GameObject is disabled/enabled.
         // Keep the native WebView visibility in sync so it doesn't overlay other pages as a white screen.
         _shouldBeVisible = true;
@@ -92,13 +93,23 @@ public class ChatWebViewBridge : MonoBehaviour
 
     void OnDisable()
     {
+        FirebaseManager.OnRoomChanged -= OnRoomChanged;
         _shouldBeVisible = false;
         if (_webView != null)
             _webView.SetVisibility(false);
     }
 
+    void OnRoomChanged()
+    {
+        if (_webView == null || !_pageReady) return;
+        string json = "{\"kind\":\"clearMessages\"}";
+        string b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json));
+        _webView.EvaluateJS("window.__chatFromUnityB64(\"" + b64 + "\");");
+    }
+
     void OnDestroy()
     {
+        FirebaseManager.OnRoomChanged -= OnRoomChanged;
         if (_webView != null)
         {
             Destroy(_webView.gameObject);
@@ -809,6 +820,9 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
                     dto.selectedDisplayName,
                     dto.selectedMessageBody);
                 break;
+            case "setRoom":
+                chatUIHandler.WebViewSetRoom(dto.roomId);
+                break;
             default:
                 Debug.Log("[ChatWebViewBridge] Unknown message type: " + dto.type);
                 break;
@@ -821,12 +835,12 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
         Debug.Log("[ChatWebViewBridge] Loading: " + url);
         if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            _webView.LoadURL(url);
+            _webView.LoadURL(url + "?screen=chat");
             yield break;
         }
 
 #if UNITY_WEBPLAYER || UNITY_WEBGL
-        _webView.LoadURL("StreamingAssets/" + url);
+        _webView.LoadURL("StreamingAssets/" + url + "?screen=chat");
         yield break;
 #else
         if (!url.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
@@ -861,7 +875,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
                 string dstIndex = Path.Combine(dstRoot, indexFileName);
                 if (File.Exists(dstIndex))
                 {
-                    string cached = "file://" + dstIndex.Replace(" ", "%20");
+                    string cached = "file://" + dstIndex.Replace(" ", "%20") + "?screen=chat";
                     Debug.Log("[ChatWebViewBridge] LoadURL cached: " + cached);
                     _webView.LoadURL(cached);
                     yield break;
@@ -895,7 +909,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
                 string dstIndex = Path.Combine(dstRoot, indexFileName);
                 if (File.Exists(dstIndex))
                 {
-                    _webView.LoadURL("file://" + dstIndex.Replace(" ", "%20"));
+                    _webView.LoadURL("file://" + dstIndex.Replace(" ", "%20") + "?screen=chat");
                     yield break;
                 }
             }
@@ -973,7 +987,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
 
         string dstIndex = Path.Combine(dstRoot, indexFileName);
         if (File.Exists(dstIndex))
-            _webView.LoadURL("file://" + dstIndex.Replace(" ", "%20"));
+            _webView.LoadURL("file://" + dstIndex.Replace(" ", "%20") + "?screen=chat");
         else
             Debug.LogError("[ChatWebViewBridge] index.html not found after manifest copy.");
     }
@@ -1113,5 +1127,6 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
         public string selectedUserName;
         public string selectedDisplayName;
         public string selectedMessageBody;
+        public string roomId;
     }
 }

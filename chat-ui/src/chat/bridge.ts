@@ -8,7 +8,18 @@ declare global {
 }
 
 export function sendToUnity(payload: {
-  type: 'ready' | 'send' | 'back' | 'clearReply' | 'openAlbum' | 'leaveChat' | 'replySelect'
+  type:
+    | 'ready'
+    | 'send'
+    | 'back'
+    | 'clearReply'
+    | 'openAlbum'
+    | 'leaveChat'
+    | 'replySelect'
+    | 'setRoom'
+    | 'createRoom'
+    | 'joinRoom'
+    | 'refreshRooms'
   text?: string
   replyToMessageId?: string
   replyToDisplayName?: string
@@ -17,6 +28,8 @@ export function sendToUnity(payload: {
   selectedUserName?: string
   selectedDisplayName?: string
   selectedMessageBody?: string
+  roomId?: string
+  roomName?: string
 }): void {
   const json = JSON.stringify(payload)
   if (window.Unity && typeof window.Unity.call === 'function') {
@@ -81,4 +94,26 @@ export function notifyReplySelect(target: ChatMessage | null): void {
     selectedDisplayName: displayNameOf(target),
     selectedMessageBody: target.message ?? '',
   })
+}
+
+export function requestSetRoom(roomId: string): void {
+  const trimmed = roomId.trim()
+  if (!trimmed) return
+  sendToUnity({ type: 'setRoom', roomId: trimmed })
+}
+
+export function requestCreateRoom(roomId: string, roomName?: string): void {
+  const trimmed = roomId.trim()
+  if (!trimmed) return
+  sendToUnity({ type: 'createRoom', roomId: trimmed, roomName })
+}
+
+export function requestJoinRoom(roomId: string): void {
+  const trimmed = roomId.trim()
+  if (!trimmed) return
+  sendToUnity({ type: 'joinRoom', roomId: trimmed })
+}
+
+export function requestRefreshRooms(): void {
+  sendToUnity({ type: 'refreshRooms' })
 }

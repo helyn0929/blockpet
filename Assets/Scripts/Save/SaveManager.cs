@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.IO;
 using System.Collections.Generic;
+using System;
 
 public class SaveManager : MonoBehaviour
 {
@@ -9,12 +10,17 @@ public class SaveManager : MonoBehaviour
     public static System.Action OnSaveDataChanged;
     /// <summary>Fired when a photo is saved successfully (for economy, etc.).</summary>
     public static System.Action OnPhotoSaved;
+    /// <summary>Fired when a photo is saved with its metadata (for cloud sync, etc.).</summary>
+    public static System.Action<PhotoMeta> OnPhotoSavedMeta;
 
     [Header("Runtime Data")]
     public SaveData data = new SaveData();
 
     string jsonPath;
     string photoFolder;
+
+    /// <summary>The last photo meta saved by <see cref="SavePhoto"/> in this session.</summary>
+    public PhotoMeta LastSavedPhotoMeta { get; private set; }
 
     void Awake()
     {
@@ -69,6 +75,7 @@ public class SaveManager : MonoBehaviour
             string takerAvatar = data.avatarFileName;
             PhotoMeta meta = new PhotoMeta(fileName, takerAvatar);
             data.photos.Add(meta);
+            LastSavedPhotoMeta = meta;
 
             Save();
 
@@ -76,11 +83,49 @@ public class SaveManager : MonoBehaviour
             Debug.Log("[SaveManager] Total photos: " + data.photos.Count);
 
             OnPhotoSaved?.Invoke();
+            OnPhotoSavedMeta?.Invoke(meta);
             OnSaveDataChanged?.Invoke();
         }
         catch (System.Exception e)
         {
             Debug.LogError("[SaveManager] SavePhoto failed: " + e.Message);
+        }
+    }
+
+    /// <summary>
+    /// Imports a photo received from cloud sync into local storage + save data.
+    /// Dedupe is by <see cref="PhotoMeta.fileName"/>.
+    /// </summary>
+    public bool ImportPhotoFromCloud(PhotoMeta meta, byte[] imageBytes)
+    {
+        if (meta == null || string.IsNullOrEmpty(meta.fileName) || imageBytes == null || imageBytes.Length == 0)
+            return false;
+
+        try
+        {
+            if (data.photos == null)
+                data.photos = new List<PhotoMeta>();
+
+            // Already have it.
+            if (data.photos.Exists(p => p != null && p.fileName == meta.fileName))
+                return false;
+
+            string fullPath = Path.Combine(photoFolder, meta.fileName);
+            if (!Directory.Exists(photoFolder))
+                Directory.CreateDirectory(photoFolder);
+
+            File.WriteAllBytes(fullPath, imageBytes);
+            data.photos.Add(meta);
+            Save();
+
+            Debug.Log("[SaveManager] Imported cloud photo: " + meta.fileName);
+            OnSaveDataChanged?.Invoke();
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[SaveManager] ImportPhotoFromCloud failed: " + e.Message);
+            return false;
         }
     }
 

@@ -65,6 +65,22 @@ public class LoginUIHandler : MonoBehaviour
             petCollectionManager.gameObject.SetActive(visible);
     }
 
+    /// <summary>
+    /// Called after the player has selected / joined a room. This is the point where gameplay UI is allowed to appear.
+    /// </summary>
+    public void EnterMainGame()
+    {
+        // Show main game + world background + economy / pet progress HUD
+        if (mainGameUI != null)
+            mainGameUI.SetActive(true);
+
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(true);
+
+        ResolveHudManagers();
+        SetGameplayHudVisible(true);
+    }
+
     void OnEnable()
     {
         FirebaseManager.OnLoginSuccess += OnLoginSuccess;
@@ -157,16 +173,7 @@ public class LoginUIHandler : MonoBehaviour
 
     IEnumerator FadeOutAndStartGame()
     {
-        // First: show main game + world background + economy / pet progress HUD
-        if (mainGameUI != null)
-            mainGameUI.SetActive(true);
-
-        if (mainRoomBackground != null)
-            mainRoomBackground.SetActive(true);
-
-        SetGameplayHudVisible(true);
-
-        // Second: lerp loginPanel CanvasGroup alpha from 1 to 0
+        // Fade out login first. Do NOT show gameplay yet — player must choose a room.
         if (loginPanel != null && fadeDuration > 0f)
         {
             float elapsed = 0f;
@@ -181,8 +188,51 @@ public class LoginUIHandler : MonoBehaviour
         else if (loginPanel != null)
             loginPanel.alpha = 0f;
 
-        // Third: hide login panel
-        if (loginPanel != null && loginPanel.gameObject != null)
-            loginPanel.gameObject.SetActive(false);
+        // Hide login panel.
+        // IMPORTANT: if this LoginUIHandler is attached to the same GameObject as `loginPanel`,
+        // deactivating it will stop coroutines and prevent post-login routing from completing.
+        if (loginPanel != null)
+        {
+            loginPanel.blocksRaycasts = false;
+            loginPanel.interactable = false;
+            if (loginPanel.gameObject != null && loginPanel.gameObject != gameObject)
+                loginPanel.gameObject.SetActive(false);
+        }
+
+        // Show the page system container so RoomPage (a child page) can render,
+        // but keep gameplay visuals/HUD hidden until a room is selected.
+        if (mainGameUI != null)
+            mainGameUI.SetActive(true);
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(false);
+        ResolveHudManagers();
+        SetGameplayHudVisible(false);
+
+        // Finally: go to Room selection page (join/create) before entering gameplay.
+        var pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+        {
+            // Defensive: if InitialPage or other scripts toggled pages earlier, clear first.
+            pageManager.HideAllPages();
+            pageManager.ShowRoomPage();
+            Debug.Log("[LoginUIHandler] Post-login: requested ShowRoomPage()");
+            // If this component lives under LoginPanel, the panel may be deactivated right after fade-out.
+            // Run the "re-assert room page" coroutine on PageManager which stays active.
+            pageManager.StartCoroutine(ForceRoomPageNextFrame(pageManager));
+        }
+    }
+
+    IEnumerator ForceRoomPageNextFrame(PageManager pageManager)
+    {
+        // Some scripts can still toggle pages on the same frame when MainGame is activated.
+        // Re-assert RoomPage after a short delay to make the first screen deterministic.
+        yield return null;
+        yield return null;
+        if (pageManager != null && !GameplayHudReleased)
+        {
+            Debug.Log("[LoginUIHandler] Post-login: re-asserting ShowRoomPage() (HUD not released yet)");
+            pageManager.HideAllPages();
+            pageManager.ShowRoomPage();
+        }
     }
 }

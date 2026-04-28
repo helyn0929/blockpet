@@ -8,6 +8,7 @@ public class PageManager : MonoBehaviour
 {
     [Header("Pages (full-screen roots under Canvas)")]
     [SerializeField] GameObject homePage;
+    [SerializeField] GameObject roomPage;
     [SerializeField] GameObject chatPage;
     [SerializeField] GameObject albumPage;
     [SerializeField] GameObject photoDetailPage;
@@ -32,6 +33,13 @@ public class PageManager : MonoBehaviour
 
     void Start()
     {
+        // Login flow controls the first page. Before a room is selected, we must not auto-switch
+        // to the initial page (Home/Chat/Album), otherwise it can override LoginUIHandler's
+        // ShowRoomPage() on the first frame after MainGame becomes active.
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login != null && !LoginUIHandler.GameplayHudReleased)
+            return;
+
         switch (initialPage)
         {
             case InitialPage.Home:
@@ -55,11 +63,56 @@ public class PageManager : MonoBehaviour
         ApplyHomeHudVisibility(false);
     }
 
-    public void ShowHomePage() => ShowOnly(homePage, true);
+    public void ShowHomePage()
+    {
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login != null && !LoginUIHandler.GameplayHudReleased)
+        {
+            ShowRoomPage();
+            return;
+        }
+        ShowOnly(homePage, true);
+    }
 
-    public void ShowChatPage() => ShowOnly(chatPage, false);
+    public void ShowRoomPage()
+    {
+        if (roomPage == null)
+        {
+            // Best-effort auto-discovery (optional): name-based lookup so scenes can adopt without re-wiring immediately.
+            roomPage = FindByNameIncludingInactive("RoomPage") ?? GameObject.Find("RoomPage");
+        }
+        if (roomPage == null)
+        {
+            Debug.LogWarning("[PageManager] Assign Room Page in the Inspector (GameObject named 'RoomPage' also works).");
+            return;
+        }
+        // Ensure its parents are active so the page can actually render.
+        EnsureActiveUpwards(roomPage.transform);
+        ShowOnly(roomPage, false);
+    }
 
-    public void ShowAlbumPage() => ShowOnly(albumPage, false);
+    public void ShowChatPage()
+    {
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login != null && !LoginUIHandler.GameplayHudReleased)
+        {
+            // Before the player selects a room, RoomPage is the only allowed page.
+            ShowRoomPage();
+            return;
+        }
+        ShowOnly(chatPage, false);
+    }
+
+    public void ShowAlbumPage()
+    {
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login != null && !LoginUIHandler.GameplayHudReleased)
+        {
+            ShowRoomPage();
+            return;
+        }
+        ShowOnly(albumPage, false);
+    }
 
     /// <summary>Full-screen market (shop + dressing preview). HUD hidden like other sub-pages.</summary>
     public void ShowMarketPage()
@@ -154,6 +207,7 @@ public class PageManager : MonoBehaviour
     void DeactivateAllPageRoots()
     {
         SetActiveSafe(homePage, false);
+        SetActiveSafe(roomPage, false);
         SetActiveSafe(chatPage, false);
         SetActiveSafe(albumPage, false);
         SetActiveSafe(photoDetailPage, false);
@@ -168,6 +222,7 @@ public class PageManager : MonoBehaviour
             return;
         }
 
+        Debug.Log($"[PageManager] ShowOnly -> {(page != null ? page.name : "null")} (isHome={isHomePage}, hudReleased={LoginUIHandler.GameplayHudReleased})");
         DeactivateAllPageRoots();
         page.SetActive(true);
         ApplyHomeHudVisibility(isHomePage);
@@ -177,5 +232,30 @@ public class PageManager : MonoBehaviour
     {
         if (go != null)
             go.SetActive(active);
+    }
+
+    static void EnsureActiveUpwards(Transform t)
+    {
+        if (t == null) return;
+        Transform cur = t;
+        while (cur != null)
+        {
+            cur.gameObject.SetActive(true);
+            cur = cur.parent;
+        }
+    }
+
+    static GameObject FindByNameIncludingInactive(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        // Works in player too. Includes inactive objects.
+        var all = Resources.FindObjectsOfTypeAll<GameObject>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            var go = all[i];
+            if (go != null && go.name == name)
+                return go;
+        }
+        return null;
     }
 }

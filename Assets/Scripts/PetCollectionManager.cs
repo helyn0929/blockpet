@@ -108,6 +108,7 @@ public class PetCollectionManager : MonoBehaviour
             currentPetIndex = Random.Range(0, 10);
             startingPhotoCount = total;
             SaveToPlayerPrefs();
+            PublishToRoomIfShared();
             progress = CurrentProgress;
             target = TargetAmount;
         }
@@ -125,9 +126,17 @@ public class PetCollectionManager : MonoBehaviour
             currentPetIndex = Random.Range(0, 10);
             startingPhotoCount = total;
             SaveToPlayerPrefs();
+            PublishToRoomIfShared();
         }
 
         RefreshAllUI();
+    }
+
+    void PublishToRoomIfShared()
+    {
+        if (FirebaseManager.Instance == null) return;
+        if (!FirebaseManager.Instance.HasRoomPetState) return;
+        FirebaseManager.Instance.PublishRoomPetProgress(currentPetIndex, startingPhotoCount);
     }
 
     void RefreshAllUI()

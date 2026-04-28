@@ -1,0 +1,169 @@
+.bp-roomRoot {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #f8f8f8;
+}
+
+/* Reuse the same naming as previous implementation for consistency */
+.bp-room {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  gap: 14px;
+}
+
+.bp-room__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bp-room__headerBtns {
+  display: flex;
+  gap: 10px;
+}
+
+.bp-room__title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #333;
+}
+
+.bp-room__back {
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.bp-room__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bp-room__tile {
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bp-room__tileTop {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bp-room__tileName {
+  font-weight: 900;
+  font-size: 15px;
+  color: #333;
+}
+
+.bp-room__tileCode {
+  font-weight: 800;
+  font-size: 12px;
+  color: #666;
+}
+
+.bp-room__tileMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #555;
+  font-weight: 700;
+}
+
+.bp-room__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.bp-room__card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bp-room__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.bp-room__btn {
+  flex: 1;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 12px;
+  font-weight: 800;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, #4f8cff, #7b5cff);
+}
+
+.bp-room__btn--small {
+  flex: 0 0 auto;
+  padding: 12px 14px;
+}
+
+.bp-room__divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 2px 0;
+}
+
+.bp-room__label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 700;
+}
+
+.bp-room__joinRow {
+  display: flex;
+  gap: 10px;
+}
+
+.bp-room__input {
+  flex: 1;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px 12px;
+  font-size: 15px;
+  outline: none;
+}
+
+.bp-room__hint {
+  font-size: 12px;
+  color: #777;
+}
+
+.bp-room__continueBanner {
+  padding: 0 2px;
+}
+
+.bp-room__btn--continue {
+  width: 100%;
+  background: linear-gradient(135deg, #34c759, #30a651);
+}
+

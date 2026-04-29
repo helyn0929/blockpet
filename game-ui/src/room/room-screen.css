@@ -167,3 +167,40 @@
   background: linear-gradient(135deg, #34c759, #30a651);
 }
 
+/* New room code display */
+.bp-room__codeDisplay {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-align: center;
+  color: #4f8cff;
+  background: rgba(79, 140, 255, 0.08);
+  border-radius: 16px;
+  padding: 18px 12px;
+  border: 2px dashed rgba(79, 140, 255, 0.3);
+}
+
+/* Room tile with copy button */
+.bp-room__tileWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bp-room__tileWrapper .bp-room__tile {
+  width: 100%;
+}
+
+.bp-room__copyBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(79, 140, 255, 0.12);
+  color: #4f8cff;
+  width: 100%;
+}
+

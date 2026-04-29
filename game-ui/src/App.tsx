@@ -3,19 +3,20 @@ import type { RoomSummary, UnityChatPayload } from './chat/types'
 import { notifyReady } from './chat/bridge'
 import { ChatScreen } from './chat/ChatScreen'
 import { RoomScreen } from './room/RoomScreen'
+import { MarketScreen } from './market/MarketScreen'
 
 function App() {
   const devScreen = useMemo(() => {
     try {
       const v = new URLSearchParams(window.location.search).get('screen')
-      if (v === 'chat' || v === 'room') return v as 'chat' | 'room'
+      if (v === 'chat' || v === 'room' || v === 'market') return v as 'chat' | 'room' | 'market'
     } catch {
       // ignore
     }
     return null
   }, [])
 
-  const [mode, setMode] = useState<'room' | 'chat'>(() => {
+  const [mode, setMode] = useState<'room' | 'chat' | 'market'>(() => {
     // URL param ?screen=chat|room works in both Unity and dev.
     // Default to 'room' so RoomWebViewBridge shows the room-select UI immediately
     // without a chat-screen flash. ChatWebViewBridge passes ?screen=chat in its URL.
@@ -80,6 +81,7 @@ function App() {
     return () => window.removeEventListener('blockpet-chat', onUnity)
   }, [devScreen])
 
+  if (mode === 'market') return <MarketScreen />
   return mode === 'room' ? <RoomScreen title={roomTitle} rooms={rooms} currentRoomId={currentRoomId} /> : <ChatScreen init={chatInit} />
 }
 

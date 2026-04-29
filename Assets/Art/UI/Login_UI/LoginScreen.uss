@@ -15,13 +15,12 @@
 
 /* ---------- HERO SECTION ---------- */
 .hero-section {
-    width: 720px;
-    min-height: 320px;
+    width: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding-top: 64px;
-    padding-bottom: 48px;
+    padding-top: 32px;
+    padding-bottom: 24px;
     padding-left: 24px;
     padding-right: 24px;
     background-color: rgb(237, 233, 254);
@@ -37,8 +36,8 @@
 }
 
 .logo-icon {
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     background-image: resource("Icons/logo-icon");
     background-color: rgba(0,0,0,0);
     border-radius: 0;
@@ -46,7 +45,7 @@
 
 /* ---------- APP TITLE ---------- */
 .app-title {
-    font-size: 48px;
+    font-size: 36px;
     color: rgb(30, 27, 75);    /* deep purple-ish */
     -unity-text-align: upper-center;
     -unity-font-style: bold;
@@ -63,7 +62,7 @@
 .pet-row {
     flex-direction: row;
     justify-content: center;
-    margin-top: 32px;
+    margin-top: 16px;
 }
 
 .pet-emoji {
@@ -85,14 +84,15 @@
 
 /* ---------- LOGIN CARD ---------- */
 .login-card {
-    width: 720px;
+    width: 100%;
+    flex-grow: 1;
     background-color: rgb(255, 255, 255);
-    border-top-left-radius: 48px;
-    border-top-right-radius: 48px;
-    padding-top: 40px;
-    padding-bottom: 40px;
-    padding-left: 32px;
-    padding-right: 32px;
+    border-top-left-radius: 32px;
+    border-top-right-radius: 32px;
+    padding-top: 28px;
+    padding-bottom: 24px;
+    padding-left: 28px;
+    padding-right: 28px;
     /* Shadow approximated via border */
     border-width: 0px;
     /* Unity doesn't support box-shadow natively; use a shadow panel behind if needed */
@@ -100,32 +100,32 @@
 
 /* ---------- CARD HEADINGS ---------- */
 .welcome-title {
-    font-size: 30px;
+    font-size: 24px;
     -unity-font-style: bold;
     color: rgb(30, 41, 59);    /* slate-800 */
     -unity-text-align: upper-center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .welcome-subtitle {
-    font-size: 16px;
+    font-size: 14px;
     color: rgb(100, 116, 139); /* slate-500 */
     -unity-text-align: middle-center;
-    margin-bottom: 32px;
+    margin-bottom: 20px;
 }
 
 /* ---------- BUTTONS (shared) ---------- */
 .btn {
     width: 100%;
-    border-radius: 16px;
-    padding-top: 16px;
-    padding-bottom: 16px;
+    border-radius: 14px;
+    padding-top: 13px;
+    padding-bottom: 13px;
     padding-left: 16px;
     padding-right: 16px;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     border-width: 0;
     cursor: link;
     transition-duration: 0.2s;
@@ -140,8 +140,8 @@
 }
 
 .btn-label {
-    font-size: 18px;
-    margin-left: 12px;
+    font-size: 15px;
+    margin-left: 10px;
     -unity-font-style: bold;
 }
 
@@ -194,11 +194,9 @@
 
 /* ---------- EMAIL BUTTON ---------- */
 .btn-email {
-    /* Gradient purple→pink approximated with solid purple-500 */
-    /* For true gradient, use a custom shader or UI Toolkit gradient (Unity 2023+) */
     background-color: rgb(168, 85, 247); /* purple-500 */
     border-width: 0;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .btn-email:hover {
@@ -217,8 +215,8 @@
 .divider-row {
     flex-direction: row;
     align-items: center;
-    margin-top: 8px;
-    margin-bottom: 24px;
+    margin-top: 4px;
+    margin-bottom: 12px;
 }
 
 .divider-line {
@@ -233,6 +231,91 @@
     margin-left: 16px;
     margin-right: 16px;
     -unity-text-align: middle-center;
+}
+
+/* ---------- EMAIL OVERLAY ---------- */
+.email-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+    align-items: center;
+    justify-content: center;
+}
+
+.email-overlay--visible {
+    display: flex;
+}
+
+.email-form {
+    background-color: rgb(255, 255, 255);
+    border-radius: 24px;
+    padding-top: 28px;
+    padding-bottom: 28px;
+    padding-left: 24px;
+    padding-right: 24px;
+    width: 85%;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.email-form-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(30, 41, 59);
+    -unity-text-align: middle-center;
+    margin-bottom: 20px;
+}
+
+.email-field {
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border-width: 1.5px;
+    border-color: rgb(203, 213, 225);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 14px;
+    color: rgb(30, 41, 59);
+    background-color: rgb(248, 250, 252);
+}
+
+.email-field > .unity-base-field__input {
+    border-width: 0;
+    background-color: rgba(0,0,0,0);
+    font-size: 14px;
+    color: rgb(30, 41, 59);
+}
+
+.email-error {
+    font-size: 12px;
+    color: rgb(220, 38, 38);
+    -unity-text-align: middle-center;
+    margin-bottom: 8px;
+    white-space: normal;
+}
+
+.email-submit-btn {
+    margin-top: 4px;
+    margin-bottom: 10px;
+}
+
+.email-back-btn {
+    background-color: rgba(0,0,0,0);
+    border-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.email-back-label {
+    font-size: 13px;
+    color: rgb(100, 116, 139);
 }
 
 /* ---------- TERMS ---------- */

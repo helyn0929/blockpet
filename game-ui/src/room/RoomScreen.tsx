@@ -19,10 +19,50 @@ function createCode(): string {
 
 export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; currentRoomId?: string }) {
   const [roomInput, setRoomInput] = useState('')
+  const [pendingNewCode, setPendingNewCode] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const rooms = props.rooms ?? []
   const title = useMemo(() => (props.title && props.title.length > 0 ? props.title : '選擇房間'), [props.title])
   const currentRoomId = props.currentRoomId ?? ''
+
+  function handleCopyCode(code: string) {
+    navigator.clipboard?.writeText(code).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (pendingNewCode) {
+    return (
+      <div className="bp-roomRoot">
+        <div className="bp-room">
+          <header className="bp-room__header">
+            <div className="bp-room__title">新房間已建立</div>
+          </header>
+          <div className="bp-room__card">
+            <div className="bp-room__label">你的房間碼</div>
+            <div className="bp-room__codeDisplay">{pendingNewCode}</div>
+            <div className="bp-room__hint">將此碼分享給朋友，他們可在「加入既有房間」輸入碼一起進入。</div>
+            <button
+              type="button"
+              className="bp-room__btn"
+              onClick={() => handleCopyCode(pendingNewCode)}
+            >
+              {copied ? '已複製！' : '複製房間碼'}
+            </button>
+            <div style={{ height: 12 }} />
+            <button
+              type="button"
+              className="bp-room__btn bp-room__btn--continue"
+              onClick={() => requestCreateRoom(pendingNewCode, `Room ${pendingNewCode}`)}
+            >
+              進入房間
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bp-roomRoot">
@@ -46,17 +86,27 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
 
         <div className="bp-room__grid">
           {rooms.map((r) => (
-            <button type="button" key={r.roomId} className="bp-room__tile" onClick={() => requestSetRoom(r.roomId)}>
-              <div className="bp-room__tileTop">
-                <div className="bp-room__tileName">{r.name || `Room ${r.roomId}`}</div>
-                <div className="bp-room__tileCode">{r.roomId}</div>
-              </div>
-              <div className="bp-room__tileMeta">
-                <span>Pet #{r.petIndex ?? 0}</span>
-                <span className="bp-room__dot" />
-                <span>Hearts {pctHearts(r)}%</span>
-              </div>
-            </button>
+            <div key={r.roomId} className="bp-room__tileWrapper">
+              <button type="button" className="bp-room__tile" onClick={() => requestSetRoom(r.roomId)}>
+                <div className="bp-room__tileTop">
+                  <div className="bp-room__tileName">{r.name || `Room ${r.roomId}`}</div>
+                  <div className="bp-room__tileCode">{r.roomId}</div>
+                </div>
+                <div className="bp-room__tileMeta">
+                  <span>Pet #{r.petIndex ?? 0}</span>
+                  <span className="bp-room__dot" />
+                  <span>Hearts {pctHearts(r)}%</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="bp-room__copyBtn"
+                onClick={(e) => { e.stopPropagation(); handleCopyCode(r.roomId) }}
+                title="複製房間碼"
+              >
+                {copied ? '✓' : '複製碼'}
+              </button>
+            </div>
           ))}
         </div>
 
@@ -67,7 +117,7 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
               className="bp-room__btn"
               onClick={() => {
                 const code = createCode()
-                requestCreateRoom(code, `Room ${code}`)
+                setPendingNewCode(code)
               }}
             >
               建立新房間

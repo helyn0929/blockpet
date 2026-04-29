@@ -14,13 +14,17 @@ public class LoginScreenController : MonoBehaviour
 
     UIDocument _doc;
     VisualElement _root;
+    VisualElement _emailOverlay;
+    TextField _emailField;
+    TextField _passwordField;
+    Label _emailError;
 
     // Jump animation state
-    const float JumpHeight = 15f;   // px upward
-    const long  JumpUpMs   = 200;   // matches USS transition-duration
+    const float JumpHeight = 15f;
+    const long  JumpUpMs   = 200;
     const long  JumpDownMs = 200;
-    const long  JumpRestMs = 80;    // pause at bottom before next pet jumps
-    const long  StaggerMs  = 280;   // delay between each pet's jump
+    const long  JumpRestMs = 80;
+    const long  StaggerMs  = 280;
 
     void Awake()
     {
@@ -33,10 +37,22 @@ public class LoginScreenController : MonoBehaviour
 
         WireButton("btn-google", OnClickGoogle);
         WireButton("btn-apple",  OnClickApple);
-        WireButton("btn-email",  OnClickGuest);
+        WireButton("btn-email",  OnClickEmailOpen);
+        WireButton("btn-submit", OnClickEmailSubmit);
+        WireButton("btn-back",   OnClickEmailClose);
+
+        _emailOverlay  = _root.Q<VisualElement>("email-overlay");
+        _emailField    = _root.Q<TextField>("email-field");
+        _passwordField = _root.Q<TextField>("password-field");
+        _emailError    = _root.Q<Label>("email-error");
+
+        if (_emailField != null)
+        {
+            _emailField.keyboardType = TouchScreenKeyboardType.EmailAddress;
+            _emailField.isDelayed = false;
+        }
 
         StartPetBounce();
-
         FirebaseManager.OnLoginSuccess += OnLoginSuccess;
     }
 
@@ -66,16 +82,46 @@ public class LoginScreenController : MonoBehaviour
         else if (FirebaseManager.Instance != null) FirebaseManager.Instance.SignInWithApple();
     }
 
-    void OnClickGuest()
+    void OnClickEmailOpen()
     {
-        if (loginUIHandler != null) loginUIHandler.OnClickGuest();
-        else if (FirebaseManager.Instance != null) FirebaseManager.Instance.SignInAnonymously();
+        if (_emailOverlay == null) return;
+        _emailOverlay.AddToClassList("email-overlay--visible");
+        if (_emailError != null) _emailError.text = "";
+        if (_emailField != null) _emailField.value = "";
+        if (_passwordField != null) _passwordField.value = "";
+    }
+
+    void OnClickEmailClose()
+    {
+        _emailOverlay?.RemoveFromClassList("email-overlay--visible");
+    }
+
+    void OnClickEmailSubmit()
+    {
+        string email = _emailField?.value?.Trim().ToLowerInvariant() ?? "";
+        string pass  = _passwordField?.value ?? "";
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(pass))
+        {
+            if (_emailError != null) _emailError.text = "請輸入 Email 和密碼";
+            return;
+        }
+
+        if (_emailError != null) _emailError.text = "";
+
+        if (FirebaseManager.Instance != null)
+            FirebaseManager.Instance.SignInWithEmail(email, pass);
+        else if (_emailError != null)
+            _emailError.text = "系統錯誤，請重試";
     }
 
     void OnLoginSuccess(bool success)
     {
-        if (!success) return;
-        // Hide the UI Toolkit document — LoginUIHandler owns the fade of the uGUI CanvasGroup.
+        if (!success)
+        {
+            if (_emailError != null) _emailError.text = "Email 或密碼錯誤";
+            return;
+        }
         gameObject.SetActive(false);
     }
 

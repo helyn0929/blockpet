@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
 const dist = path.join(root, 'dist')
-const target = path.resolve(root, '../Assets/StreamingAssets/chat-ui')
+const target = path.resolve(root, '../Assets/StreamingAssets/game-ui')
 
 function rmrf(dir) {
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true })
@@ -40,4 +40,4 @@ rmrf(target)
 copyRecursive(dist, target)
 const rels = walkFiles(target)
 fs.writeFileSync(path.join(target, 'manifest.txt'), rels.join('\n') + '\n', 'utf8')
-console.log('Synced', rels.length, 'files to Assets/StreamingAssets/chat-ui/')
+console.log('Synced', rels.length, 'files to Assets/StreamingAssets/game-ui/')

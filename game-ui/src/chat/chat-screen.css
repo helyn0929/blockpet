@@ -4,7 +4,7 @@
   --bp-muted: #a0a0a0;
   --bp-white: #ffffff;
   --bp-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -416,4 +416,109 @@
   justify-content: center;
   background: linear-gradient(135deg, #4f8cff, #7b5cff);
   box-shadow: var(--bp-shadow);
+}
+
+/* Header title as tappable button */
+.bp-chat__headerTitle {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--bp-text);
+  text-align: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bp-chat__headerInfoIcon {
+  font-size: 14px;
+  opacity: 0.45;
+}
+
+/* Room info overlay */
+.bp-chat__roomInfoOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.bp-chat__roomInfoCard {
+  background: #fff;
+  border-radius: 22px;
+  padding: 28px 24px 20px;
+  width: min(88vw, 320px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.bp-chat__roomInfoTitle {
+  font-size: 18px;
+  font-weight: 900;
+  color: #222;
+}
+
+.bp-chat__roomInfoLabel {
+  font-size: 12px;
+  color: #888;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.bp-chat__roomInfoCode {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #4f8cff;
+  background: rgba(79, 140, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px 20px;
+  border: 2px dashed rgba(79, 140, 255, 0.3);
+  width: 100%;
+  text-align: center;
+}
+
+.bp-chat__roomInfoHint {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.bp-chat__roomInfoCopyBtn {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, #4f8cff, #7b5cff);
+  margin-top: 4px;
+}
+
+.bp-chat__roomInfoCloseBtn {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #888;
+  background: rgba(0, 0, 0, 0.06);
 }

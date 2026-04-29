@@ -25,6 +25,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
   const init = props.init
   const [messages, setMessages] = useState<ChatMessage[]>(init.messages ?? [])
   const [memberCount, setMemberCount] = useState(0)
+  const [roomId, setRoomId] = useState(init.roomId ?? '')
   const [localDisplayName, setLocalDisplayName] = useState('')
   const [mineOnRight, setMineOnRight] = useState(true)
   const [animalB64, setAnimalB64] = useState<string | null>(null)
@@ -32,7 +33,15 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
   const [draft, setDraft] = useState('')
   const [isComposing, setIsComposing] = useState(false)
   const [useNativeComposer, setUseNativeComposer] = useState(false)
+  const [showRoomInfo, setShowRoomInfo] = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  function handleCopyRoomCode() {
+    navigator.clipboard?.writeText(roomId).catch(() => {})
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 2000)
+  }
 
   const applyPayload = useCallback((detail: unknown) => {
     const p = detail as UnityChatPayload
@@ -41,6 +50,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
       case 'init':
         setMessages(p.messages ?? [])
         setMemberCount(p.memberCount ?? 0)
+        if (p.roomId) setRoomId(p.roomId)
         setLocalDisplayName(p.localDisplayName ?? '')
         setMineOnRight(!!p.mineMessagesOnRight)
         setAnimalB64(p.animalImageBase64 && p.animalImageBase64.length > 0 ? p.animalImageBase64 : null)
@@ -102,6 +112,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
   useEffect(() => {
     setMessages(init.messages ?? [])
     setMemberCount(init.memberCount ?? 0)
+    if (init.roomId) setRoomId(init.roomId)
     setLocalDisplayName(init.localDisplayName ?? '')
     setMineOnRight(!!init.mineMessagesOnRight)
     setAnimalB64(init.animalImageBase64 && init.animalImageBase64.length > 0 ? init.animalImageBase64 : null)
@@ -127,6 +138,31 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
 
   return (
     <div className="bp-chat">
+      {showRoomInfo && (
+        <div className="bp-chat__roomInfoOverlay" onClick={() => setShowRoomInfo(false)}>
+          <div className="bp-chat__roomInfoCard" onClick={(e) => e.stopPropagation()}>
+            <div className="bp-chat__roomInfoTitle">房間資訊</div>
+            <div className="bp-chat__roomInfoLabel">房間碼</div>
+            <div className="bp-chat__roomInfoCode">{roomId || '—'}</div>
+            <div className="bp-chat__roomInfoHint">將此碼分享給朋友，他們在「房間選擇」輸入後即可加入</div>
+            <button
+              type="button"
+              className="bp-chat__roomInfoCopyBtn"
+              onClick={handleCopyRoomCode}
+            >
+              {codeCopied ? '已複製！' : '複製房間碼'}
+            </button>
+            <button
+              type="button"
+              className="bp-chat__roomInfoCloseBtn"
+              onClick={() => setShowRoomInfo(false)}
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      )}
+
       {!useNativeComposer ? (
         <header className="bp-chat__header">
           <button type="button" className="bp-chat__animalBtn" aria-label="Back" onClick={() => requestBack()}>
@@ -136,7 +172,9 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
               <span className="bp-chat__animalFallback" aria-hidden />
             )}
           </button>
-          <div className="bp-chat__headerTitle">{title}</div>
+          <button type="button" className="bp-chat__headerTitle" onClick={() => setShowRoomInfo(true)}>
+            {title} <span className="bp-chat__headerInfoIcon">ⓘ</span>
+          </button>
           <button
             type="button"
             className="bp-chat__leaveBtn"

@@ -1,13 +1,13 @@
 /**
- * Regenerates manifest.txt from Assets/StreamingAssets/chat-ui (Android jar: copy).
- * Run after manually changing files under StreamingAssets/chat-ui.
+ * Regenerates manifest.txt from Assets/StreamingAssets/game-ui (Android jar: copy).
+ * Run after manually changing files under StreamingAssets/game-ui.
  */
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const target = path.resolve(__dirname, '../../Assets/StreamingAssets/chat-ui')
+const target = path.resolve(__dirname, '../../Assets/StreamingAssets/game-ui')
 
 function walkFiles(dir, base = '') {
   const lines = []

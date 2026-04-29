@@ -57,11 +57,11 @@ public class AlbumUI : MonoBehaviour
             albumLeaveButton.onClick.RemoveListener(LeaveAlbum);
     }
 
-    /// <summary>Returns to home (for Leave button wiring in the Inspector).</summary>
+    /// <summary>Returns to chat or home depending on how album was opened.</summary>
     public void LeaveAlbum()
     {
         if (pageManager != null)
-            pageManager.ShowHomePage();
+            pageManager.CloseAlbumPage();
     }
 
     void OnEnable()

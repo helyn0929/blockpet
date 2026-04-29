@@ -16,6 +16,7 @@ export type UnityChatPayload =
       kind: 'init'
       messages: ChatMessage[]
       roomName: string
+      roomId?: string
       memberCount: number
       localDisplayName: string
       mineMessagesOnRight: boolean

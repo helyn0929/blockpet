@@ -36,5 +36,19 @@
             </ui:Button>
             <ui:Label name="terms-text" text="By continuing, you agree to our Terms of Service and Privacy Policy" class="terms-text" />
         </ui:VisualElement>
+        <ui:VisualElement name="email-overlay" class="email-overlay">
+            <ui:VisualElement name="email-form" class="email-form">
+                <ui:Label text="帳號登入" class="email-form-title" />
+                <ui:TextField name="email-field" placeholder-text="Email" class="email-field" />
+                <ui:TextField name="password-field" placeholder-text="Password" password="true" class="email-field" />
+                <ui:Label name="email-error" text="" class="email-error" />
+                <ui:Button name="btn-submit" class="btn btn-email email-submit-btn">
+                    <ui:Label text="登入" class="btn-label btn-label-light" />
+                </ui:Button>
+                <ui:Button name="btn-back" class="email-back-btn">
+                    <ui:Label text="取消" class="email-back-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

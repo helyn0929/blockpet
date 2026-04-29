@@ -214,6 +214,30 @@ public class FirebaseManager : MonoBehaviour
         // TODO: Implement real Apple Sign-In and then enqueue OnLoginSuccess(true/false) on _mainThreadQueue.
     }
 
+    public void SignInWithEmail(string email, string password)
+    {
+        if (auth == null)
+        {
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+            return;
+        }
+        auth.SignInWithEmailAndPasswordAsync(email.Trim(), password).ContinueWith(task => {
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() => {
+                    bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+                    OnLoginSuccess?.Invoke(success);
+                    if (success)
+                    {
+                        TryStartListeningForMessages();
+                        TryStartListeningForPhotos();
+                        TryStartListeningForPetState();
+                    }
+                });
+            }
+        });
+    }
+
     public void SignInAnonymously()
     {
         Debug.Log("Guest Sign In Starting...");

@@ -8,6 +8,7 @@ using System.Collections;
 /// Avatar file is stored under Application.persistentDataPath/avatars/.
 /// File name is recorded in SaveData.avatarFileName so it persists with the save.
 /// </summary>
+[DefaultExecutionOrder(-90)]
 public class AvatarManager : MonoBehaviour
 {
     public static AvatarManager Instance;
@@ -80,8 +81,16 @@ public class AvatarManager : MonoBehaviour
         {
             byte[] bytes = File.ReadAllBytes(path);
             Texture2D tex = new Texture2D(2, 2);
-            tex.LoadImage(bytes);
-            CurrentAvatar = tex;
+            if (tex.LoadImage(bytes))
+            {
+                CurrentAvatar = tex;
+            }
+            else
+            {
+                Destroy(tex);
+                CurrentAvatar = null;
+                Debug.LogWarning("[AvatarManager] Avatar file could not be decoded, falling back to default.");
+            }
         }
         catch (Exception e)
         {

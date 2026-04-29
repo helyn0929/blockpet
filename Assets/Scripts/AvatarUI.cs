@@ -56,7 +56,8 @@ public class AvatarUI : MonoBehaviour
             tex = AvatarManager.Instance.CurrentAvatar;
 
         avatarImage.texture = tex != null ? tex : defaultAvatar;
-        Debug.Log($"[AvatarUI] RefreshDisplay → texture={(tex != null ? tex.name : "default/null")}");
+        Debug.Log($"[AvatarUI] RefreshDisplay → {(tex != null ? $"user avatar ({tex.width}x{tex.height})" : defaultAvatar != null ? "default placeholder" : "null (no texture)")}");
+
     }
 
     void OnChangeAvatarPressed()

@@ -353,6 +353,7 @@ public class ChatUIHandler : MonoBehaviour
         webViewBridge.RequestFullSync(
             localHistory,
             _headerRoomName,
+            FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : string.Empty,
             _headerMemberCount,
             GetLocalSenderDisplayName(),
             mineMessagesOnRight,
@@ -546,7 +547,7 @@ public class ChatUIHandler : MonoBehaviour
         if (pageManager == null)
             pageManager = FindObjectOfType<PageManager>(true);
         if (pageManager != null)
-            pageManager.ShowAlbumPage();
+            pageManager.ShowAlbumFromChat();
     }
 
     public void WebViewSetRoom(string roomId)

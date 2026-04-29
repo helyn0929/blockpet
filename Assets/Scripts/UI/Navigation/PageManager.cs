@@ -26,6 +26,8 @@ public class PageManager : MonoBehaviour
 
     public enum InitialPage { Home, Chat, Album, None }
 
+    bool _albumOpenedFromChat;
+
     void Awake()
     {
         ResolveHudManagers();
@@ -105,6 +107,7 @@ public class PageManager : MonoBehaviour
 
     public void ShowAlbumPage()
     {
+        _albumOpenedFromChat = false;
         var login = FindObjectOfType<LoginUIHandler>(true);
         if (login != null && !LoginUIHandler.GameplayHudReleased)
         {
@@ -112,6 +115,26 @@ public class PageManager : MonoBehaviour
             return;
         }
         ShowOnly(albumPage, false);
+    }
+
+    public void ShowAlbumFromChat()
+    {
+        _albumOpenedFromChat = true;
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login != null && !LoginUIHandler.GameplayHudReleased)
+        {
+            ShowRoomPage();
+            return;
+        }
+        ShowOnly(albumPage, false);
+    }
+
+    public void CloseAlbumPage()
+    {
+        if (_albumOpenedFromChat)
+            ShowChatPage();
+        else
+            ShowHomePage();
     }
 
     /// <summary>Full-screen market (shop + dressing preview). HUD hidden like other sub-pages.</summary>

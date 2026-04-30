@@ -30,7 +30,12 @@ public class LoginUIHandler : MonoBehaviour
     void Start()
     {
         if (loginPanel != null)
-            loginPanel.alpha = 1f;
+        {
+            loginPanel.alpha = 0f;
+            loginPanel.blocksRaycasts = false;
+            loginPanel.interactable = false;
+            loginPanel.gameObject.SetActive(false);
+        }
 
         if (mainGameUI != null)
             mainGameUI.SetActive(false);

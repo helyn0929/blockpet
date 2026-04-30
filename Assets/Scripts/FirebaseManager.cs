@@ -143,6 +143,30 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    /// <summary>Permanently deletes the current Firebase Auth account and signs out.</summary>
+    public void DeleteAccount(Action<bool, string> callback = null)
+    {
+        var user = auth?.CurrentUser;
+        if (user == null) { callback?.Invoke(false, "未登入"); return; }
+
+        user.DeleteAsync().ContinueWith(task =>
+        {
+            bool ok = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+            string err = ok ? null : (task.Exception?.InnerException?.Message ?? "刪除失敗");
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() => callback?.Invoke(ok, err));
+            }
+        });
+    }
+
+    /// <summary>Signs out the current user.</summary>
+    public void SignOut()
+    {
+        auth?.SignOut();
+        _loginNotified = false;
+    }
+
     void OnDestroy()
     {
         if (enableCloudPhotoSync && SaveManager.Instance != null)

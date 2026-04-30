@@ -43,6 +43,33 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
+.bp-room__avatarBtn {
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-room__avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.bp-room__avatarPlaceholder {
+  font-size: 22px;
+  line-height: 1;
+}
+
 .bp-room__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

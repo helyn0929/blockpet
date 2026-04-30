@@ -10,12 +10,13 @@ public class SettingsAvatarButton : MonoBehaviour
     [SerializeField] Button button;
     [SerializeField] RawImage avatarImage;
     [SerializeField] Texture defaultAvatar;
-    [SerializeField] SettingsPanel settingsPanel;
+    [SerializeField] PageManager pageManager;
 
     void Awake()
     {
         if (button == null) button = GetComponent<Button>();
         if (avatarImage == null) avatarImage = GetComponentInChildren<RawImage>();
+        if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
     }
 
     void OnEnable()
@@ -40,9 +41,10 @@ public class SettingsAvatarButton : MonoBehaviour
 
     void OpenSettings()
     {
-        if (settingsPanel != null)
-            settingsPanel.Open();
+        if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+            pageManager.ShowSettingsPage();
         else
-            Debug.LogWarning("[SettingsAvatarButton] Assign SettingsPanel in the Inspector.");
+            Debug.LogWarning("[SettingsAvatarButton] PageManager not found.");
     }
 }

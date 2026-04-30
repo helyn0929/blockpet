@@ -13,6 +13,7 @@ public class PageManager : MonoBehaviour
     [SerializeField] GameObject albumPage;
     [SerializeField] GameObject photoDetailPage;
     [SerializeField] GameObject marketPage;
+    [SerializeField] GameObject settingsPage;
 
     [Header("Startup")]
     [Tooltip("If set, runs once in Start() so play mode always begins on that page.")]
@@ -227,6 +228,16 @@ public class PageManager : MonoBehaviour
         return LoginUIHandler.GameplayHudReleased;
     }
 
+    public void ShowSettingsPage()
+    {
+        if (settingsPage == null)
+        {
+            Debug.LogWarning("[PageManager] Assign Settings Page in the Inspector.");
+            return;
+        }
+        ShowOnly(settingsPage, false);
+    }
+
     void DeactivateAllPageRoots()
     {
         SetActiveSafe(homePage, false);
@@ -235,6 +246,7 @@ public class PageManager : MonoBehaviour
         SetActiveSafe(albumPage, false);
         SetActiveSafe(photoDetailPage, false);
         SetActiveSafe(marketPage, false);
+        SetActiveSafe(settingsPage, false);
     }
 
     void ShowOnly(GameObject page, bool isHomePage)

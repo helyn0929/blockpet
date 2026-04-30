@@ -2,11 +2,14 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
+/// <summary>
+/// Manages the shared room coin wallet.
+/// Balance is stored in Firebase (Rooms/{roomId}/economy/coins) and kept in
+/// sync across all room members via FirebaseManager's listener.
+/// </summary>
 public class EconomyManager : MonoBehaviour
 {
     public static EconomyManager Instance;
-
-    const string PlayerPrefsKey = "Economy_Money";
 
     [Header("Currency")]
     [SerializeField] int moneyPerPhoto = 50;
@@ -23,56 +26,44 @@ public class EconomyManager : MonoBehaviour
 
     public int CurrentMoney => currentMoney;
 
-    /// <summary>Spend soft currency for shops. Returns false if insufficient balance.</summary>
+    /// <summary>Spend coins from the shared wallet. Returns false if insufficient balance.</summary>
     public bool TrySpend(int amount)
     {
-        if (amount < 0 || currentMoney < amount)
-            return false;
+        if (amount <= 0) return true;
+        if (currentMoney < amount) return false;
         currentMoney -= amount;
-        SaveMoney();
-        if (countUpRoutine != null)
-            StopCoroutine(countUpRoutine);
+        FirebaseManager.Instance?.WriteRoomCoins(currentMoney);
+        if (countUpRoutine != null) StopCoroutine(countUpRoutine);
         displayedMoney = currentMoney;
         RefreshMoneyUI();
         return true;
     }
 
+    /// <summary>Add coins to the shared wallet (e.g. refund).</summary>
     public void AddCoins(int amount)
     {
         if (amount <= 0) return;
-        currentMoney += amount;
-        SaveMoney();
-        if (countUpRoutine != null)
-            StopCoroutine(countUpRoutine);
-        displayedMoney = currentMoney;
-        RefreshMoneyUI();
+        FirebaseManager.Instance?.AddRoomCoins(amount);
+        // UI updates via Firebase listener (SetRoomBalance).
     }
 
     void Awake()
     {
-        if (Instance != null)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
+        if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
-        // Keep under a Canvas so child UI (wallet text) still renders. DontDestroyOnLoad + SetParent(null) breaks Screen Space UI.
+
         Canvas hostCanvas = GetComponentInParent<Canvas>();
         if (hostCanvas != null)
             transform.SetParent(hostCanvas.transform, false);
         else
         {
             Canvas any = FindObjectOfType<Canvas>();
-            if (any != null)
-                transform.SetParent(any.transform, false);
-            else if (transform.parent != null)
-                transform.SetParent(null);
+            if (any != null) transform.SetParent(any.transform, false);
+            else if (transform.parent != null) transform.SetParent(null);
         }
         DontDestroyOnLoad(gameObject);
 
-        LoadMoney();
-        displayedMoney = currentMoney;
+        displayedMoney = 0;
         RefreshMoneyUI();
     }
 
@@ -88,42 +79,31 @@ public class EconomyManager : MonoBehaviour
 
     void OnDestroy()
     {
-        if (Instance == this)
-            Instance = null;
+        if (Instance == this) Instance = null;
     }
 
-    void LoadMoney()
+    /// <summary>Called by FirebaseManager listener when the shared balance changes.</summary>
+    public void SetRoomBalance(int coins)
     {
-        currentMoney = PlayerPrefs.GetInt(PlayerPrefsKey, 0);
-    }
+        int previous = displayedMoney;
+        currentMoney = coins;
 
-    void SaveMoney()
-    {
-        PlayerPrefs.SetInt(PlayerPrefsKey, currentMoney);
-        PlayerPrefs.Save();
-    }
-
-    /// <summary>
-    /// Called when a photo is saved (e.g. via SaveManager.OnPhotoSaved).
-    /// Adds money and updates the money UI with a smooth count-up.
-    /// </summary>
-    public void AddMoneyFromPhoto()
-    {
-        int previous = currentMoney;
-        currentMoney += moneyPerPhoto;
-        SaveMoney();
-
-        if (moneyText != null)
+        if (moneyText != null && Mathf.Abs(coins - previous) > 0)
         {
-            if (countUpRoutine != null)
-                StopCoroutine(countUpRoutine);
-            countUpRoutine = StartCoroutine(CountUpMoneyRoutine(previous, currentMoney));
+            if (countUpRoutine != null) StopCoroutine(countUpRoutine);
+            countUpRoutine = StartCoroutine(CountUpMoneyRoutine(previous, coins));
         }
         else
         {
             displayedMoney = currentMoney;
             RefreshMoneyUI();
         }
+    }
+
+    void AddMoneyFromPhoto()
+    {
+        FirebaseManager.Instance?.AddRoomCoins(moneyPerPhoto);
+        // UI updates via Firebase listener (HandleRoomCoinsChanged → SetRoomBalance).
     }
 
     IEnumerator CountUpMoneyRoutine(int from, int to)
@@ -134,12 +114,10 @@ public class EconomyManager : MonoBehaviour
 
         while (elapsed < countUpDuration)
         {
-            if (moneyText == null)
-                yield break;
-
+            if (moneyText == null) yield break;
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / countUpDuration);
-            t = 1f - (1f - t) * (1f - t); // ease-out quadratic
+            t = 1f - (1f - t) * (1f - t);
             displayedMoney = (int)Mathf.Lerp(from, to, t);
             RefreshMoneyUI();
             yield return null;
@@ -159,15 +137,8 @@ public class EconomyManager : MonoBehaviour
             moneyText.text = $"$ {displayedMoney} coin";
     }
 
-    /// <summary>Updates the wallet display (format: "$ 100 coin"). Call from UI or other scripts if needed.</summary>
-    public void UpdateWalletUI()
-    {
-        RefreshMoneyUI();
-    }
+    public void UpdateWalletUI() => RefreshMoneyUI();
 
-    /// <summary>
-    /// Optional: set the money display at runtime (e.g. if UI is created later).
-    /// </summary>
     public void SetMoneyText(TextMeshProUGUI text)
     {
         moneyText = text;

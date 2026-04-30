@@ -29,6 +29,7 @@ export type UnityChatPayload =
       kind: 'room'
       roomId: string
       localDisplayName?: string
+      avatarBase64?: string
       rooms?: RoomSummary[]
     }
   | { kind: 'append'; message: ChatMessage }

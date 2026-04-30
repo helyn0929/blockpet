@@ -4,19 +4,20 @@ import { notifyReady } from './chat/bridge'
 import { ChatScreen } from './chat/ChatScreen'
 import { RoomScreen } from './room/RoomScreen'
 import { MarketScreen } from './market/MarketScreen'
+import { SettingsScreen } from './settings/SettingsScreen'
 
 function App() {
   const devScreen = useMemo(() => {
     try {
       const v = new URLSearchParams(window.location.search).get('screen')
-      if (v === 'chat' || v === 'room' || v === 'market') return v as 'chat' | 'room' | 'market'
+      if (v === 'chat' || v === 'room' || v === 'market' || v === 'settings') return v as 'chat' | 'room' | 'market' | 'settings'
     } catch {
       // ignore
     }
     return null
   }, [])
 
-  const [mode, setMode] = useState<'room' | 'chat' | 'market'>(() => {
+  const [mode, setMode] = useState<'room' | 'chat' | 'market' | 'settings'>(() => {
     // URL param ?screen=chat|room works in both Unity and dev.
     // Default to 'room' so RoomWebViewBridge shows the room-select UI immediately
     // without a chat-screen flash. ChatWebViewBridge passes ?screen=chat in its URL.
@@ -36,6 +37,7 @@ function App() {
   })
 
   const [currentRoomId, setCurrentRoomId] = useState<string>('')
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null)
 
   const [rooms, setRooms] = useState<RoomSummary[]>(() => {
     if (window.Unity) return []
@@ -66,6 +68,7 @@ function App() {
         setMode('room')
         setRooms(p.rooms ?? [])
         if (p.roomId) setCurrentRoomId(p.roomId)
+        if (p.avatarBase64) setAvatarBase64(p.avatarBase64)
         return
       }
 
@@ -82,7 +85,8 @@ function App() {
   }, [devScreen])
 
   if (mode === 'market') return <MarketScreen />
-  return mode === 'room' ? <RoomScreen title={roomTitle} rooms={rooms} currentRoomId={currentRoomId} /> : <ChatScreen init={chatInit} />
+  if (mode === 'settings') return <SettingsScreen />
+  return mode === 'room' ? <RoomScreen title={roomTitle} rooms={rooms} currentRoomId={currentRoomId} avatarBase64={avatarBase64} /> : <ChatScreen init={chatInit} />
 }
 
 export default App

@@ -59,7 +59,7 @@ public class AvatarManager : MonoBehaviour
             return;
         }
 
-        string fileName = SaveManager.Instance.data.avatarFileName;
+        string fileName = SaveManager.Instance.AvatarFileName;
         if (string.IsNullOrEmpty(fileName))
         {
             Debug.Log("[AvatarManager] LoadAvatarFromSave: No avatarFileName in SaveData (first-time user).");
@@ -71,7 +71,7 @@ public class AvatarManager : MonoBehaviour
         if (!File.Exists(path))
         {
             Debug.LogWarning("[AvatarManager] Saved avatar file missing, resetting to default.");
-            SaveManager.Instance.data.avatarFileName = null;
+            SaveManager.Instance.AvatarFileName = null;
             SaveManager.Instance.Save();
             OnAvatarChanged?.Invoke();
             return;
@@ -123,10 +123,9 @@ public class AvatarManager : MonoBehaviour
 
             DeleteOldAvatar();
 
-            if (SaveManager.Instance != null && SaveManager.Instance.data != null)
+            if (SaveManager.Instance != null)
             {
-                SaveManager.Instance.data.avatarFileName = fileName;
-                SaveManager.Instance.Save();
+                SaveManager.Instance.AvatarFileName = fileName;
             }
 
             CurrentAvatar = texture;
@@ -182,8 +181,8 @@ public class AvatarManager : MonoBehaviour
     {
         get
         {
-            if (SaveManager.Instance == null || SaveManager.Instance.data == null) return false;
-            return !string.IsNullOrEmpty(SaveManager.Instance.data.avatarFileName);
+            if (SaveManager.Instance == null) return false;
+            return !string.IsNullOrEmpty(SaveManager.Instance.AvatarFileName);
         }
     }
 
@@ -245,8 +244,8 @@ public class AvatarManager : MonoBehaviour
 
     void DeleteOldAvatar()
     {
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        string old = SaveManager.Instance.data.avatarFileName;
+        if (SaveManager.Instance == null) return;
+        string old = SaveManager.Instance.AvatarFileName;
         if (string.IsNullOrEmpty(old)) return;
 
         string oldPath = Path.Combine(avatarFolder, old);

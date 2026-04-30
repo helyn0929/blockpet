@@ -34,6 +34,12 @@ public class FirebaseManager : MonoBehaviour
     RoomPetState _petState;
     public bool HasRoomPetState => _petState != null;
 
+    bool _equipListening;
+    DatabaseReference _equipRef;
+
+    bool _coinsListening;
+    DatabaseReference _coinsRef;
+
     // Room membership (per user)
     const string UsersNode = "Users";
     [Header("Editor convenience")]
@@ -99,6 +105,8 @@ public class FirebaseManager : MonoBehaviour
                 TryStartListeningForMessages();
                 TryStartListeningForPhotos();
                 TryStartListeningForPetState();
+                TryStartListeningForRoomEquipState();
+                TryStartListeningForRoomCoins();
 
                 if (enableCloudPhotoSync && SaveManager.Instance != null)
                     SaveManager.OnPhotoSavedMeta += HandleLocalPhotoSaved;
@@ -785,17 +793,26 @@ public class FirebaseManager : MonoBehaviour
         PlayerPrefs.SetString(PrefsRoomId, _roomId);
         PlayerPrefs.Save();
 
-        // Reset all listeners to re-bind under the new room.
+        // Stop all listeners first so _petState = null before OnRoomSwitched fires.
+        // This prevents PetCollectionManager.EnsureValidState() from publishing
+        // stale data to Firebase while HasRoomPetState is still true.
         ResetChatListenState();
         StopPhotoListening();
         StopPetListening();
+        StopEquipListening();
+        StopCoinsListening();
         _seenPhotoFileNames.Clear();
+
+        // Switch per-room save data — fires OnRoomSwitched with _petState already null.
+        SaveManager.Instance?.SwitchRoom(_roomId);
 
         OnRoomChanged?.Invoke();
 
         TryStartListeningForMessages();
         TryStartListeningForPhotos();
         TryStartListeningForPetState();
+        TryStartListeningForRoomEquipState();
+        TryStartListeningForRoomCoins();
     }
 
     void StopPhotoListening()
@@ -825,12 +842,16 @@ public class FirebaseManager : MonoBehaviour
             if (t.IsFaulted || t.IsCanceled) return;
             if (t.Result == null || !t.Result.Exists)
             {
+                int initPetIdx = PetCollectionManager.Instance != null
+                    ? PetCollectionManager.Instance.CurrentPetIndex : 0;
+                int initStartCount = PetCollectionManager.Instance != null
+                    ? PetCollectionManager.Instance.StartingPhotoCount : 0;
                 var init = new RoomPetState
                 {
                     currentHealth = SaveManager.Instance?.data?.currentHealth ?? 86400f,
                     lastUpdateTime = DateTime.Now.ToString(),
-                    petIndex = PlayerPrefs.GetInt("PetCollection_CurrentPetIndex", 0),
-                    startingPhotoCount = PlayerPrefs.GetInt("PetCollection_StartingPhotoCount", 0)
+                    petIndex = initPetIdx,
+                    startingPhotoCount = initStartCount
                 };
                 _petRef.SetRawJsonValueAsync(JsonUtility.ToJson(init));
             }
@@ -844,6 +865,121 @@ public class FirebaseManager : MonoBehaviour
         _petRef = null;
         _petListening = false;
         _petState = null;
+    }
+
+    // ─── Room equip state (decoration / pet skin shared across members) ───
+
+    void TryStartListeningForRoomEquipState()
+    {
+        if (_equipListening) return;
+        if (dbRef == null || auth?.CurrentUser == null) return;
+        _equipListening = true;
+        _equipRef = RoomRoot().Child("roomState");
+        _equipRef.ValueChanged += HandleRoomEquipStateChanged;
+    }
+
+    void StopEquipListening()
+    {
+        if (_equipRef != null)
+            _equipRef.ValueChanged -= HandleRoomEquipStateChanged;
+        _equipRef = null;
+        _equipListening = false;
+    }
+
+    void HandleRoomEquipStateChanged(object sender, ValueChangedEventArgs args)
+    {
+        if (!_equipListening) return;
+        if (args.DatabaseError != null) return;
+        string json = args.Snapshot?.GetRawJsonValue();
+        if (string.IsNullOrEmpty(json)) return;
+
+        RoomEquipState st = null;
+        try { st = JsonUtility.FromJson<RoomEquipState>(json); } catch { }
+        if (st == null) return;
+
+        lock (_mainThreadQueue)
+        {
+            _mainThreadQueue.Enqueue(() =>
+                MarketInventoryStore.ApplyFromFirebase(
+                    st.equippedPetId, st.equippedBgId, st.equippedSpaceId,
+                    st.equippedAccessoryIds, st.equippedFurnitureId));
+        }
+    }
+
+    public void PublishRoomEquipment()
+    {
+        if (_equipRef == null || !_equipListening) return;
+        var st = new RoomEquipState
+        {
+            equippedPetId        = MarketInventoryStore.GetEquippedPetId(),
+            equippedBgId         = MarketInventoryStore.GetEquippedBackgroundId(),
+            equippedSpaceId      = MarketInventoryStore.GetEquippedSpaceId(),
+            equippedAccessoryIds = string.Join(",", MarketInventoryStore.GetEquippedAccessoryIds()),
+            equippedFurnitureId  = MarketInventoryStore.GetEquippedFurnitureId(),
+        };
+        _equipRef.SetRawJsonValueAsync(JsonUtility.ToJson(st));
+    }
+
+    [Serializable]
+    class RoomEquipState
+    {
+        public string equippedPetId;
+        public string equippedBgId;
+        public string equippedSpaceId;
+        public string equippedAccessoryIds;
+        public string equippedFurnitureId;
+    }
+
+    // ─── Shared room coins ────────────────────────────────────────────
+
+    void TryStartListeningForRoomCoins()
+    {
+        if (_coinsListening) return;
+        if (dbRef == null || auth?.CurrentUser == null) return;
+        _coinsListening = true;
+        _coinsRef = RoomRoot().Child("economy").Child("coins");
+        _coinsRef.ValueChanged += HandleRoomCoinsChanged;
+    }
+
+    void StopCoinsListening()
+    {
+        if (_coinsRef != null)
+            _coinsRef.ValueChanged -= HandleRoomCoinsChanged;
+        _coinsRef = null;
+        _coinsListening = false;
+    }
+
+    void HandleRoomCoinsChanged(object sender, ValueChangedEventArgs args)
+    {
+        if (!_coinsListening) return;
+        if (args.DatabaseError != null) return;
+        var snap = args.Snapshot;
+        if (snap == null || !snap.Exists) return;
+        int coins = 0;
+        try { coins = Convert.ToInt32(snap.Value); } catch { }
+        lock (_mainThreadQueue)
+        {
+            _mainThreadQueue.Enqueue(() => EconomyManager.Instance?.SetRoomBalance(coins));
+        }
+    }
+
+    /// <summary>Atomically adds coins to the shared room wallet (safe for concurrent calls).</summary>
+    public void AddRoomCoins(int amount)
+    {
+        if (_coinsRef == null || !_coinsListening || amount <= 0) return;
+        _coinsRef.RunTransaction(mutable =>
+        {
+            int cur = 0;
+            try { cur = Convert.ToInt32(mutable.Value); } catch { }
+            mutable.Value = (long)(cur + amount);
+            return TransactionResult.Success(mutable);
+        });
+    }
+
+    /// <summary>Writes the new balance after a local spend. Not a transaction — acceptable for small groups.</summary>
+    public void WriteRoomCoins(int newBalance)
+    {
+        _coinsRef?.SetValueAsync((long)Mathf.Max(0, newBalance));
     }
 
     void HandlePetStateChanged(object sender, ValueChangedEventArgs args)
@@ -867,17 +1003,15 @@ public class FirebaseManager : MonoBehaviour
         {
             _mainThreadQueue.Enqueue(() =>
             {
-                // Update SaveManager health snapshot so other UI can read it.
-                if (SaveManager.Instance != null && SaveManager.Instance.data != null)
+                // Update SaveManager health snapshot so PetHealthManager can read it.
+                if (SaveManager.Instance?.data != null)
                 {
                     SaveManager.Instance.data.currentHealth = st.currentHealth;
                     SaveManager.Instance.data.lastUpdateTime = st.lastUpdateTime;
                 }
 
-                // Mirror pet collection prefs so existing UI updates without refactor.
-                PlayerPrefs.SetInt("PetCollection_CurrentPetIndex", st.petIndex);
-                PlayerPrefs.SetInt("PetCollection_StartingPhotoCount", st.startingPhotoCount);
-                PlayerPrefs.Save();
+                // Push pet index/progress directly into PetCollectionManager.
+                PetCollectionManager.Instance?.ApplyRoomPetState(st.petIndex, st.startingPhotoCount);
             });
         }
     }

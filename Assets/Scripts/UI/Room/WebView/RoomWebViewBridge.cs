@@ -48,7 +48,14 @@ public class RoomWebViewBridge : MonoBehaviour
         Debug.Log("[RoomWebViewBridge] OnEnable()");
         _shouldBeVisible = true;
         if (_webView != null)
+        {
             _webView.SetVisibility(true);
+            if (_pageReady)
+            {
+                StartUserRoomsListener();
+                SendRoomInit();
+            }
+        }
 
 #if !UNITY_EDITOR
         if (!_initStarted)
@@ -167,6 +174,7 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
         public string kind;
         public string roomId;
         public string localDisplayName;
+        public string avatarBase64;
         public FirebaseManager.RoomSummary[] rooms;
     }
 
@@ -196,11 +204,17 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
                 });
             }
 
+            string avatarB64 = null;
+            if (AvatarManager.Instance?.CurrentAvatar != null)
+                avatarB64 = System.Convert.ToBase64String(
+                    AvatarManager.Instance.CurrentAvatar.EncodeToPNG());
+
             var payload = new RoomInitPayload
             {
                 kind = "room",
                 roomId = currentRoomId,
                 localDisplayName = fb.GetDisplayName(),
+                avatarBase64 = avatarB64,
                 rooms = list.ToArray()
             };
             DispatchToPage(JsonUtility.ToJson(payload));
@@ -314,6 +328,12 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
                     pageManager = FindObjectOfType<PageManager>(true);
                 if (pageManager != null)
                     pageManager.ShowHomePage();
+                break;
+            case "openSettings":
+                if (pageManager == null)
+                    pageManager = FindObjectOfType<PageManager>(true);
+                if (pageManager != null)
+                    pageManager.ShowSettingsPage();
                 break;
         }
     }

@@ -20,6 +20,7 @@ export function sendToUnity(payload: {
     | 'createRoom'
     | 'joinRoom'
     | 'refreshRooms'
+    | 'openSettings'
   text?: string
   replyToMessageId?: string
   replyToDisplayName?: string
@@ -116,4 +117,8 @@ export function requestJoinRoom(roomId: string): void {
 
 export function requestRefreshRooms(): void {
   sendToUnity({ type: 'refreshRooms' })
+}
+
+export function requestOpenSettings(): void {
+  sendToUnity({ type: 'openSettings' })
 }

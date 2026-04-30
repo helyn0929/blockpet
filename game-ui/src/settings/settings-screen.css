@@ -1,0 +1,281 @@
+.bp-settings {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #f5f5f7;
+  color: #1c1c1e;
+  overflow: hidden;
+}
+
+/* Header */
+.bp-settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  background: #fff;
+  border-bottom: 1px solid #e5e5ea;
+  flex-shrink: 0;
+}
+
+.bp-settings__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1c1c1e;
+}
+
+.bp-settings__closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #e5e5ea;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3c3c43;
+}
+
+/* Scroll body */
+.bp-settings__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+/* Section card */
+.bp-settings__section {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.bp-settings__sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8e8e93;
+  padding: 12px 16px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Avatar section */
+.bp-settings__avatarSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 16px 20px;
+  background: #fff;
+  border-radius: 16px;
+  gap: 14px;
+}
+
+.bp-settings__avatarWrap {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e5e5ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-settings__avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bp-settings__avatarPlaceholder {
+  font-size: 40px;
+}
+
+.bp-settings__changeAvatarBtn {
+  border: none;
+  background: #f0eaff;
+  color: #7c3aed;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+/* Row item */
+.bp-settings__row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f2f2f7;
+  gap: 12px;
+  cursor: pointer;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  width: 100%;
+  text-align: left;
+}
+
+.bp-settings__row:last-child {
+  border-bottom: none;
+}
+
+.bp-settings__rowLabel {
+  font-size: 15px;
+  color: #1c1c1e;
+  flex: 1;
+}
+
+.bp-settings__rowValue {
+  font-size: 15px;
+  color: #8e8e93;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bp-settings__rowArrow {
+  color: #c7c7cc;
+  font-size: 14px;
+}
+
+.bp-settings__row--danger .bp-settings__rowLabel {
+  color: #ff3b30;
+}
+
+/* Nickname edit inline */
+.bp-settings__nicknameEdit {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid #f2f2f7;
+}
+
+.bp-settings__nicknameInput {
+  width: 100%;
+  font-size: 15px;
+  padding: 10px 14px;
+  border: 1.5px solid #d1d1d6;
+  border-radius: 10px;
+  background: #f9f9fb;
+  color: #1c1c1e;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.bp-settings__nicknameInput:focus {
+  border-color: #7c3aed;
+}
+
+.bp-settings__nicknameActions {
+  display: flex;
+  gap: 8px;
+}
+
+.bp-settings__saveBtn {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: 10px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bp-settings__cancelBtn {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #f2f2f7;
+  color: #8e8e93;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Status */
+.bp-settings__status {
+  font-size: 13px;
+  color: #8e8e93;
+  text-align: center;
+  min-height: 18px;
+}
+
+.bp-settings__status--ok  { color: #34c759; }
+.bp-settings__status--err { color: #ff3b30; }
+
+/* Confirm delete overlay */
+.bp-settings__confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.bp-settings__confirmCard {
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 24px 20px;
+  width: 80%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bp-settings__confirmTitle {
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bp-settings__confirmBody {
+  font-size: 14px;
+  color: #8e8e93;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.bp-settings__confirmBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bp-settings__confirmDelete {
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bp-settings__confirmCancel {
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #f2f2f7;
+  color: #1c1c1e;
+  font-size: 15px;
+  cursor: pointer;
+}

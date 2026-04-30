@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { RoomSummary } from '../chat/types'
-import { requestBack, requestCreateRoom, requestJoinRoom, requestSetRoom } from '../chat/bridge'
+import { requestBack, requestCreateRoom, requestJoinRoom, requestOpenSettings, requestSetRoom } from '../chat/bridge'
 import './room-screen.css'
 
 function pctHearts(s: RoomSummary): number {
@@ -17,7 +17,7 @@ function createCode(): string {
   return s
 }
 
-export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; currentRoomId?: string }) {
+export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; currentRoomId?: string; avatarBase64?: string | null }) {
   const [roomInput, setRoomInput] = useState('')
   const [pendingNewCode, setPendingNewCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -38,6 +38,11 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
         <div className="bp-room">
           <header className="bp-room__header">
             <div className="bp-room__title">新房間已建立</div>
+            <div className="bp-room__headerBtns">
+              <button type="button" className="bp-room__back" onClick={() => setPendingNewCode(null)}>
+                返回
+              </button>
+            </div>
           </header>
           <div className="bp-room__card">
             <div className="bp-room__label">你的房間碼</div>
@@ -54,7 +59,7 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
             <button
               type="button"
               className="bp-room__btn bp-room__btn--continue"
-              onClick={() => requestCreateRoom(pendingNewCode, `Room ${pendingNewCode}`)}
+              onClick={() => { setPendingNewCode(null); requestCreateRoom(pendingNewCode, `Room ${pendingNewCode}`) }}
             >
               進入房間
             </button>
@@ -72,6 +77,12 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
           <div className="bp-room__headerBtns">
             <button type="button" className="bp-room__back" onClick={() => requestBack()}>
               返回
+            </button>
+            <button type="button" className="bp-room__avatarBtn" onClick={() => requestOpenSettings()}>
+              {props.avatarBase64
+                ? <img className="bp-room__avatarImg" src={`data:image/png;base64,${props.avatarBase64}`} alt="avatar" />
+                : <span className="bp-room__avatarPlaceholder">🐾</span>
+              }
             </button>
           </div>
         </header>

@@ -14,10 +14,17 @@ public class LoginScreenController : MonoBehaviour
 
     UIDocument _doc;
     VisualElement _root;
+
+    // Email overlay
     VisualElement _emailOverlay;
     TextField _emailField;
     TextField _passwordField;
     Label _emailError;
+
+    // Nickname overlay
+    VisualElement _nicknameOverlay;
+    TextField _nicknameField;
+    Label _nicknameError;
 
     // Jump animation state
     const float JumpHeight = 15f;
@@ -35,16 +42,22 @@ public class LoginScreenController : MonoBehaviour
     {
         _root = _doc.rootVisualElement;
 
-        WireButton("btn-google", OnClickGoogle);
-        WireButton("btn-apple",  OnClickApple);
-        WireButton("btn-email",  OnClickEmailOpen);
-        WireButton("btn-submit", OnClickEmailSubmit);
-        WireButton("btn-back",   OnClickEmailClose);
+        WireButton("btn-google",          OnClickGoogle);
+        WireButton("btn-apple",           OnClickApple);
+        WireButton("btn-email",           OnClickEmailOpen);
+        WireButton("btn-submit",          OnClickEmailSubmit);
+        WireButton("btn-back",            OnClickEmailClose);
+        WireButton("btn-nickname-submit", OnClickNicknameSubmit);
+        WireButton("btn-nickname-skip",   OnClickNicknameSkip);
 
-        _emailOverlay  = _root.Q<VisualElement>("email-overlay");
-        _emailField    = _root.Q<TextField>("email-field");
-        _passwordField = _root.Q<TextField>("password-field");
-        _emailError    = _root.Q<Label>("email-error");
+        _emailOverlay    = _root.Q<VisualElement>("email-overlay");
+        _emailField      = _root.Q<TextField>("email-field");
+        _passwordField   = _root.Q<TextField>("password-field");
+        _emailError      = _root.Q<Label>("email-error");
+
+        _nicknameOverlay = _root.Q<VisualElement>("nickname-overlay");
+        _nicknameField   = _root.Q<TextField>("nickname-field");
+        _nicknameError   = _root.Q<Label>("nickname-error");
 
         if (_emailField != null)
         {
@@ -82,6 +95,8 @@ public class LoginScreenController : MonoBehaviour
         else if (FirebaseManager.Instance != null) FirebaseManager.Instance.SignInWithApple();
     }
 
+    // ── Email overlay ────────────────────────────────────────────────────────
+
     void OnClickEmailOpen()
     {
         if (_emailOverlay == null) return;
@@ -115,6 +130,41 @@ public class LoginScreenController : MonoBehaviour
             _emailError.text = "系統錯誤，請重試";
     }
 
+    // ── Nickname overlay ─────────────────────────────────────────────────────
+
+    void ShowNicknameOverlay()
+    {
+        _emailOverlay?.RemoveFromClassList("email-overlay--visible");
+        if (_nicknameField != null) _nicknameField.value = "";
+        if (_nicknameError != null) _nicknameError.text = "";
+        _nicknameOverlay?.AddToClassList("email-overlay--visible");
+    }
+
+    void OnClickNicknameSubmit()
+    {
+        string name = _nicknameField?.value?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name))
+        {
+            if (_nicknameError != null) _nicknameError.text = "請輸入暱稱";
+            return;
+        }
+
+        if (_nicknameError != null) _nicknameError.text = "";
+
+        FirebaseManager.Instance?.SetDisplayName(name, ok =>
+        {
+            if (ok) EnterGame();
+            else if (_nicknameError != null) _nicknameError.text = "儲存失敗，請重試";
+        });
+    }
+
+    void OnClickNicknameSkip()
+    {
+        EnterGame();
+    }
+
+    // ── Login success ────────────────────────────────────────────────────────
+
     void OnLoginSuccess(bool success)
     {
         if (!success)
@@ -122,6 +172,17 @@ public class LoginScreenController : MonoBehaviour
             if (_emailError != null) _emailError.text = "Email 或密碼錯誤";
             return;
         }
+
+        // If the user has no display name yet, prompt them to set one first.
+        bool needsNickname = FirebaseManager.Instance != null && !FirebaseManager.Instance.HasDisplayName;
+        if (needsNickname)
+            ShowNicknameOverlay();
+        else
+            EnterGame();
+    }
+
+    void EnterGame()
+    {
         gameObject.SetActive(false);
     }
 
@@ -138,17 +199,14 @@ public class LoginScreenController : MonoBehaviour
     {
         var pet = pets[index];
 
-        // Jump up (USS transition smooths this)
         pet.schedule.Execute(() =>
             pet.style.translate = new StyleTranslate(new Translate(0, -JumpHeight, 0))
         ).ExecuteLater(0);
 
-        // Land back down
         pet.schedule.Execute(() =>
             pet.style.translate = new StyleTranslate(new Translate(0, 0, 0))
         ).ExecuteLater(JumpUpMs);
 
-        // Next pet jumps after this one starts landing, then loop back
         int next = (index + 1) % pets.Count;
         long loopDelay = (next == 0) ? JumpUpMs + JumpDownMs + JumpRestMs : StaggerMs;
 

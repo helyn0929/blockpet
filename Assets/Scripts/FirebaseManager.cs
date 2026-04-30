@@ -87,9 +87,8 @@ public class FirebaseManager : MonoBehaviour
                     SignInAnonymously();
 #endif
 
-                // If we are already signed in (e.g. returning user), no login flow will fire.
-                // Notify once so UI can route to RoomPage consistently.
-                if (!_loginNotified && !hasLoginUi && auth != null && auth.CurrentUser != null)
+                // If already signed in (returning user), skip the login screen automatically.
+                if (!_loginNotified && auth != null && auth.CurrentUser != null)
                 {
                     _loginNotified = true;
                     lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
@@ -121,6 +120,27 @@ public class FirebaseManager : MonoBehaviour
         var user = auth?.CurrentUser;
         if (user == null) return "Guest";
         return string.IsNullOrEmpty(user.DisplayName) ? "Guest" : user.DisplayName;
+    }
+
+    /// <summary>True when the signed-in user has a non-empty display name set.</summary>
+    public bool HasDisplayName =>
+        auth?.CurrentUser != null && !string.IsNullOrEmpty(auth.CurrentUser.DisplayName);
+
+    /// <summary>Updates the Firebase Auth display name for the current user.</summary>
+    public void SetDisplayName(string name, Action<bool> callback = null)
+    {
+        var user = auth?.CurrentUser;
+        if (user == null) { callback?.Invoke(false); return; }
+
+        var profile = new UserProfile { DisplayName = name.Trim() };
+        user.UpdateUserProfileAsync(profile).ContinueWith(task =>
+        {
+            bool ok = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() => callback?.Invoke(ok));
+            }
+        });
     }
 
     void OnDestroy()

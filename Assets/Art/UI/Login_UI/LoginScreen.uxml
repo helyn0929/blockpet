@@ -36,6 +36,20 @@
             </ui:Button>
             <ui:Label name="terms-text" text="By continuing, you agree to our Terms of Service and Privacy Policy" class="terms-text" />
         </ui:VisualElement>
+        <ui:VisualElement name="nickname-overlay" class="email-overlay">
+            <ui:VisualElement name="nickname-form" class="email-form">
+                <ui:Label text="設定你的暱稱" class="email-form-title" />
+                <ui:Label text="讓隊友認識你！" class="welcome-subtitle" style="margin-bottom:16px;" />
+                <ui:TextField name="nickname-field" placeholder-text="輸入暱稱" class="email-field" />
+                <ui:Label name="nickname-error" text="" class="email-error" />
+                <ui:Button name="btn-nickname-submit" class="btn btn-email email-submit-btn">
+                    <ui:Label text="確認" class="btn-label btn-label-light" />
+                </ui:Button>
+                <ui:Button name="btn-nickname-skip" class="email-back-btn">
+                    <ui:Label text="跳過" class="email-back-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
         <ui:VisualElement name="email-overlay" class="email-overlay">
             <ui:VisualElement name="email-form" class="email-form">
                 <ui:Label text="帳號登入" class="email-form-title" />

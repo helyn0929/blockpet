@@ -481,6 +481,7 @@ public class ChatUIHandler : MonoBehaviour
         }
 
         ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), text.Trim());
+        outgoing.senderId = FirebaseManager.Instance?.GetUserId() ?? string.Empty;
         if (!string.IsNullOrEmpty(replyToMessageId))
         {
             outgoing.replyToMessageId = replyToMessageId;

@@ -11,6 +11,8 @@ public class ChatMessage
     public string userName;
     // Optional: explicit display name (if you later decouple account id from display name).
     public string displayName;
+    // Firebase UID of the sender — used to reliably distinguish self vs other messages.
+    public string senderId;
     // Optional: avatar key / id (resolved by UI, not stored as Sprite).
     public string avatarId;
     public string message;

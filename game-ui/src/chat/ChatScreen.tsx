@@ -17,8 +17,9 @@ function previewSnippet(s: string): string {
   return flat.slice(0, 90).trimEnd() + '…'
 }
 
-function isSelfMessage(m: ChatMessage, local: string): boolean {
-  return (m.userName ?? '') === local || (m.displayName ?? '') === local
+function isSelfMessage(m: ChatMessage, localUserId: string, localDisplayName: string): boolean {
+  if (localUserId && m.senderId) return m.senderId === localUserId
+  return (m.userName ?? '') === localDisplayName || (m.displayName ?? '') === localDisplayName
 }
 
 export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'init' }> }) {
@@ -27,6 +28,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
   const [memberCount, setMemberCount] = useState(0)
   const [roomId, setRoomId] = useState(init.roomId ?? '')
   const [localDisplayName, setLocalDisplayName] = useState('')
+  const [localUserId, setLocalUserId] = useState('')
   const [mineOnRight, setMineOnRight] = useState(true)
   const [animalB64, setAnimalB64] = useState<string | null>(null)
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
@@ -52,6 +54,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
         setMemberCount(p.memberCount ?? 0)
         if (p.roomId) setRoomId(p.roomId)
         setLocalDisplayName(p.localDisplayName ?? '')
+        if (p.localUserId) setLocalUserId(p.localUserId)
         setMineOnRight(!!p.mineMessagesOnRight)
         setAnimalB64(p.animalImageBase64 && p.animalImageBase64.length > 0 ? p.animalImageBase64 : null)
         setUseNativeComposer(!!p.useNativeComposer)
@@ -114,6 +117,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
     setMemberCount(init.memberCount ?? 0)
     if (init.roomId) setRoomId(init.roomId)
     setLocalDisplayName(init.localDisplayName ?? '')
+    if (init.localUserId) setLocalUserId(init.localUserId)
     setMineOnRight(!!init.mineMessagesOnRight)
     setAnimalB64(init.animalImageBase64 && init.animalImageBase64.length > 0 ? init.animalImageBase64 : null)
     setUseNativeComposer(!!init.useNativeComposer)
@@ -199,7 +203,7 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
 
       <main className="bp-chat__thread">
         {messages.map((m, i) => {
-          const self = isSelfMessage(m, localDisplayName)
+          const self = isSelfMessage(m, localUserId, localDisplayName)
           const rowClass =
             mineOnRight && self ? 'bp-chat__row bp-chat__row--self' : 'bp-chat__row bp-chat__row--other'
           return (

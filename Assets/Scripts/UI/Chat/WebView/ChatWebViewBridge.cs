@@ -166,6 +166,7 @@ public class ChatWebViewBridge : MonoBehaviour
             roomId = roomId ?? string.Empty,
             memberCount = memberCount,
             localDisplayName = localDisplayName ?? string.Empty,
+            localUserId = FirebaseManager.Instance?.GetUserId() ?? string.Empty,
             mineMessagesOnRight = mineMessagesOnRight,
             animalImageBase64 = animalImageBase64Png,
             useNativeComposer = useNativeComposer
@@ -183,6 +184,7 @@ public class ChatWebViewBridge : MonoBehaviour
                 roomId = roomId ?? string.Empty,
                 memberCount = memberCount,
                 localDisplayName = localDisplayName ?? string.Empty,
+                localUserId = FirebaseManager.Instance?.GetUserId() ?? string.Empty,
                 mineMessagesOnRight = mineMessagesOnRight,
                 animalImageBase64 = animalImageBase64Png,
                 useNativeComposer = useNativeComposer
@@ -1092,6 +1094,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
         public string roomId;
         public int memberCount;
         public string localDisplayName;
+        public string localUserId;
         public bool mineMessagesOnRight;
         public string animalImageBase64;
         public bool useNativeComposer;

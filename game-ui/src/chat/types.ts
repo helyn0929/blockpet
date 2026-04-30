@@ -3,6 +3,7 @@ export type ChatMessage = {
   messageId?: string
   userName?: string
   displayName?: string
+  senderId?: string
   avatarId?: string
   message?: string
   timestamp?: number
@@ -19,6 +20,7 @@ export type UnityChatPayload =
       roomId?: string
       memberCount: number
       localDisplayName: string
+      localUserId?: string
       mineMessagesOnRight: boolean
       animalImageBase64?: string
       useNativeComposer?: boolean

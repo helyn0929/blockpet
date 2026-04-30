@@ -9,7 +9,7 @@ using UnityEngine.UI;
 using System.Reflection;
 /// <summary>
 /// Hosts the React chat UI in <see cref="WebViewObject"/> (net.gree.unity-webview) and exchanges JSON with the page.
-/// Build the web app with <c>npm run build</c> in <c>chat-ui/</c>, then run <c>npm run unity:manifest</c> so Android can copy all assets from StreamingAssets.
+/// Build the web app with <c>npm run build</c> in <c>game-ui/</c>, then run <c>npm run unity:manifest</c> so Android can copy all assets from StreamingAssets.
 /// </summary>
 [DefaultExecutionOrder(-80)]
 public class ChatWebViewBridge : MonoBehaviour
@@ -23,7 +23,7 @@ public class ChatWebViewBridge : MonoBehaviour
     [SerializeField] RectTransform nativeComposerRect;
     [Tooltip("Canvas used by gree WebView on macOS Editor (offscreen texture). Usually the root UI Canvas.")]
     [SerializeField] Canvas editorWebViewCanvas;
-    [SerializeField] string streamingAssetsRelativePath = "chat-ui/index.html";
+    [SerializeField] string streamingAssetsRelativePath = "game-ui/index.html";
     [SerializeField] bool updateMarginsEachFrame = true;
     [Header("Editor sizing")]
     [Tooltip("Unity Editor: force WebView fullscreen to avoid RectTransform-to-screen conversion issues.")]
@@ -147,7 +147,7 @@ public class ChatWebViewBridge : MonoBehaviour
     }
 
     /// <summary>Called by <see cref="ChatUIHandler"/> after history is loaded or when messages change.</summary>
-    public void RequestFullSync(IReadOnlyList<ChatMessage> messages, string roomName, int memberCount, string localDisplayName, bool mineMessagesOnRight, string animalImageBase64Png, bool useNativeComposer)
+    public void RequestFullSync(IReadOnlyList<ChatMessage> messages, string roomName, string roomId, int memberCount, string localDisplayName, bool mineMessagesOnRight, string animalImageBase64Png, bool useNativeComposer)
     {
         _useNativeComposer = useNativeComposer;
 #if UNITY_EDITOR
@@ -163,6 +163,7 @@ public class ChatWebViewBridge : MonoBehaviour
             kind = "init",
             messages = ToArray(messages),
             roomName = roomName ?? string.Empty,
+            roomId = roomId ?? string.Empty,
             memberCount = memberCount,
             localDisplayName = localDisplayName ?? string.Empty,
             mineMessagesOnRight = mineMessagesOnRight,
@@ -179,6 +180,7 @@ public class ChatWebViewBridge : MonoBehaviour
                 kind = "init",
                 messages = Array.Empty<ChatMessage>(),
                 roomName = roomName ?? string.Empty,
+                roomId = roomId ?? string.Empty,
                 memberCount = memberCount,
                 localDisplayName = localDisplayName ?? string.Empty,
                 mineMessagesOnRight = mineMessagesOnRight,
@@ -859,7 +861,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
             if (File.Exists(absIndex))
             {
                 // Prefer loading from cache so WKWebView can read relative module assets reliably.
-                string dstRoot = Path.Combine(Application.temporaryCachePath, "chat-ui");
+                string dstRoot = Path.Combine(Application.temporaryCachePath, "game-ui");
                 try
                 {
                     if (Directory.Exists(dstRoot))
@@ -883,7 +885,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
             }
             else
             {
-                Debug.LogError("[ChatWebViewBridge] Missing file at: " + absIndex + " (run: cd chat-ui && npm run unity:sync)");
+                Debug.LogError("[ChatWebViewBridge] Missing file at: " + absIndex + " (run: cd game-ui && npm run unity:sync)");
             }
         }
 
@@ -893,7 +895,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
             string absIndex = Path.Combine(streamingRoot, indexFileName);
             if (File.Exists(absIndex))
             {
-                string dstRoot = Path.Combine(Application.temporaryCachePath, "chat-ui");
+                string dstRoot = Path.Combine(Application.temporaryCachePath, "game-ui");
                 try
                 {
                     if (Directory.Exists(dstRoot))
@@ -938,7 +940,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
 
     IEnumerator CopyStreamingChatUiAndroidFallback(string baseDir, string indexFileName)
     {
-        string dstRoot = Path.Combine(Application.temporaryCachePath, "chat-ui");
+        string dstRoot = Path.Combine(Application.temporaryCachePath, "game-ui");
         try
         {
             if (Directory.Exists(dstRoot))
@@ -956,7 +958,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[ChatWebViewBridge] Missing " + ManifestFileName + " under StreamingAssets/chat-ui/. Run: npm run unity:manifest in chat-ui/. " + req.error);
+                Debug.LogError("[ChatWebViewBridge] Missing " + ManifestFileName + " under StreamingAssets/game-ui/. Run: npm run unity:manifest in game-ui/. " + req.error);
                 yield break;
             }
 
@@ -1087,6 +1089,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
         public string kind;
         public ChatMessage[] messages;
         public string roomName;
+        public string roomId;
         public int memberCount;
         public string localDisplayName;
         public bool mineMessagesOnRight;

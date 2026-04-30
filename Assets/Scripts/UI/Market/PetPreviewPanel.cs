@@ -30,6 +30,22 @@ public class PetPreviewPanel : MonoBehaviour
     void OnEnable()
     {
         ApplyPreviewPanelHeight();
+        RestoreEquippedPet();
+    }
+
+    /// <summary>Shows the currently equipped pet sprite as the base layer so accessories can be tried on top.</summary>
+    public void RestoreEquippedPet()
+    {
+        if (petImage == null) return;
+        string equippedId = MarketInventoryStore.GetEquippedPetId();
+        if (string.IsNullOrEmpty(equippedId)) return;
+
+        // Try to find the sprite from the catalog via MarketPageController.
+        var ctrl = UnityEngine.Object.FindObjectOfType<MarketPageController>(true);
+        if (ctrl == null) return;
+        ShopItemData pet = ctrl.FindCatalogItem(equippedId);
+        if (pet != null)
+            PreviewPet(pet);
     }
 
     void ApplyPreviewPanelHeight()

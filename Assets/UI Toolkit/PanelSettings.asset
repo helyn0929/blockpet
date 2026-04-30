@@ -14,16 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   themeUss: {fileID: -4733365628477956816, guid: b8d6082aae8b9794f9b894235cb21714, type: 3}
   m_TargetTexture: {fileID: 0}
-  m_ScaleMode: 1
+  m_ScaleMode: 2
   m_ReferenceSpritePixelsPerUnit: 100
   m_Scale: 1
   m_ReferenceDpi: 96
   m_FallbackDpi: 96
-  # Portrait reference so mobile login isn't oversized.
   m_ReferenceResolution: {x: 1080, y: 1920}
   m_ScreenMatchMode: 0
-  # Balance width/height so both phone aspect ratios behave.
-  m_Match: 0.5
+  m_Match: 1
   m_SortingOrder: 20
   m_TargetDisplay: 0
   m_ClearDepthStencil: 1

@@ -2470,8 +2470,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 196646694}
   m_HandleRect: {fileID: 196646693}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 0.99993306
+  m_Value: 1.0000001
+  m_Size: 0
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -4338,7 +4338,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pageManager: {fileID: 177731950}
   webLayoutTarget: {fileID: 460450236}
-  streamingAssetsRelativePath: chat-ui/index.html
+  streamingAssetsRelativePath: game-ui/index.html
   updateMarginsEachFrame: 1
 --- !u!114 &460450238
 MonoBehaviour:
@@ -8891,6 +8891,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   contentRoot: {fileID: 1767409485}
   itemPrefab: {fileID: 8801282781574861423, guid: 083dff9b3283a4dc4b3d58f926df6d57, type: 3}
+  sectionHeaderPrefab: {fileID: 0}
 --- !u!114 &1185002275
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10705,6 +10706,58 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1435701881}
   m_CullTransparentMesh: 1
+--- !u!1 &1440761402
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1440761403}
+  - component: {fileID: 1440761404}
+  m_Layer: 5
+  m_Name: MarketWebViewBridge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1440761403
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1440761402}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1669286872}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1440761404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1440761402}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf63150f0bd04281aa6bf205255aa2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pageManager: {fileID: 177731950}
+  webLayoutTarget: {fileID: 1669286872}
+  streamingAssetsRelativePath: game-ui/index.html
+  updateMarginsEachFrame: 1
 --- !u!1 &1449131925
 GameObject:
   m_ObjectHideFlags: 0
@@ -13214,6 +13267,7 @@ RectTransform:
   - {fileID: 2086253784}
   - {fileID: 1228302845}
   - {fileID: 1185002273}
+  - {fileID: 1440761403}
   m_Father: {fileID: 383545753}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -14058,7 +14112,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0.000020298532}
+  m_AnchoredPosition: {x: 0, y: -0.00005349807}
   m_SizeDelta: {x: 0, y: 300}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &1790439835
@@ -14759,7 +14813,7 @@ MonoBehaviour:
   webLayoutTarget: {fileID: 591130813}
   nativeComposerRect: {fileID: 0}
   editorWebViewCanvas: {fileID: 0}
-  streamingAssetsRelativePath: chat-ui/index.html
+  streamingAssetsRelativePath: game-ui/index.html
   updateMarginsEachFrame: 1
   forceFullscreenInEditor: 1
   useDedicatedEditorWebViewCanvas: 1

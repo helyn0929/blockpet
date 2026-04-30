@@ -9,9 +9,11 @@ public class ShopItemData
     public string id;
     public string itemName;
     public MarketCategory category;
-    /// <summary>Price in soft currency (coins). Ignored for pure gem / IAP rows when using gem-only fields.</summary>
+    /// <summary>Display section header label, e.g. "Limited Collection" or "Everyday Collection". Empty = no header.</summary>
+    public string section;
+    /// <summary>Price in soft currency (coins).</summary>
     public int price;
-    /// <summary>Optional gem cost. If both price and gemPrice &gt; 0, purchase requires BOTH unless you change purchase rules in MarketPageController.</summary>
+    /// <summary>Optional gem cost.</summary>
     public int gemPrice;
     public Sprite icon;
     /// <summary>Optional larger sprite for pet / background preview; falls back to icon.</summary>

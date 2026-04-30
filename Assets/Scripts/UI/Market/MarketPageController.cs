@@ -87,6 +87,18 @@ public class MarketPageController : MonoBehaviour
         _category = cat;
         RefreshCatalogFlags();
         RebuildGridFiltered();
+
+        // When switching to Accessories or Furnitures, keep the equipped pet visible so
+        // the player can see accessories previewed on top of it.
+        if ((cat == MarketCategory.Accessories || cat == MarketCategory.Furnitures) && previewPanel != null)
+            previewPanel.RestoreEquippedPet();
+    }
+
+    /// <summary>Returns the catalog entry with the given id, or null if not found.</summary>
+    public ShopItemData FindCatalogItem(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        return _catalog.Find(x => x.id == id);
     }
 
     void RebuildGridFiltered()

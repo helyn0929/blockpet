@@ -7,7 +7,7 @@ using UnityEngine.Networking;
 using UnityEngine.UI;
 
 /// <summary>
-/// Shows the same React app (<c>StreamingAssets/chat-ui/index.html</c>) but initializes it in "room select" mode.
+/// Shows the same React app (<c>StreamingAssets/game-ui/index.html</c>) but initializes it in "room select" mode.
 /// The page will send back <c>{ type: "setRoom", roomId: "..." }</c> which switches the Firebase room and navigates to ChatPage.
 /// </summary>
 [DefaultExecutionOrder(-90)]
@@ -16,7 +16,7 @@ public class RoomWebViewBridge : MonoBehaviour
     [SerializeField] PageManager pageManager;
     [Tooltip("Screen-area the native WebView should cover (usually the RoomPage RectTransform). Defaults to this object's RectTransform.")]
     [SerializeField] RectTransform webLayoutTarget;
-    [SerializeField] string streamingAssetsRelativePath = "chat-ui/index.html";
+    [SerializeField] string streamingAssetsRelativePath = "game-ui/index.html";
     [SerializeField] bool updateMarginsEachFrame = true;
 
     WebViewObject _webView;
@@ -358,7 +358,7 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
         string baseDir = Path.GetDirectoryName(rel)?.Replace("\\", "/") ?? string.Empty;
         string indexFileName = Path.GetFileName(rel);
 
-        string dstRoot = Path.Combine(Application.temporaryCachePath, "chat-ui-room");
+        string dstRoot = Path.Combine(Application.temporaryCachePath, "game-ui-room");
         string dstIndex = Path.Combine(dstRoot, indexFileName);
         const string screenParam = "?screen=room";
 
@@ -377,7 +377,7 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
         if (!File.Exists(absIndex))
         {
             Debug.LogError("[RoomWebViewBridge] Missing: " + absIndex +
-                           " (run: cd chat-ui && npm run build && npm run unity:sync)");
+                           " (run: cd game-ui && npm run build && npm run unity:sync)");
             yield break;
         }
 
@@ -426,7 +426,7 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
             if (req.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("[RoomWebViewBridge] manifest.txt not found at: " + manifestUrl +
-                               " (run: npm run unity:manifest in chat-ui/)");
+                               " (run: npm run unity:manifest in game-ui/)");
                 yield break;
             }
 

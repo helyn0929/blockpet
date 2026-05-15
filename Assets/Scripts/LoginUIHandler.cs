@@ -27,6 +27,12 @@ public class LoginUIHandler : MonoBehaviour
     [Header("Settings")]
     public float fadeDuration = 0.5f;
 
+    void Awake()
+    {
+        // Reset before any Start() runs so PageManager.Start() sees false and doesn't skip to home.
+        GameplayHudReleased = false;
+    }
+
     void Start()
     {
         if (loginPanel != null)
@@ -46,7 +52,6 @@ public class LoginUIHandler : MonoBehaviour
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
 
-        GameplayHudReleased = false;
         ResolveHudManagers();
         SetGameplayHudVisible(false);
     }

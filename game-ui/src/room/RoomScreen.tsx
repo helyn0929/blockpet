@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { RoomSummary } from '../chat/types'
-import { requestBack, requestCreateRoom, requestJoinRoom, requestOpenSettings, requestSetRoom } from '../chat/bridge'
+import { requestCreateRoom, requestJoinRoom, requestOpenSettings, requestSetRoom } from '../chat/bridge'
 import './room-screen.css'
 
 function pctHearts(s: RoomSummary): number {
@@ -20,7 +20,7 @@ function createCode(): string {
 export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; currentRoomId?: string; avatarBase64?: string | null }) {
   const [roomInput, setRoomInput] = useState('')
   const [pendingNewCode, setPendingNewCode] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const rooms = props.rooms ?? []
   const title = useMemo(() => (props.title && props.title.length > 0 ? props.title : '選擇房間'), [props.title])
@@ -28,8 +28,8 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
 
   function handleCopyCode(code: string) {
     navigator.clipboard?.writeText(code).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopiedId(code)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   if (pendingNewCode) {
@@ -53,7 +53,7 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
               className="bp-room__btn"
               onClick={() => handleCopyCode(pendingNewCode)}
             >
-              {copied ? '已複製！' : '複製房間碼'}
+              {copiedId === pendingNewCode ? '已複製！' : '複製房間碼'}
             </button>
             <div style={{ height: 12 }} />
             <button
@@ -75,9 +75,6 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
         <header className="bp-room__header">
           <div className="bp-room__title">{title}</div>
           <div className="bp-room__headerBtns">
-            <button type="button" className="bp-room__back" onClick={() => requestBack()}>
-              返回
-            </button>
             <button type="button" className="bp-room__avatarBtn" onClick={() => requestOpenSettings()}>
               {props.avatarBase64
                 ? <img className="bp-room__avatarImg" src={`data:image/png;base64,${props.avatarBase64}`} alt="avatar" />
@@ -115,7 +112,7 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
                 onClick={(e) => { e.stopPropagation(); handleCopyCode(r.roomId) }}
                 title="複製房間碼"
               >
-                {copied ? '✓' : '複製碼'}
+                {copiedId === r.roomId ? '✓' : '複製碼'}
               </button>
             </div>
           ))}

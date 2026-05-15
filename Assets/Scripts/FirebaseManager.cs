@@ -952,11 +952,12 @@ public class FirebaseManager : MonoBehaviour
     void HandleRoomCoinsChanged(object sender, ValueChangedEventArgs args)
     {
         if (!_coinsListening) return;
-        if (args.DatabaseError != null) return;
+        if (args.DatabaseError != null) { Debug.LogWarning("[FirebaseManager] coins listener error: " + args.DatabaseError.Message); return; }
         var snap = args.Snapshot;
-        if (snap == null || !snap.Exists) return;
+        if (snap == null) return;
         int coins = 0;
-        try { coins = Convert.ToInt32(snap.Value); } catch { }
+        if (snap.Exists)
+            try { coins = Convert.ToInt32(snap.Value); } catch { }
         lock (_mainThreadQueue)
         {
             _mainThreadQueue.Enqueue(() => EconomyManager.Instance?.SetRoomBalance(coins));
@@ -966,13 +967,25 @@ public class FirebaseManager : MonoBehaviour
     /// <summary>Atomically adds coins to the shared room wallet (safe for concurrent calls).</summary>
     public void AddRoomCoins(int amount)
     {
-        if (_coinsRef == null || !_coinsListening || amount <= 0) return;
+        if (amount <= 0) return;
+        if (_coinsRef == null || !_coinsListening)
+        {
+            Debug.LogWarning($"[FirebaseManager] AddRoomCoins skipped — ref={_coinsRef != null}, listening={_coinsListening}");
+            return;
+        }
         _coinsRef.RunTransaction(mutable =>
         {
-            int cur = 0;
-            try { cur = Convert.ToInt32(mutable.Value); } catch { }
-            mutable.Value = (long)(cur + amount);
+            long cur = 0;
+            if (mutable.Value != null)
+                try { cur = Convert.ToInt64(mutable.Value); } catch { }
+            mutable.Value = cur + amount;
             return TransactionResult.Success(mutable);
+        }).ContinueWith(t =>
+        {
+            if (t.IsFaulted || t.IsCanceled)
+                Debug.LogError("[FirebaseManager] AddRoomCoins transaction failed: " + t.Exception?.GetBaseException()?.Message);
+            else
+                Debug.Log($"[FirebaseManager] AddRoomCoins +{amount} committed");
         });
     }
 
@@ -980,6 +993,44 @@ public class FirebaseManager : MonoBehaviour
     public void WriteRoomCoins(int newBalance)
     {
         _coinsRef?.SetValueAsync((long)Mathf.Max(0, newBalance));
+    }
+
+    // ─── Avatar cloud backup ──────────────────────────────────────────
+
+    DatabaseReference UserAvatarRef()
+    {
+        string uid = GetUserId();
+        if (string.IsNullOrEmpty(uid) || dbRef == null) return null;
+        return dbRef.Child(UsersNode).Child(uid).Child("avatarBase64");
+    }
+
+    public void UploadAvatarBase64(string base64)
+    {
+        var r = UserAvatarRef();
+        if (r == null || string.IsNullOrEmpty(base64)) return;
+        r.SetValueAsync(base64).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.LogWarning("[FirebaseManager] UploadAvatarBase64 failed: " + t.Exception?.GetBaseException()?.Message);
+            else
+                Debug.Log("[FirebaseManager] Avatar uploaded to Firebase.");
+        });
+    }
+
+    public void DownloadAvatarBase64(System.Action<string> onResult)
+    {
+        var r = UserAvatarRef();
+        if (r == null) { onResult?.Invoke(null); return; }
+        r.GetValueAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted || t.IsCanceled || t.Result == null || !t.Result.Exists)
+            {
+                lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => onResult?.Invoke(null)); }
+                return;
+            }
+            string b64 = t.Result.Value as string;
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => onResult?.Invoke(b64)); }
+        });
     }
 
     void HandlePetStateChanged(object sender, ValueChangedEventArgs args)

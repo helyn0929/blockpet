@@ -102,8 +102,9 @@ public class EconomyManager : MonoBehaviour
 
     void AddMoneyFromPhoto()
     {
-        FirebaseManager.Instance?.AddRoomCoins(moneyPerPhoto);
-        // UI updates via Firebase listener (HandleRoomCoinsChanged → SetRoomBalance).
+        Debug.Log($"[EconomyManager] AddMoneyFromPhoto: +{moneyPerPhoto} coins, firebase={FirebaseManager.Instance != null}");
+        if (FirebaseManager.Instance != null)
+            FirebaseManager.Instance.AddRoomCoins(moneyPerPhoto);
     }
 
     IEnumerator CountUpMoneyRoutine(int from, int to)

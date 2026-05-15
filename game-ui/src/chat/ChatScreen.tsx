@@ -216,7 +216,10 @@ export function ChatScreen(props: { init: Extract<UnityChatPayload, { kind: 'ini
                 notifyReplySelect(m)
               }}
             >
-              <span className="bp-chat__avatar" aria-hidden />
+              {self && animalB64
+                ? <img className="bp-chat__avatarImg" src={`data:image/png;base64,${animalB64}`} alt="" />
+                : <span className="bp-chat__avatar" aria-hidden />
+              }
               <div className="bp-chat__col">
                 <div className="bp-chat__sender">{displayNameOf(m)}</div>
                 {m.replyToDisplayName && m.replyToMessagePreview ? (

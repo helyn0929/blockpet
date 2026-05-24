@@ -70,6 +70,9 @@ public class EconomyManager : MonoBehaviour
     void OnEnable()
     {
         SaveManager.OnPhotoSaved += AddMoneyFromPhoto;
+        // Sync display with the value that may have arrived while the object was inactive.
+        displayedMoney = currentMoney;
+        RefreshMoneyUI();
     }
 
     void OnDisable()
@@ -85,9 +88,16 @@ public class EconomyManager : MonoBehaviour
     /// <summary>Called by FirebaseManager listener when the shared balance changes.</summary>
     public void SetRoomBalance(int coins)
     {
-        int previous = displayedMoney;
         currentMoney = coins;
 
+        // GameObject may be inactive (hidden during login/room selection) — skip coroutine.
+        if (!gameObject.activeInHierarchy)
+        {
+            displayedMoney = coins;
+            return;
+        }
+
+        int previous = displayedMoney;
         if (moneyText != null && Mathf.Abs(coins - previous) > 0)
         {
             if (countUpRoutine != null) StopCoroutine(countUpRoutine);

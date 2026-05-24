@@ -320,6 +320,28 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
                     });
                 }
                 break;
+            case "deleteRoom":
+                if (FirebaseManager.Instance != null)
+                {
+                    string drId = dto.roomId;
+                    FirebaseManager.Instance.DeleteRoom(drId, (ok, err) =>
+                    {
+                        if (!ok) Debug.LogWarning("[RoomWebViewBridge] deleteRoom failed: " + err);
+                        SendRoomInit();
+                    });
+                }
+                break;
+            case "leaveRoom":
+                if (FirebaseManager.Instance != null)
+                {
+                    string lrId = dto.roomId;
+                    FirebaseManager.Instance.LeaveRoom(lrId, (ok, err) =>
+                    {
+                        if (!ok) Debug.LogWarning("[RoomWebViewBridge] leaveRoom failed: " + err);
+                        SendRoomInit();
+                    });
+                }
+                break;
             case "refreshRooms":
                 SendRoomInit();
                 break;

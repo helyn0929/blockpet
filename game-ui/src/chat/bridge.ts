@@ -19,6 +19,8 @@ export function sendToUnity(payload: {
     | 'setRoom'
     | 'createRoom'
     | 'joinRoom'
+    | 'deleteRoom'
+    | 'leaveRoom'
     | 'refreshRooms'
     | 'openSettings'
   text?: string
@@ -113,6 +115,18 @@ export function requestJoinRoom(roomId: string): void {
   const trimmed = roomId.trim()
   if (!trimmed) return
   sendToUnity({ type: 'joinRoom', roomId: trimmed })
+}
+
+export function requestDeleteRoom(roomId: string): void {
+  const trimmed = roomId.trim()
+  if (!trimmed) return
+  sendToUnity({ type: 'deleteRoom', roomId: trimmed })
+}
+
+export function requestLeaveRoom(roomId: string): void {
+  const trimmed = roomId.trim()
+  if (!trimmed) return
+  sendToUnity({ type: 'leaveRoom', roomId: trimmed })
 }
 
 export function requestRefreshRooms(): void {

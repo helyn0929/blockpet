@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { RoomSummary } from '../chat/types'
-import { requestCreateRoom, requestJoinRoom, requestOpenSettings, requestSetRoom } from '../chat/bridge'
+import { requestCreateRoom, requestDeleteRoom, requestJoinRoom, requestLeaveRoom, requestOpenSettings, requestSetRoom } from '../chat/bridge'
 import './room-screen.css'
 
 function pctHearts(s: RoomSummary): number {
@@ -21,6 +21,7 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
   const [roomInput, setRoomInput] = useState('')
   const [pendingNewCode, setPendingNewCode] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const rooms = props.rooms ?? []
   const title = useMemo(() => (props.title && props.title.length > 0 ? props.title : '選擇房間'), [props.title])
@@ -106,14 +107,49 @@ export function RoomScreen(props: { title?: string; rooms: RoomSummary[]; curren
                   <span>Hearts {pctHearts(r)}%</span>
                 </div>
               </button>
-              <button
-                type="button"
-                className="bp-room__copyBtn"
-                onClick={(e) => { e.stopPropagation(); handleCopyCode(r.roomId) }}
-                title="複製房間碼"
-              >
-                {copiedId === r.roomId ? '✓' : '複製碼'}
-              </button>
+              <div className="bp-room__tileActions">
+                <button
+                  type="button"
+                  className="bp-room__copyBtn"
+                  onClick={(e) => { e.stopPropagation(); handleCopyCode(r.roomId) }}
+                  title="複製房間碼"
+                >
+                  {copiedId === r.roomId ? '✓' : '複製碼'}
+                </button>
+                {confirmDeleteId === r.roomId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="bp-room__leaveConfirmBtn"
+                      onClick={(e) => { e.stopPropagation(); requestLeaveRoom(r.roomId); setConfirmDeleteId(null) }}
+                    >
+                      退出
+                    </button>
+                    <button
+                      type="button"
+                      className="bp-room__deleteConfirmBtn"
+                      onClick={(e) => { e.stopPropagation(); requestDeleteRoom(r.roomId); setConfirmDeleteId(null) }}
+                    >
+                      刪除全部
+                    </button>
+                    <button
+                      type="button"
+                      className="bp-room__cancelBtn"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null) }}
+                    >
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="bp-room__deleteBtn"
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(r.roomId) }}
+                  >
+                    ···
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

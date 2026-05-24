@@ -17,6 +17,8 @@ public class LoginUIHandler : MonoBehaviour
     public GameObject mainRoomBackground;
     public TextMeshProUGUI statusText;
     public GameObject loadingIcon;
+    [Tooltip("Assign the Guest/Anonymous button here to hide it automatically.")]
+    public GameObject guestButton;
 
     [Header("Gameplay HUD (hidden until login succeeds)")]
     [Tooltip("Optional override. If empty, finds EconomyManager in the scene.")]
@@ -35,14 +37,7 @@ public class LoginUIHandler : MonoBehaviour
 
     void Start()
     {
-        if (loginPanel != null)
-        {
-            loginPanel.alpha = 0f;
-            loginPanel.blocksRaycasts = false;
-            loginPanel.interactable = false;
-            loginPanel.gameObject.SetActive(false);
-        }
-
+        // Hide gameplay elements until login completes.
         if (mainGameUI != null)
             mainGameUI.SetActive(false);
 
@@ -52,8 +47,21 @@ public class LoginUIHandler : MonoBehaviour
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
 
+        if (guestButton != null)
+            guestButton.SetActive(false);
+
         ResolveHudManagers();
         SetGameplayHudVisible(false);
+
+        // Keep loginPanel active so this MonoBehaviour's lifecycle runs,
+        // but keep Canvas invisible — UIToolkit (LoginScreenController) owns the visuals.
+        if (loginPanel != null)
+        {
+            loginPanel.gameObject.SetActive(true);
+            loginPanel.alpha = 0f;
+            loginPanel.blocksRaycasts = false;
+            loginPanel.interactable = false;
+        }
     }
 
     void ResolveHudManagers()
@@ -183,19 +191,20 @@ public class LoginUIHandler : MonoBehaviour
 
     IEnumerator FadeOutAndStartGame()
     {
-        // Fade out login first. Do NOT show gameplay yet — player must choose a room.
-        if (loginPanel != null && fadeDuration > 0f)
+        // Fade out login panel only if it has visible Canvas content.
+        // When UIToolkit owns the visuals, alpha starts at 0 so we skip the fade.
+        if (loginPanel != null && fadeDuration > 0f && loginPanel.alpha > 0.01f)
         {
+            float startAlpha = loginPanel.alpha;
             float elapsed = 0f;
             while (elapsed < fadeDuration)
             {
                 elapsed += Time.deltaTime;
-                loginPanel.alpha = Mathf.Clamp01(1f - elapsed / fadeDuration);
+                loginPanel.alpha = Mathf.Clamp01(startAlpha * (1f - elapsed / fadeDuration));
                 yield return null;
             }
-            loginPanel.alpha = 0f;
         }
-        else if (loginPanel != null)
+        if (loginPanel != null)
             loginPanel.alpha = 0f;
 
         // Hide login panel.

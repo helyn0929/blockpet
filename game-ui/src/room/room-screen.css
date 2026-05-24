@@ -219,6 +219,11 @@
   width: 100%;
 }
 
+.bp-room__tileActions {
+  display: flex;
+  gap: 6px;
+}
+
 .bp-room__copyBtn {
   border: none;
   border-radius: 10px;
@@ -228,6 +233,52 @@
   cursor: pointer;
   background: rgba(79, 140, 255, 0.12);
   color: #4f8cff;
-  width: 100%;
+  flex: 1;
+}
+
+.bp-room__deleteBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 80, 80, 0.12);
+  color: #ff5050;
+}
+
+.bp-room__leaveConfirmBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #f0a500;
+  color: #fff;
+  flex: 1;
+}
+
+.bp-room__deleteConfirmBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #ff5050;
+  color: #fff;
+  flex: 1;
+}
+
+.bp-room__cancelBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  color: #aaa;
 }
 

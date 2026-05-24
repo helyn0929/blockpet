@@ -127,26 +127,6 @@ public class SaveManager : MonoBehaviour
             Debug.Log($"[SaveManager] New save for room '{roomId}'");
         }
 
-        // Migrate photos from legacy save.json if this room still has none.
-        // Runs even when save_{roomId}.json existed but was empty (created before migration was added).
-        if (data.photos.Count == 0)
-        {
-            string legacyPath = Path.Combine(Application.persistentDataPath, "save.json");
-            if (File.Exists(legacyPath))
-            {
-                try
-                {
-                    var legacy = JsonUtility.FromJson<SaveData>(File.ReadAllText(legacyPath));
-                    if (legacy?.photos != null && legacy.photos.Count > 0)
-                    {
-                        data.photos = legacy.photos;
-                        SaveRoomData();
-                        Debug.Log($"[SaveManager] Migrated {legacy.photos.Count} photos from save.json → save_{safe}.json");
-                    }
-                }
-                catch (Exception e) { Debug.LogWarning("[SaveManager] Legacy migration failed: " + e.Message); }
-            }
-        }
     }
 
     void SaveRoomData()

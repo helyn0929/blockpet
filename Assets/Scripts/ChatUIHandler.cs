@@ -203,6 +203,9 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnEnable()
     {
+        SaveManager.OnBeforeRoomSwitch += OnBeforeRoomSwitch;
+        SaveManager.OnRoomSwitched     += OnRoomSwitched;
+
         if (useModernChatLayout)
             ApplyModernChatLayout();
 
@@ -211,6 +214,27 @@ public class ChatUIHandler : MonoBehaviour
 
         if (FirebaseManager.Instance != null)
             SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", _headerMemberCount);
+    }
+
+    void OnDisable()
+    {
+        SaveManager.OnBeforeRoomSwitch -= OnBeforeRoomSwitch;
+        SaveManager.OnRoomSwitched     -= OnRoomSwitched;
+    }
+
+    void OnBeforeRoomSwitch()
+    {
+        // Save current room's history before the room ID changes.
+        SaveChatHistoryToFile();
+    }
+
+    void OnRoomSwitched()
+    {
+        // Clear in-memory history then reload from the new room's file.
+        localHistory.Clear();
+        LoadChatHistoryAndRebuildUI();
+        if (FirebaseManager.Instance != null)
+            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
     }
 
     void Start()

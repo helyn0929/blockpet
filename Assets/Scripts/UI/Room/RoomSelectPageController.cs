@@ -140,4 +140,3 @@ public class RoomSelectPageController : MonoBehaviour
         return new string(chars);
     }
 }
-

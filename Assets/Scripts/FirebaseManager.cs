@@ -42,12 +42,6 @@ public class FirebaseManager : MonoBehaviour
 
     // Room membership (per user)
     const string UsersNode = "Users";
-    [Header("Editor convenience")]
-    [Tooltip("In Unity Editor, automatically sign in anonymously so chat history/listener works without a login UI.")]
-    [SerializeField] bool autoAnonymousSignInInEditor = true;
-    [Header("Device testing convenience")]
-    [Tooltip("On iOS/Android, automatically sign in anonymously if not logged in yet. Useful for quick multi-device chat testing.")]
-    [SerializeField] bool autoAnonymousSignInOnDevice = true;
     [Header("Cloud photo sync (MVP)")]
     [Tooltip("When enabled, saved photos will be uploaded (compressed) to RTDB and other devices will receive them into their local album. This is a quick MVP; for production prefer Firebase Storage + metadata.")]
     [SerializeField] bool enableCloudPhotoSync = true;
@@ -67,31 +61,22 @@ public class FirebaseManager : MonoBehaviour
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
 
-        AppOptions options = new AppOptions();
-        options.DatabaseUrl = new Uri("https://blockpet-fc23b-default-rtdb.firebaseio.com/");
-
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task => {
+            if (task.IsFaulted) {
+                Debug.LogError("[FirebaseManager] CheckAndFixDependencies faulted: " + task.Exception);
+                return;
+            }
             var dependencyStatus = task.Result;
             if (dependencyStatus == DependencyStatus.Available) {
-                FirebaseApp app = FirebaseApp.Create(options);
-                dbRef = FirebaseDatabase.GetInstance(app).RootReference;
+                try {
+                FirebaseApp app = FirebaseApp.DefaultInstance;
+                dbRef = FirebaseDatabase.GetInstance(app, "https://blockpet-fc23b-default-rtdb.firebaseio.com/").RootReference;
                 auth = FirebaseAuth.GetAuth(app);
-                Debug.Log("Firebase Initialized Successfully!");
+                Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
                 _roomId = PlayerPrefs.GetString(PrefsRoomId, "global");
 
-                // If the scene has an explicit login UI, do NOT auto-sign-in on device.
-                // Otherwise the login page will be skipped immediately, confusing the intended flow:
-                // Login -> RoomPage -> MainGame(Home).
-                bool hasLoginUi =
-                    FindObjectOfType<LoginUIHandler>(true) != null ||
-                    FindObjectOfType<LoginScreenController>(true) != null;
-#if UNITY_EDITOR
-                if (autoAnonymousSignInInEditor && auth != null && auth.CurrentUser == null)
-                    SignInAnonymously();
-#elif UNITY_IOS || UNITY_ANDROID
-                if (!hasLoginUi && autoAnonymousSignInOnDevice && auth != null && auth.CurrentUser == null)
-                    SignInAnonymously();
-#endif
+                // Listen for auth state changes (sign-in, token refresh, sign-out).
+                auth.StateChanged += OnAuthStateChanged;
 
                 // If already signed in (returning user), skip the login screen automatically.
                 if (!_loginNotified && auth != null && auth.CurrentUser != null)
@@ -110,8 +95,11 @@ public class FirebaseManager : MonoBehaviour
 
                 if (enableCloudPhotoSync && SaveManager.Instance != null)
                     SaveManager.OnPhotoSavedMeta += HandleLocalPhotoSaved;
+                } catch (System.Exception ex) {
+                    Debug.LogError("[FirebaseManager] Init exception: " + ex);
+                }
             } else {
-                Debug.LogError($"Could not resolve all Firebase dependencies: {dependencyStatus}");
+                Debug.LogError($"[FirebaseManager] Dependency error: {dependencyStatus}");
             }
         });
     }
@@ -175,8 +163,38 @@ public class FirebaseManager : MonoBehaviour
         _loginNotified = false;
     }
 
+    void OnAuthStateChanged(object sender, System.EventArgs e)
+    {
+        if (auth == null) return;
+        string uid = auth.CurrentUser?.UserId;
+        Debug.Log($"[FirebaseManager] AuthStateChanged: uid={uid ?? "null"}");
+
+        if (uid != null && !_loginNotified)
+        {
+            _loginNotified = true;
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
+        }
+
+        // Restart listeners whenever auth becomes valid (e.g. after token refresh).
+        if (uid != null)
+        {
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    TryStartListeningForMessages();
+                    TryStartListeningForPhotos();
+                    TryStartListeningForPetState();
+                    TryStartListeningForRoomEquipState();
+                    TryStartListeningForRoomCoins();
+                });
+            }
+        }
+    }
+
     void OnDestroy()
     {
+        if (auth != null) auth.StateChanged -= OnAuthStateChanged;
         if (enableCloudPhotoSync && SaveManager.Instance != null)
             SaveManager.OnPhotoSavedMeta -= HandleLocalPhotoSaved;
 
@@ -460,6 +478,97 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    /// <summary>
+    /// Deletes a room for ALL members: reads the members list, removes Users/{uid}/rooms/{roomId}
+    /// for every member, then wipes Rooms/{roomId}/ entirely. Callback runs on main thread.
+    /// </summary>
+    public void DeleteRoom(string roomId, Action<bool, string> done)
+    {
+        if (dbRef == null || auth == null || auth.CurrentUser == null)
+        {
+            done?.Invoke(false, "not signed in");
+            return;
+        }
+        string id = string.IsNullOrWhiteSpace(roomId) ? null : roomId.Trim();
+        if (string.IsNullOrEmpty(id))
+        {
+            done?.Invoke(false, "roomId empty");
+            return;
+        }
+
+        // Read members list first so we can clean up every user's room index.
+        dbRef.Child("Rooms").Child(id).Child("members").GetValueAsync().ContinueWith(tMembers =>
+        {
+            var removeTasks = new System.Collections.Generic.List<System.Threading.Tasks.Task>();
+
+            if (tMembers.IsCompleted && !tMembers.IsFaulted && tMembers.Result != null && tMembers.Result.Exists)
+            {
+                foreach (var child in tMembers.Result.Children)
+                {
+                    string uid = child.Key;
+                    removeTasks.Add(dbRef.Child(UsersNode).Child(uid).Child("rooms").Child(id).RemoveValueAsync());
+                }
+            }
+
+            // Delete the entire room node.
+            removeTasks.Add(dbRef.Child("Rooms").Child(id).RemoveValueAsync());
+
+            System.Threading.Tasks.Task.WhenAll(removeTasks).ContinueWith(t =>
+            {
+                bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+                lock (_mainThreadQueue)
+                {
+                    _mainThreadQueue.Enqueue(() =>
+                    {
+                        if (_roomId == id)
+                            SetRoomId("global");
+                        done?.Invoke(ok, ok ? null : t.Exception?.ToString());
+                    });
+                }
+            });
+        });
+    }
+
+    /// <summary>
+    /// Leaves a room for the current user only: removes their membership and room index entry.
+    /// The room and other members are untouched. Callback runs on main thread.
+    /// </summary>
+    public void LeaveRoom(string roomId, Action<bool, string> done)
+    {
+        if (dbRef == null || auth == null || auth.CurrentUser == null)
+        {
+            done?.Invoke(false, "not signed in");
+            return;
+        }
+        string id = string.IsNullOrWhiteSpace(roomId) ? null : roomId.Trim();
+        if (string.IsNullOrEmpty(id))
+        {
+            done?.Invoke(false, "roomId empty");
+            return;
+        }
+
+        string uid = auth.CurrentUser.UserId;
+        var tasks = new System.Threading.Tasks.Task[]
+        {
+            UserRoomsRoot()?.Child(id).RemoveValueAsync(),
+            dbRef.Child("Rooms").Child(id).Child("members").Child(uid).RemoveValueAsync()
+        };
+
+        System.Threading.Tasks.Task.WhenAll(tasks).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    if (_roomId == id)
+                        SetRoomId("global");
+                    done?.Invoke(ok, ok ? null : t.Exception?.ToString());
+                });
+            }
+        });
+    }
+
     /// <summary>Fetches the signed-in user's rooms as summaries. Callback runs on main thread.</summary>
     public void GetMyRoomSummaries(Action<List<RoomSummary>> done)
     {
@@ -575,7 +684,11 @@ public class FirebaseManager : MonoBehaviour
     public void SendChatMessage(ChatMessage message)
     {
         if (dbRef == null) {
-            Debug.LogError("資料庫尚未連線成功，請稍候！");
+            Debug.LogError("[FirebaseManager] SendChatMessage: dbRef null");
+            return;
+        }
+        if (auth?.CurrentUser == null) {
+            Debug.LogError("[FirebaseManager] SendChatMessage: not authenticated (uid=null), dropping message");
             return;
         }
 
@@ -813,6 +926,34 @@ public class FirebaseManager : MonoBehaviour
         TryStartListeningForPetState();
         TryStartListeningForRoomEquipState();
         TryStartListeningForRoomCoins();
+
+        // Write membership + user room index, then retry listeners.
+        // Guards against race condition where Firebase rules deny listeners before membership is confirmed.
+        if (dbRef != null && auth?.CurrentUser != null && _roomId != "global")
+        {
+            string uid = auth.CurrentUser.UserId;
+            string roomSnap = _roomId;
+            // Also write to Users/{uid}/rooms/{roomId} so this room appears in the WebView room list.
+            UserRoomsRoot()?.Child(roomSnap).SetValueAsync(true);
+            dbRef.Child("Rooms").Child(roomSnap).Child("members").Child(uid)
+                 .SetValueAsync(true)
+                 .ContinueWith(t =>
+                 {
+                     if (t.IsFaulted || t.IsCanceled) return;
+                     lock (_mainThreadQueue)
+                     {
+                         _mainThreadQueue.Enqueue(() =>
+                         {
+                             if (_roomId != roomSnap) return;
+                             TryStartListeningForMessages();
+                             TryStartListeningForPhotos();
+                             TryStartListeningForPetState();
+                             TryStartListeningForRoomEquipState();
+                             TryStartListeningForRoomCoins();
+                         });
+                     }
+                 });
+        }
     }
 
     void StopPhotoListening()
@@ -842,16 +983,12 @@ public class FirebaseManager : MonoBehaviour
             if (t.IsFaulted || t.IsCanceled) return;
             if (t.Result == null || !t.Result.Exists)
             {
-                int initPetIdx = PetCollectionManager.Instance != null
-                    ? PetCollectionManager.Instance.CurrentPetIndex : 0;
-                int initStartCount = PetCollectionManager.Instance != null
-                    ? PetCollectionManager.Instance.StartingPhotoCount : 0;
                 var init = new RoomPetState
                 {
-                    currentHealth = SaveManager.Instance?.data?.currentHealth ?? 86400f,
+                    currentHealth = 86400f,
                     lastUpdateTime = DateTime.Now.ToString(),
-                    petIndex = initPetIdx,
-                    startingPhotoCount = initStartCount
+                    petIndex = 0,
+                    startingPhotoCount = 0
                 };
                 _petRef.SetRawJsonValueAsync(JsonUtility.ToJson(init));
             }

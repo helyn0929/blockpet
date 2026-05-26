@@ -161,6 +161,10 @@ public class ChatUIHandler : MonoBehaviour
         _headerRoomName = startupRoomDisplayName;
         _headerMemberCount = startupMemberCount;
 
+        // Subscribe here (not OnEnable) so localHistory is always cleared on room switch
+        // even when the chat panel is hidden — prevents stale history leaking into
+        // PushFullStateToWebView if the WebView page reloads while chat is inactive.
+        SaveManager.OnRoomSwitched += OnRoomSwitched;
     }
 
     bool IsWebViewActive()
@@ -180,6 +184,7 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnDestroy()
     {
+        SaveManager.OnRoomSwitched -= OnRoomSwitched;
         if (_instance == this)
             _instance = null;
         if (_cachedAvatarSpriteFromTex != null)
@@ -192,8 +197,6 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnEnable()
     {
-        SaveManager.OnRoomSwitched += OnRoomSwitched;
-
         if (useModernChatLayout)
             ApplyModernChatLayout();
 
@@ -206,7 +209,6 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnDisable()
     {
-        SaveManager.OnRoomSwitched -= OnRoomSwitched;
     }
 
     void OnRoomSwitched()

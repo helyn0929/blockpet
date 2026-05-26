@@ -22,6 +22,7 @@ public class FirebaseManager : MonoBehaviour
     bool _chatListening;
     Query _chatQuery;
     bool _chatInitialLoaded;
+    EventHandler<ChildChangedEventArgs> _chatChildAddedHandler;
     bool _photoListening;
     Query _photoQuery;
     readonly HashSet<string> _seenPhotoFileNames = new HashSet<string>();
@@ -778,8 +779,12 @@ public class FirebaseManager : MonoBehaviour
                         return;
 
                     _chatInitialLoaded = true;
-                    // After initial load, listen for new messages. StartAt is not used because timestamps can collide; ChatUIHandler dedupes by messageId.
-                    _chatQuery.ChildAdded += HandleChildAdded;
+                    // Capture the query so the ChildAdded callback can detect stale
+                    // deliveries that arrive after a room switch. The lambda stores
+                    // qForHandler and checks it on the main thread before displaying.
+                    var qForHandler = capturedQuery;
+                    _chatChildAddedHandler = (sender2, args2) => HandleChildAddedForQuery(args2, qForHandler);
+                    _chatQuery.ChildAdded += _chatChildAddedHandler;
                 });
             }
         });
@@ -1361,20 +1366,17 @@ public class FirebaseManager : MonoBehaviour
 
     void ResetChatListenState()
     {
-        if (_chatQuery != null)
-        {
-            _chatQuery.ChildAdded -= HandleChildAdded;
-            _chatQuery = null;
-        }
-
+        if (_chatQuery != null && _chatChildAddedHandler != null)
+            _chatQuery.ChildAdded -= _chatChildAddedHandler;
+        _chatChildAddedHandler = null;
+        _chatQuery = null;
         _chatListening = false;
         _chatInitialLoaded = false;
     }
 
-    void HandleChildAdded(object sender, ChildChangedEventArgs args)
+    void HandleChildAddedForQuery(ChildChangedEventArgs args, Query capturedQuery)
     {
-        if (!_chatListening || !_chatInitialLoaded)
-            return;
+        if (!_chatListening || !_chatInitialLoaded) return;
         if (args.DatabaseError != null) {
             Debug.LogError(args.DatabaseError.Message + "");
             return;
@@ -1386,7 +1388,8 @@ public class FirebaseManager : MonoBehaviour
 
         lock (_mainThreadQueue) {
             _mainThreadQueue.Enqueue(() => {
-                if (!_chatListening || ChatUIHandler.Instance == null)
+                // Discard if the room has switched since this event was queued.
+                if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery) || ChatUIHandler.Instance == null)
                     return;
                 ChatUIHandler.Instance.DisplayMessage(msg);
             });

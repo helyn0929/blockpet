@@ -40,6 +40,7 @@ public class ChatWebViewBridge : MonoBehaviour
     int _deferredMemberCount = -1;
     bool _shouldBeVisible;
     bool _useNativeComposer;
+    int _appendSession; // incremented on room change to cancel in-flight AppendMessagesCoroutine
 
     // Some embedded WebViews (notably in Unity Editor) have small EvaluateJS string limits.
     // Large init payloads (e.g. 50+ messages) can be truncated and result in an empty UI.
@@ -101,6 +102,12 @@ public class ChatWebViewBridge : MonoBehaviour
 
     void OnRoomChanged()
     {
+        // Invalidate any in-flight AppendMessagesCoroutine so old-room messages stop streaming.
+        _appendSession++;
+        _pendingInit = null;
+        _pendingInitWithoutMessages = null;
+        _pendingAppendAfterInit = null;
+
         if (_webView == null || !_pageReady) return;
         string json = "{\"kind\":\"clearMessages\"}";
         string b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json));
@@ -197,6 +204,7 @@ public class ChatWebViewBridge : MonoBehaviour
                 return;
             }
 
+            _appendSession++;
             SendInit(initNoMessages);
             StartCoroutine(AppendMessagesCoroutine(ToArray(messages)));
             return;
@@ -742,11 +750,13 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
     {
         if (msgs == null || msgs.Length == 0)
             yield break;
+        int session = _appendSession;
         // Yield one frame so React can mount after init.
         yield return null;
         for (int i = 0; i < msgs.Length; i++)
         {
-            if (!_pageReady)
+            // Abort if the room has changed or the page reloaded since we started.
+            if (!_pageReady || _appendSession != session)
                 yield break;
             if (msgs[i] != null)
                 NotifyMessageAppended(msgs[i]);
@@ -790,6 +800,7 @@ if (!(window.webkit && window.webkit.messageHandlers)) {
                     _pendingInitWithoutMessages = null;
                     if (_pendingAppendAfterInit != null && _pendingAppendAfterInit.Length > 0)
                     {
+                        _appendSession++;
                         StartCoroutine(AppendMessagesCoroutine(_pendingAppendAfterInit));
                         _pendingAppendAfterInit = null;
                     }

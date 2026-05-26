@@ -957,6 +957,9 @@ public class ChatUIHandler : MonoBehaviour
     bool IsMessageFromLocalUser(ChatMessage msg)
     {
         if (msg == null) return false;
+        string uid = FirebaseManager.Instance?.GetUserId();
+        if (!string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(msg.senderId))
+            return msg.senderId == uid;
         return msg.userName == GetLocalSenderDisplayName();
     }
 
@@ -968,6 +971,7 @@ public class ChatUIHandler : MonoBehaviour
         if (FirebaseManager.Instance != null)
         {
             ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), inputField.text);
+            outgoing.senderId = FirebaseManager.Instance.GetUserId() ?? string.Empty;
             if (_activeReplyTarget != null)
             {
                 outgoing.replyToMessageId = _activeReplyTarget.messageId;

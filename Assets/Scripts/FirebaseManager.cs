@@ -744,14 +744,14 @@ public class FirebaseManager : MonoBehaviour
             {
                 Debug.LogError("[FirebaseManager] Chat history GetValueAsync failed: " + (t.Exception?.Flatten().InnerException?.Message ?? t.Exception?.ToString()));
                 lock (_mainThreadQueue)
-                    _mainThreadQueue.Enqueue(ResetChatListenState);
+                    _mainThreadQueue.Enqueue(() => { if (ReferenceEquals(_chatQuery, capturedQuery)) ResetChatListenState(); });
                 return;
             }
             if (t.IsCanceled)
             {
                 Debug.LogWarning("[FirebaseManager] Chat history GetValueAsync canceled.");
                 lock (_mainThreadQueue)
-                    _mainThreadQueue.Enqueue(ResetChatListenState);
+                    _mainThreadQueue.Enqueue(() => { if (ReferenceEquals(_chatQuery, capturedQuery)) ResetChatListenState(); });
                 return;
             }
 

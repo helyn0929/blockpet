@@ -25,7 +25,6 @@ public class ChatUIHandler : MonoBehaviour
         }
     }
 
-    const string ChatHistoryFileNamePrefix = "chat_history";
 
     [Header("UI 連結")]
     public TMP_InputField inputField; 
@@ -147,16 +146,6 @@ public class ChatUIHandler : MonoBehaviour
     int _headerMemberCount;
 
     List<ChatMessage> localHistory = new List<ChatMessage>();
-    string ChatHistoryPath => Path.Combine(Application.persistentDataPath, GetChatHistoryFileName());
-
-    string GetChatHistoryFileName()
-    {
-        string room = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : "global";
-        if (string.IsNullOrEmpty(room)) room = "global";
-        // Keep file-system safe.
-        room = room.Replace("/", "_").Replace("\\", "_").Replace("..", "_");
-        return $"{ChatHistoryFileNamePrefix}_{room}.json";
-    }
     Coroutine _smoothScrollRoutine;
 
     void Awake()
@@ -203,8 +192,7 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnEnable()
     {
-        SaveManager.OnBeforeRoomSwitch += OnBeforeRoomSwitch;
-        SaveManager.OnRoomSwitched     += OnRoomSwitched;
+        SaveManager.OnRoomSwitched += OnRoomSwitched;
 
         if (useModernChatLayout)
             ApplyModernChatLayout();
@@ -218,23 +206,32 @@ public class ChatUIHandler : MonoBehaviour
 
     void OnDisable()
     {
-        SaveManager.OnBeforeRoomSwitch -= OnBeforeRoomSwitch;
-        SaveManager.OnRoomSwitched     -= OnRoomSwitched;
-    }
-
-    void OnBeforeRoomSwitch()
-    {
-        // Save current room's history before the room ID changes.
-        SaveChatHistoryToFile();
+        SaveManager.OnRoomSwitched -= OnRoomSwitched;
     }
 
     void OnRoomSwitched()
     {
-        // Clear in-memory history then reload from the new room's file.
         localHistory.Clear();
-        LoadChatHistoryAndRebuildUI();
+        ClearChatUI();
         if (FirebaseManager.Instance != null)
             SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
+    }
+
+    void ClearChatUI()
+    {
+        if (IsWebViewActive())
+        {
+            if (webViewBridge != null)
+            {
+                // Push empty state to WebView.
+                PushFullStateToWebView();
+            }
+        }
+        else if (chatContent != null)
+        {
+            for (int i = chatContent.childCount - 1; i >= 0; i--)
+                Destroy(chatContent.GetChild(i).gameObject);
+        }
     }
 
     void Start()
@@ -582,9 +579,6 @@ public class ChatUIHandler : MonoBehaviour
 
         FirebaseManager.Instance.SetRoomId(roomId);
         SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
-
-        // Reload per-room local history (and push fresh init to web UI).
-        LoadChatHistoryAndRebuildUI();
     }
 
     public void WebViewClearReply()
@@ -1054,7 +1048,6 @@ public class ChatUIHandler : MonoBehaviour
         }
 
         localHistory.Add(msg);
-        SaveChatHistoryToFile();
 
         if (IsWebViewActive())
             webViewBridge.NotifyMessageAppended(msg);
@@ -1301,55 +1294,16 @@ public class ChatUIHandler : MonoBehaviour
         LayoutRebuilder.ForceRebuildLayoutImmediate(rootRt);
     }
 
-    void SaveChatHistoryToFile()
-    {
-        var wrapper = new ChatHistorySave { messages = localHistory };
-        string json = JsonUtility.ToJson(wrapper, true);
-        try
-        {
-            File.WriteAllText(ChatHistoryPath, json);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning("[ChatUIHandler] Save chat history failed: " + e.Message);
-        }
-    }
-
     void LoadChatHistoryAndRebuildUI()
     {
-        if (!IsWebViewActive() && (chatContent == null || messagePrefab == null))
-            return;
-        if (IsWebViewActive() && webViewBridge == null)
-            return;
-
+        // Local file cache removed — Firebase SDK persistence handles offline caching.
+        // Just clear in-memory history; Firebase listener will repopulate via DisplayMessage.
         localHistory.Clear();
-        if (File.Exists(ChatHistoryPath))
-        {
-            try
-            {
-                string json = File.ReadAllText(ChatHistoryPath);
-                var wrapper = JsonUtility.FromJson<ChatHistorySave>(json);
-                if (wrapper != null && wrapper.messages != null)
-                    localHistory = wrapper.messages;
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning("[ChatUIHandler] Load chat history failed: " + e.Message);
-            }
-        }
-#if UNITY_EDITOR
-        Debug.Log("[ChatUIHandler] Local history messages: " + (localHistory != null ? localHistory.Count : 0) + " (path: " + ChatHistoryPath + ")");
-#endif
 
         if (!IsWebViewActive() && chatContent != null)
         {
-            // 清除現有泡泡
             for (int i = chatContent.childCount - 1; i >= 0; i--)
                 Destroy(chatContent.GetChild(i).gameObject);
-
-            // 依序重建訊息泡泡，保留歷史
-            foreach (ChatMessage msg in localHistory)
-                AddMessageBubbleToUI(msg);
         }
 
         if (IsWebViewActive())

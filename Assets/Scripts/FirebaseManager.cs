@@ -70,7 +70,9 @@ public class FirebaseManager : MonoBehaviour
             if (dependencyStatus == DependencyStatus.Available) {
                 try {
                 FirebaseApp app = FirebaseApp.DefaultInstance;
-                dbRef = FirebaseDatabase.GetInstance(app, "https://blockpet-fc23b-default-rtdb.firebaseio.com/").RootReference;
+                var db = FirebaseDatabase.GetInstance(app, "https://blockpet-fc23b-default-rtdb.firebaseio.com/");
+                db.SetPersistenceEnabled(true);
+                dbRef = db.RootReference;
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
                 _roomId = PlayerPrefs.GetString(PrefsRoomId, "global");
@@ -730,7 +732,12 @@ public class FirebaseManager : MonoBehaviour
             .OrderByChild("timestamp")
             .LimitToLast(200);
 
-        _chatQuery.GetValueAsync().ContinueWith(t =>
+        // Capture the query reference so the async callback can verify it is still
+        // the active query when it fires — guards against the race condition where
+        // SetRoomId() switches rooms while GetValueAsync() is still in flight.
+        var capturedQuery = _chatQuery;
+
+        capturedQuery.GetValueAsync().ContinueWith(t =>
         {
             if (t.IsFaulted)
             {
@@ -752,7 +759,8 @@ public class FirebaseManager : MonoBehaviour
             {
                 _mainThreadQueue.Enqueue(() =>
                 {
-                    if (_chatQuery == null || !_chatListening)
+                    // If the query was replaced (room switched mid-flight), discard this result.
+                    if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery))
                         return;
 
                     if (snap != null && snap.ChildrenCount > 0)
@@ -766,7 +774,7 @@ public class FirebaseManager : MonoBehaviour
                         }
                     }
 
-                    if (_chatQuery == null || !_chatListening)
+                    if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery))
                         return;
 
                     _chatInitialLoaded = true;

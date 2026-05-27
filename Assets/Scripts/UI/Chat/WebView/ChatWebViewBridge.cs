@@ -85,11 +85,24 @@ public class ChatWebViewBridge : MonoBehaviour
     void OnEnable()
     {
         FirebaseManager.OnRoomChanged += OnRoomChanged;
+        // The room may have changed while this panel was hidden (bridge was unsubscribed).
+        // Any pending init payload may belong to an old room; discard it and let PushFullStateToWebView
+        // rebuild from current state. Also cancel any in-flight AppendMessagesCoroutine.
+        _pendingInit = null;
+        _pendingInitWithoutMessages = null;
+        _pendingAppendAfterInit = null;
+        _appendSession++;
         // When PageManager toggles pages, the MonoBehaviour stays alive but its GameObject is disabled/enabled.
         // Keep the native WebView visibility in sync so it doesn't overlay other pages as a white screen.
         _shouldBeVisible = true;
         if (_webView != null)
+        {
             _webView.SetVisibility(true);
+            // If the page is already live, push current room state immediately so the user never
+            // sees a previous room's messages when the chat panel slides back in.
+            if (_pageReady)
+                chatUIHandler?.PushFullStateToWebView();
+        }
     }
 
     void OnDisable()

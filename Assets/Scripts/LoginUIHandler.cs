@@ -33,17 +33,17 @@ public class LoginUIHandler : MonoBehaviour
     {
         // Reset before any Start() runs so PageManager.Start() sees false and doesn't skip to home.
         GameplayHudReleased = false;
+
+        // Hide game UI immediately in Awake (not Start) so it never flashes on the first rendered frame
+        // before Start() is called, even when the user is already signed in.
+        if (mainGameUI != null)
+            mainGameUI.SetActive(false);
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(false);
     }
 
     void Start()
     {
-        // Hide gameplay elements until login completes.
-        if (mainGameUI != null)
-            mainGameUI.SetActive(false);
-
-        if (mainRoomBackground != null)
-            mainRoomBackground.SetActive(false);
-
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
 
@@ -170,22 +170,8 @@ public class LoginUIHandler : MonoBehaviour
 
     IEnumerator PostLoginFlow()
     {
-        // First-time user: prompt them to pick an avatar before entering the game.
-        if (AvatarManager.Instance != null && !AvatarManager.Instance.HasAvatar)
-        {
-            if (statusText != null) statusText.text = "Choose your avatar!";
-
-            bool pickFinished = false;
-            AvatarManager.Instance.PickAvatarFromGallery((picked) =>
-            {
-                pickFinished = true;
-            });
-
-            // Wait until the gallery picker completes (selected or cancelled).
-            while (!pickFinished)
-                yield return null;
-        }
-
+        // Avatar picker removed from login flow — users can change their avatar from Settings.
+        // (Showing the gallery picker at login confused returning users and blocked auto-login.)
         yield return StartCoroutine(FadeOutAndStartGame());
     }
 
@@ -218,6 +204,11 @@ public class LoginUIHandler : MonoBehaviour
                 loginPanel.gameObject.SetActive(false);
         }
 
+        // Hide all pages before activating the container so no child page flashes for one frame.
+        var pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+            pageManager.HideAllPages();
+
         // Show the page system container so RoomPage (a child page) can render,
         // but keep gameplay visuals/HUD hidden until a room is selected.
         if (mainGameUI != null)
@@ -226,13 +217,8 @@ public class LoginUIHandler : MonoBehaviour
             mainRoomBackground.SetActive(false);
         ResolveHudManagers();
         SetGameplayHudVisible(false);
-
-        // Finally: go to Room selection page (join/create) before entering gameplay.
-        var pageManager = FindObjectOfType<PageManager>(true);
         if (pageManager != null)
         {
-            // Defensive: if InitialPage or other scripts toggled pages earlier, clear first.
-            pageManager.HideAllPages();
             pageManager.ShowRoomPage();
             Debug.Log("[LoginUIHandler] Post-login: requested ShowRoomPage()");
             // If this component lives under LoginPanel, the panel may be deactivated right after fade-out.

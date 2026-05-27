@@ -183,6 +183,13 @@ public class LoginScreenController : MonoBehaviour
 
     void EnterGame()
     {
+        // Trigger game navigation first, then hide login UI.
+        // LoginUIHandler.StartGameFlow() runs FadeOutAndStartGame → RoomPage.
+        // Doing this before SetActive(false) ensures the coroutine starts on an active object.
+        if (loginUIHandler != null)
+            loginUIHandler.StartGameFlow();
+        else
+            Debug.LogWarning("[LoginScreenController] loginUIHandler is not assigned — game flow will not start.");
         gameObject.SetActive(false);
     }
 

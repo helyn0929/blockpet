@@ -157,22 +157,22 @@ public class LoginUIHandler : MonoBehaviour
     void OnLoginSuccess(bool success)
     {
         if (loadingIcon != null) loadingIcon.SetActive(false);
-        if (success)
-        {
-            if (statusText != null) statusText.text = "Login Successful!";
+        if (!success) return;
 
-            if (AvatarManager.Instance != null)
-                AvatarManager.Instance.LoadAvatarFromSave();
+        if (statusText != null) statusText.text = "Login Successful!";
+        if (AvatarManager.Instance != null)
+            AvatarManager.Instance.LoadAvatarFromSave();
 
-            StartCoroutine(PostLoginFlow());
-        }
+        // LoginScreenController handles the nickname overlay and calls StartGameFlow()
+        // once the login UI is fully dismissed. Only bypass if the controller is absent.
+        if (FindObjectOfType<LoginScreenController>(true) == null)
+            StartCoroutine(FadeOutAndStartGame());
     }
 
-    IEnumerator PostLoginFlow()
+    /// <summary>Called by <see cref="LoginScreenController"/> once all login UI steps are complete.</summary>
+    public void StartGameFlow()
     {
-        // Avatar picker removed from login flow — users can change their avatar from Settings.
-        // (Showing the gallery picker at login confused returning users and blocked auto-login.)
-        yield return StartCoroutine(FadeOutAndStartGame());
+        StartCoroutine(FadeOutAndStartGame());
     }
 
     IEnumerator FadeOutAndStartGame()

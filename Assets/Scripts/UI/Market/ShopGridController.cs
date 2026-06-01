@@ -1,16 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
-/// Populates the scroll content with <see cref="ShopItemCard"/> instances for the current category filter.
+/// Populates the scroll content with ShopItemCard instances, inserting section headers between groups.
 /// </summary>
 public class ShopGridController : MonoBehaviour
 {
     [SerializeField] Transform contentRoot;
     [SerializeField] ShopItemCard itemPrefab;
+    [Tooltip("Optional prefab for section header labels (needs a TMP_Text child). If null, headers are skipped.")]
+    [SerializeField] GameObject sectionHeaderPrefab;
 
-    readonly List<ShopItemCard> _pool = new List<ShopItemCard>();
+    readonly List<GameObject> _spawned = new List<GameObject>();
 
     public void Rebuild(List<ShopItemData> items, UnityAction<ShopItemData> onItemClicked)
     {
@@ -18,21 +22,39 @@ public class ShopGridController : MonoBehaviour
 
         if (contentRoot == null || itemPrefab == null)
         {
-            Debug.LogWarning("[ShopGridController] Assign content root and ShopItemCard prefab.");
+            Debug.LogWarning("[ShopGridController] Assign contentRoot and itemPrefab.");
             return;
         }
 
+        string lastSection = null;
         foreach (ShopItemData data in items)
         {
             if (data == null) continue;
+
+            // Insert section header when section label changes.
+            if (!string.IsNullOrEmpty(data.section) && data.section != lastSection)
+            {
+                lastSection = data.section;
+                SpawnSectionHeader(data.section);
+            }
+
             ShopItemCard card = Instantiate(itemPrefab, contentRoot);
             card.Bind(data, ComputeState(data), onItemClicked);
-            _pool.Add(card);
+            _spawned.Add(card.gameObject);
         }
 
         Canvas.ForceUpdateCanvases();
         if (contentRoot is RectTransform rt)
-            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+    }
+
+    void SpawnSectionHeader(string label)
+    {
+        if (sectionHeaderPrefab == null) return;
+        GameObject go = Instantiate(sectionHeaderPrefab, contentRoot);
+        var tmp = go.GetComponentInChildren<TMP_Text>();
+        if (tmp != null) tmp.text = label;
+        _spawned.Add(go);
     }
 
     static ShopItemCard.CardState ComputeState(ShopItemData d)
@@ -45,8 +67,8 @@ public class ShopGridController : MonoBehaviour
 
     public void Clear()
     {
-        foreach (var c in _pool)
-            if (c != null) Destroy(c.gameObject);
-        _pool.Clear();
+        foreach (var go in _spawned)
+            if (go != null) Destroy(go);
+        _spawned.Clear();
     }
 }

@@ -257,6 +257,13 @@
       "dependencies": {},
       "hash": "be4007e357006474099af338b95e73f58b77d475"
     },
+    "net.gree.unity-webview": {
+      "version": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "ebd73a30f236d470238701fb47e515067a85c7ba"
+    },
     "com.unity.modules.ai": {
       "version": "1.0.0",
       "depth": 0,

@@ -34,7 +34,49 @@
                 <ui:VisualElement name="email-icon" class="email-icon" />
                 <ui:Label text="Continue with Email" class="btn-label btn-label-light" />
             </ui:Button>
+            <ui:Label name="main-error" text="" class="main-error" />
+            <ui:VisualElement name="signup-row" class="signup-row">
+                <ui:Label name="signup-hint" text="沒有帳號？" class="signup-hint" />
+                <ui:Button name="btn-mode-toggle" class="btn-text-link">
+                    <ui:Label name="btn-mode-toggle-label" text="立即註冊" class="btn-text-link-label" />
+                </ui:Button>
+            </ui:VisualElement>
             <ui:Label name="terms-text" text="By continuing, you agree to our Terms of Service and Privacy Policy" class="terms-text" />
+        </ui:VisualElement>
+        <ui:VisualElement name="nickname-overlay" class="email-overlay">
+            <ui:VisualElement name="nickname-form" class="email-form">
+                <ui:Label text="設定你的暱稱" class="email-form-title" />
+                <ui:Label text="讓隊友認識你！" class="welcome-subtitle" style="margin-bottom:16px;" />
+                <ui:TextField name="nickname-field" placeholder-text="輸入暱稱" class="email-field" />
+                <ui:Label name="nickname-error" text="" class="email-error" />
+                <ui:Button name="btn-nickname-submit" class="btn btn-email email-submit-btn">
+                    <ui:Label text="確認" class="btn-label btn-label-light" />
+                </ui:Button>
+                <ui:Button name="btn-nickname-skip" class="email-back-btn">
+                    <ui:Label text="跳過" class="email-back-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="email-overlay" class="email-overlay">
+            <ui:VisualElement name="email-form" class="email-form">
+                <ui:VisualElement name="auth-tab-row" class="auth-tab-row">
+                    <ui:Button name="btn-tab-login" class="auth-tab auth-tab--active">
+                        <ui:Label text="登入" class="auth-tab-label" />
+                    </ui:Button>
+                    <ui:Button name="btn-tab-register" class="auth-tab">
+                        <ui:Label text="註冊" class="auth-tab-label" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:TextField name="email-field" placeholder-text="Email" class="email-field" />
+                <ui:TextField name="password-field" placeholder-text="Password" password="true" class="email-field" />
+                <ui:Label name="email-error" text="" class="email-error" />
+                <ui:Button name="btn-submit" class="btn btn-email email-submit-btn">
+                    <ui:Label name="btn-submit-label" text="登入" class="btn-label btn-label-light" />
+                </ui:Button>
+                <ui:Button name="btn-back" class="email-back-btn">
+                    <ui:Label text="取消" class="email-back-label" />
+                </ui:Button>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

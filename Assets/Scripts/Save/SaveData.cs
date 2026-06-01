@@ -1,19 +1,20 @@
 using System;
 using System.Collections.Generic;
 
+/// <summary>Per-room save data. One file per room: save_{roomId}.json</summary>
 [Serializable]
 public class SaveData
 {
     public List<PhotoMeta> photos = new List<PhotoMeta>();
 
-    //for petlife
-    public float currentHealth = 86400f; //24 hours in seconds
-    public string lastUpdateTime; 
-
+    public float currentHealth = 86400f;
+    public string lastUpdateTime;
     public string lastCaptureTime;
-
-    /// <summary>File name of the user's avatar image (stored in persistentDataPath/avatars/).</summary>
-    public string avatarFileName;
 }
 
-//json's root
+/// <summary>Global (user-level) save data. One file: save_global.json</summary>
+[Serializable]
+public class GlobalSaveData
+{
+    public string avatarFileName;
+}

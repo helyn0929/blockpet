@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment",
     "com.unity.2d.animation": "9.2.2",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "2.10.0",

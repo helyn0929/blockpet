@@ -10,8 +10,8 @@ public class PetCollectionManager : MonoBehaviour
 {
     public static PetCollectionManager Instance;
 
-    const string PrefsPetIndex = "PetCollection_CurrentPetIndex";
-    const string PrefsStartingCount = "PetCollection_StartingPhotoCount";
+    static string PrefsPetIndex => $"PetCollection_PetIndex_{SaveManager.Instance?.CurrentRoomId ?? ""}";
+    static string PrefsStartingCount => $"PetCollection_StartingCount_{SaveManager.Instance?.CurrentRoomId ?? ""}";
 
     /// <summary>Pets 0–4 need 10 photos; pets 5–9 need 5 photos.</summary>
     static int GetTargetAmountForPet(int petIndex)
@@ -27,6 +27,9 @@ public class PetCollectionManager : MonoBehaviour
 
     int currentPetIndex;
     int startingPhotoCount;
+
+    public int CurrentPetIndex => currentPetIndex;
+    public int StartingPhotoCount => startingPhotoCount;
 
     int CurrentPhotoCount => SaveManager.Instance != null && SaveManager.Instance.data?.photos != null
         ? SaveManager.Instance.data.photos.Count
@@ -74,11 +77,31 @@ public class PetCollectionManager : MonoBehaviour
     void OnEnable()
     {
         SaveManager.OnPhotoSaved += OnPhotoSaved;
+        SaveManager.OnBeforeRoomSwitch += SaveToPlayerPrefs;
+        SaveManager.OnRoomSwitched += OnRoomChanged;
     }
 
     void OnDisable()
     {
         SaveManager.OnPhotoSaved -= OnPhotoSaved;
+        SaveManager.OnBeforeRoomSwitch -= SaveToPlayerPrefs;
+        SaveManager.OnRoomSwitched -= OnRoomChanged;
+    }
+
+    void OnRoomChanged()
+    {
+        LoadFromPlayerPrefs();
+        EnsureValidState();
+        RefreshAllUI();
+    }
+
+    /// <summary>Called by FirebaseManager when Firebase pet state arrives for this room.</summary>
+    public void ApplyRoomPetState(int petIndex, int startingCount)
+    {
+        currentPetIndex = petIndex;
+        startingPhotoCount = startingCount;
+        SaveToPlayerPrefs();
+        RefreshAllUI();
     }
 
     void LoadFromPlayerPrefs()
@@ -108,6 +131,7 @@ public class PetCollectionManager : MonoBehaviour
             currentPetIndex = Random.Range(0, 10);
             startingPhotoCount = total;
             SaveToPlayerPrefs();
+            PublishToRoomIfShared();
             progress = CurrentProgress;
             target = TargetAmount;
         }
@@ -125,9 +149,17 @@ public class PetCollectionManager : MonoBehaviour
             currentPetIndex = Random.Range(0, 10);
             startingPhotoCount = total;
             SaveToPlayerPrefs();
+            PublishToRoomIfShared();
         }
 
         RefreshAllUI();
+    }
+
+    void PublishToRoomIfShared()
+    {
+        if (FirebaseManager.Instance == null) return;
+        if (!FirebaseManager.Instance.HasRoomPetState) return;
+        FirebaseManager.Instance.PublishRoomPetProgress(currentPetIndex, startingPhotoCount);
     }
 
     void RefreshAllUI()

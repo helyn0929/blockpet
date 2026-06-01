@@ -8,6 +8,7 @@ using System.Collections;
 /// Avatar file is stored under Application.persistentDataPath/avatars/.
 /// File name is recorded in SaveData.avatarFileName so it persists with the save.
 /// </summary>
+[DefaultExecutionOrder(-90)]
 public class AvatarManager : MonoBehaviour
 {
     public static AvatarManager Instance;
@@ -58,21 +59,19 @@ public class AvatarManager : MonoBehaviour
             return;
         }
 
-        string fileName = SaveManager.Instance.data.avatarFileName;
+        string fileName = SaveManager.Instance.AvatarFileName;
         if (string.IsNullOrEmpty(fileName))
         {
-            Debug.Log("[AvatarManager] LoadAvatarFromSave: No avatarFileName in SaveData (first-time user).");
-            OnAvatarChanged?.Invoke();
+            Debug.Log("[AvatarManager] No local avatarFileName — trying Firebase backup.");
+            TryRestoreFromFirebase();
             return;
         }
 
         string path = Path.Combine(avatarFolder, fileName);
         if (!File.Exists(path))
         {
-            Debug.LogWarning("[AvatarManager] Saved avatar file missing, resetting to default.");
-            SaveManager.Instance.data.avatarFileName = null;
-            SaveManager.Instance.Save();
-            OnAvatarChanged?.Invoke();
+            Debug.LogWarning("[AvatarManager] Local avatar missing — trying Firebase backup.");
+            TryRestoreFromFirebase();
             return;
         }
 
@@ -80,8 +79,16 @@ public class AvatarManager : MonoBehaviour
         {
             byte[] bytes = File.ReadAllBytes(path);
             Texture2D tex = new Texture2D(2, 2);
-            tex.LoadImage(bytes);
-            CurrentAvatar = tex;
+            if (tex.LoadImage(bytes))
+            {
+                CurrentAvatar = tex;
+            }
+            else
+            {
+                Destroy(tex);
+                CurrentAvatar = null;
+                Debug.LogWarning("[AvatarManager] Avatar file could not be decoded, falling back to default.");
+            }
         }
         catch (Exception e)
         {
@@ -90,6 +97,37 @@ public class AvatarManager : MonoBehaviour
         }
 
         OnAvatarChanged?.Invoke();
+    }
+
+    // ================================================================
+    //  Restore avatar from Firebase backup (after reinstall)
+    // ================================================================
+
+    void TryRestoreFromFirebase()
+    {
+        if (FirebaseManager.Instance == null) { OnAvatarChanged?.Invoke(); return; }
+        FirebaseManager.Instance.DownloadAvatarBase64(b64 =>
+        {
+            if (string.IsNullOrEmpty(b64)) { OnAvatarChanged?.Invoke(); return; }
+            try
+            {
+                byte[] bytes = Convert.FromBase64String(b64);
+                Texture2D tex = new Texture2D(2, 2);
+                if (tex.LoadImage(bytes))
+                {
+                    // Save locally so future loads skip Firebase.
+                    string fileName = "avatar_" + Guid.NewGuid().ToString("N") + ".png";
+                    File.WriteAllBytes(Path.Combine(avatarFolder, fileName), bytes);
+                    if (SaveManager.Instance != null)
+                        SaveManager.Instance.AvatarFileName = fileName;
+                    CurrentAvatar = tex;
+                    Debug.Log("[AvatarManager] Avatar restored from Firebase.");
+                }
+                else { Destroy(tex); }
+            }
+            catch (Exception e) { Debug.LogWarning("[AvatarManager] Firebase avatar restore failed: " + e.Message); }
+            OnAvatarChanged?.Invoke();
+        });
     }
 
     // ================================================================
@@ -114,15 +152,18 @@ public class AvatarManager : MonoBehaviour
 
             DeleteOldAvatar();
 
-            if (SaveManager.Instance != null && SaveManager.Instance.data != null)
+            if (SaveManager.Instance != null)
             {
-                SaveManager.Instance.data.avatarFileName = fileName;
-                SaveManager.Instance.Save();
+                SaveManager.Instance.AvatarFileName = fileName;
             }
 
             CurrentAvatar = texture;
             Debug.Log($"[AvatarManager] Avatar saved: {fileName}, CurrentAvatar set ({texture.width}x{texture.height})");
             OnAvatarChanged?.Invoke();
+
+            // Back up to Firebase so avatar survives reinstall.
+            if (FirebaseManager.Instance != null)
+                FirebaseManager.Instance.UploadAvatarBase64(Convert.ToBase64String(bytes));
         }
         catch (Exception e)
         {
@@ -173,8 +214,8 @@ public class AvatarManager : MonoBehaviour
     {
         get
         {
-            if (SaveManager.Instance == null || SaveManager.Instance.data == null) return false;
-            return !string.IsNullOrEmpty(SaveManager.Instance.data.avatarFileName);
+            if (SaveManager.Instance == null) return false;
+            return !string.IsNullOrEmpty(SaveManager.Instance.AvatarFileName);
         }
     }
 
@@ -236,8 +277,8 @@ public class AvatarManager : MonoBehaviour
 
     void DeleteOldAvatar()
     {
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        string old = SaveManager.Instance.data.avatarFileName;
+        if (SaveManager.Instance == null) return;
+        string old = SaveManager.Instance.AvatarFileName;
         if (string.IsNullOrEmpty(old)) return;
 
         string oldPath = Path.Combine(avatarFolder, old);

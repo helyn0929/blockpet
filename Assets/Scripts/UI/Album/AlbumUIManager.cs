@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Coordinates album grid → full-screen photo detail. Place on <c>MainGame</c> (or Canvas) and assign references.
@@ -42,7 +44,6 @@ public class AlbumUIManager : MonoBehaviour
             Instance = null;
     }
 
-    /// <summary>Opens detail page with the photo loaded from save data.</summary>
     void EnsureReferences()
     {
         if (pageManager == null)
@@ -60,15 +61,24 @@ public class AlbumUIManager : MonoBehaviour
 
         if (pageManager == null)
         {
-            Debug.LogWarning("[AlbumUIManager] PageManager not found. Assign it or add PageManager to the scene.");
+            Debug.LogWarning("[AlbumUIManager] PageManager not found.");
             return;
         }
 
         if (!pageManager.HasPhotoDetailPage)
         {
-            Debug.LogWarning("[AlbumUIManager] PageManager has no Photo Detail Page assigned. Assign the PhotoDetailPage object on PageManager.");
+            Debug.LogWarning("[AlbumUIManager] PageManager has no Photo Detail Page assigned.");
             return;
         }
+
+        // Build sorted list matching AlbumUI's display order (newest first).
+        List<PhotoMeta> allPhotos = SaveManager.Instance.data?.photos
+            ?.Where(p => p != null && !string.IsNullOrEmpty(p.fileName))
+            .OrderByDescending(p => p.timestamp ?? "")
+            .ToList() ?? new List<PhotoMeta>();
+
+        int index = allPhotos.FindIndex(p => p != null && p.fileName == meta.fileName);
+        if (index < 0) index = 0;
 
         Texture2D tex = SaveManager.Instance.LoadPhoto(meta);
         if (tex == null)
@@ -78,9 +88,9 @@ public class AlbumUIManager : MonoBehaviour
         }
 
         if (photoDetailUIPage != null)
-            photoDetailUIPage.Display(tex, meta);
+            photoDetailUIPage.Display(tex, meta, allPhotos, index);
         else
-            Debug.LogWarning("[AlbumUIManager] PhotoDetailUIPage not found. Add it to PhotoDetailPage and assign references, or assign it on AlbumUIManager.");
+            Debug.LogWarning("[AlbumUIManager] PhotoDetailUIPage not found.");
 
         pageManager.ShowPhotoDetailPage();
     }

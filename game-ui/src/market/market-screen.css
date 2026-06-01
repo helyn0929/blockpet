@@ -1,0 +1,315 @@
+/* ── Market screen ──────────────────────────────────────────────────────── */
+
+.bp-market {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fdf6f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+}
+
+/* Header */
+.bp-market__header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fff8f4;
+  border-bottom: 1px solid #f0d9cc;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.bp-market__back {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #c47a5a;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.bp-market__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #5a3a2a;
+  flex: 1;
+}
+
+.bp-market__currency {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a3a2a;
+  flex-shrink: 0;
+}
+
+/* Preview panel */
+.bp-market__preview {
+  position: relative;
+  flex-shrink: 0;
+  height: 34vh;
+  min-height: 120px;
+  background: #f0e4d8;
+  overflow: hidden;
+}
+
+.bp-market__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bp-market__layer--bg {
+  object-fit: cover;
+}
+
+.bp-market__layer--pet,
+.bp-market__layer--accessory,
+.bp-market__layer--furniture {
+  object-fit: contain;
+}
+
+.bp-market__preview-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.bp-market__preview-clear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Category tabs */
+.bp-market__tabs {
+  display: flex;
+  overflow-x: auto;
+  background: #fff8f4;
+  border-bottom: 1.5px solid #f0d9cc;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.bp-market__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bp-market__tab {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a07060;
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.bp-market__tab--active {
+  color: #c47a5a;
+  border-bottom-color: #c47a5a;
+}
+
+/* Grid scroll */
+.bp-market__grid-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 10px 10px;
+}
+
+.bp-market__section {
+  margin-bottom: 6px;
+}
+
+.bp-market__section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b08070;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 4px 4px;
+}
+
+.bp-market__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* Item card */
+.bp-market__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 6px 4px 7px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.bp-market__card--selected {
+  border-color: #c47a5a;
+  box-shadow: 0 0 0 2px rgba(196, 122, 90, 0.2);
+}
+
+.bp-market__card--equipped {
+  background: #fffbf0;
+  border-color: #e8b870;
+}
+
+.bp-market__card--owned {
+  background: #f7f5f3;
+}
+
+.bp-market__card--locked {
+  opacity: 0.5;
+}
+
+.bp-market__card-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5ede6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-market__card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.bp-market__card-no-img {
+  font-size: 30px;
+  opacity: 0.3;
+}
+
+/* Badge overlaid on the bottom of the card image */
+.bp-market__badge {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  right: 3px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 3px;
+  border-radius: 5px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bp-market__badge--price {
+  background: rgba(255, 255, 255, 0.88);
+  color: #c47a5a;
+}
+
+.bp-market__badge--owned {
+  background: rgba(190, 185, 180, 0.88);
+  color: #555;
+}
+
+.bp-market__badge--equipped {
+  background: rgba(240, 184, 80, 0.92);
+  color: #6a3e00;
+}
+
+.bp-market__badge--locked {
+  background: rgba(60, 60, 60, 0.55);
+  color: #fff;
+}
+
+.bp-market__card-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6a3a20;
+  text-align: center;
+  margin-top: 5px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Action bar */
+.bp-market__action-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255, 248, 244, 0.97);
+  border-top: 1px solid #f0d9cc;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.bp-market__action-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5a3a2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bp-market__action-btn {
+  border: none;
+  border-radius: 20px;
+  padding: 9px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.12s;
+}
+
+.bp-market__action-btn--buy {
+  background: #c47a5a;
+  color: #fff;
+}
+
+.bp-market__action-btn--equip {
+  background: #e8b870;
+  color: #5a3000;
+}
+
+.bp-market__action-btn--equipped {
+  background: #e0d0b0;
+  color: #8a7050;
+  cursor: default;
+}

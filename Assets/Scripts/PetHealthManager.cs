@@ -10,24 +10,29 @@ public class PetHealthManager : MonoBehaviour
 
     void Start()
     {
-        CalculateOfflineDecay();
+        // Local mode only: shared room pet state is derived from Firebase timestamps.
+        if (!IsSharedRoomPetActive())
+            CalculateOfflineDecay();
     }
 
     void Update()
     {
-        // 確保數據存在
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
+        if (healthSlider == null) return;
 
-        if (SaveManager.Instance.data.currentHealth > 0)
+        // Shared room pet: UI derives from room state; do not write local decay every frame.
+        if (IsSharedRoomPetActive())
         {
-            // 這裡必須是數字減數字
-            SaveManager.Instance.data.currentHealth -= Time.deltaTime;
-            
-            // 這裡必須是文字欄位 = 時間轉文字
-            SaveManager.Instance.data.lastUpdateTime = DateTime.Now.ToString(); 
-            
-            UpdateUI();
+            healthSlider.value = FirebaseManager.Instance.GetRoomHealthNow(maxHealth);
+            return;
         }
+
+        // Local mode: decay health over time and persist lastUpdateTime.
+        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
+        if (SaveManager.Instance.data.currentHealth <= 0) return;
+
+        SaveManager.Instance.data.currentHealth -= Time.deltaTime;
+        SaveManager.Instance.data.lastUpdateTime = DateTime.Now.ToString();
+        UpdateUI();
     }
 
     void CalculateOfflineDecay()
@@ -53,11 +58,17 @@ public class PetHealthManager : MonoBehaviour
 
     public void AddHealth()
     {
+        if (IsSharedRoomPetActive())
+        {
+            FirebaseManager.Instance.AddRoomHealth(healAmount, maxHealth);
+            // UI will update from listener / GetRoomHealthNow.
+            return;
+        }
+
         if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
         SaveManager.Instance.data.currentHealth += healAmount;
         if (SaveManager.Instance.data.currentHealth > maxHealth)
             SaveManager.Instance.data.currentHealth = maxHealth;
-        
         UpdateUI();
     }
 
@@ -65,5 +76,10 @@ public class PetHealthManager : MonoBehaviour
     {
         if (healthSlider == null || SaveManager.Instance == null || SaveManager.Instance.data == null) return;
         healthSlider.value = SaveManager.Instance.data.currentHealth;
+    }
+
+    static bool IsSharedRoomPetActive()
+    {
+        return FirebaseManager.Instance != null && FirebaseManager.Instance.HasRoomPetState;
     }
 }

@@ -1,5 +1,5 @@
 /// <summary>
-/// Shop categories for the Market page (dressing room + shop).
+/// Shop categories shown as tabs in the Market page.
 /// </summary>
 public enum MarketCategory
 {

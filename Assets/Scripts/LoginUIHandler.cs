@@ -17,6 +17,8 @@ public class LoginUIHandler : MonoBehaviour
     public GameObject mainRoomBackground;
     public TextMeshProUGUI statusText;
     public GameObject loadingIcon;
+    [Tooltip("Assign the Guest/Anonymous button here to hide it automatically.")]
+    public GameObject guestButton;
 
     [Header("Gameplay HUD (hidden until login succeeds)")]
     [Tooltip("Optional override. If empty, finds EconomyManager in the scene.")]
@@ -27,23 +29,44 @@ public class LoginUIHandler : MonoBehaviour
     [Header("Settings")]
     public float fadeDuration = 0.5f;
 
-    void Start()
+    void Awake()
     {
-        if (loginPanel != null)
-            loginPanel.alpha = 1f;
+        // Reset before any Start() runs so PageManager.Start() sees false and doesn't skip to home.
+        GameplayHudReleased = false;
 
+        // Hide game UI immediately in Awake (not Start) so it never flashes on the first rendered frame
+        // before Start() is called, even when the user is already signed in.
         if (mainGameUI != null)
             mainGameUI.SetActive(false);
-
         if (mainRoomBackground != null)
             mainRoomBackground.SetActive(false);
 
+        // Ensure the login screen is always visible on startup regardless of saved scene state.
+        var loginController = FindObjectOfType<LoginScreenController>(true);
+        if (loginController != null)
+            loginController.gameObject.SetActive(true);
+    }
+
+    void Start()
+    {
         if (loadingIcon != null)
             loadingIcon.SetActive(false);
 
-        GameplayHudReleased = false;
+        if (guestButton != null)
+            guestButton.SetActive(false);
+
         ResolveHudManagers();
         SetGameplayHudVisible(false);
+
+        // Keep loginPanel active so this MonoBehaviour's lifecycle runs,
+        // but keep Canvas invisible — UIToolkit (LoginScreenController) owns the visuals.
+        if (loginPanel != null)
+        {
+            loginPanel.gameObject.SetActive(true);
+            loginPanel.alpha = 0f;
+            loginPanel.blocksRaycasts = false;
+            loginPanel.interactable = false;
+        }
     }
 
     void ResolveHudManagers()
@@ -65,19 +88,38 @@ public class LoginUIHandler : MonoBehaviour
             petCollectionManager.gameObject.SetActive(visible);
     }
 
+    /// <summary>
+    /// Called after the player has selected / joined a room. This is the point where gameplay UI is allowed to appear.
+    /// </summary>
+    public void EnterMainGame()
+    {
+        // Show main game + world background + economy / pet progress HUD
+        if (mainGameUI != null)
+            mainGameUI.SetActive(true);
+
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(true);
+
+        ResolveHudManagers();
+        SetGameplayHudVisible(true);
+    }
+
     void OnEnable()
     {
         FirebaseManager.OnLoginSuccess += OnLoginSuccess;
+        FirebaseManager.OnLogout += OnLoggedOut;
     }
 
     void OnDisable()
     {
         FirebaseManager.OnLoginSuccess -= OnLoginSuccess;
+        FirebaseManager.OnLogout -= OnLoggedOut;
     }
 
     void OnDestroy()
     {
         FirebaseManager.OnLoginSuccess -= OnLoginSuccess;
+        FirebaseManager.OnLogout -= OnLoggedOut;
     }
 
     public void OnClickGoogle()
@@ -119,70 +161,104 @@ public class LoginUIHandler : MonoBehaviour
         }
     }
 
+    void OnLoggedOut()
+    {
+        GameplayHudReleased = false;
+        if (mainGameUI != null) mainGameUI.SetActive(false);
+        if (mainRoomBackground != null) mainRoomBackground.SetActive(false);
+        ResolveHudManagers();
+        SetGameplayHudVisible(false);
+
+        // Re-enable the UIToolkit login screen.
+        var loginController = FindObjectOfType<LoginScreenController>(true);
+        if (loginController != null) loginController.gameObject.SetActive(true);
+    }
+
     // Invoked on Main Thread by FirebaseManager (thread-safe for UI updates)
     void OnLoginSuccess(bool success)
     {
         if (loadingIcon != null) loadingIcon.SetActive(false);
-        if (success)
-        {
-            if (statusText != null) statusText.text = "Login Successful!";
+        if (!success) return;
 
-            if (AvatarManager.Instance != null)
-                AvatarManager.Instance.LoadAvatarFromSave();
+        if (statusText != null) statusText.text = "Login Successful!";
+        if (AvatarManager.Instance != null)
+            AvatarManager.Instance.LoadAvatarFromSave();
 
-            StartCoroutine(PostLoginFlow());
-        }
+        // LoginScreenController handles the nickname overlay and calls StartGameFlow()
+        // once the login UI is fully dismissed. Only bypass if the controller is absent.
+        if (FindObjectOfType<LoginScreenController>(true) == null)
+            StartCoroutine(FadeOutAndStartGame());
     }
 
-    IEnumerator PostLoginFlow()
+    /// <summary>Called by <see cref="LoginScreenController"/> once all login UI steps are complete.</summary>
+    public void StartGameFlow()
     {
-        // First-time user: prompt them to pick an avatar before entering the game.
-        if (AvatarManager.Instance != null && !AvatarManager.Instance.HasAvatar)
-        {
-            if (statusText != null) statusText.text = "Choose your avatar!";
-
-            bool pickFinished = false;
-            AvatarManager.Instance.PickAvatarFromGallery((picked) =>
-            {
-                pickFinished = true;
-            });
-
-            // Wait until the gallery picker completes (selected or cancelled).
-            while (!pickFinished)
-                yield return null;
-        }
-
-        yield return StartCoroutine(FadeOutAndStartGame());
+        StartCoroutine(FadeOutAndStartGame());
     }
 
     IEnumerator FadeOutAndStartGame()
     {
-        // First: show main game + world background + economy / pet progress HUD
-        if (mainGameUI != null)
-            mainGameUI.SetActive(true);
-
-        if (mainRoomBackground != null)
-            mainRoomBackground.SetActive(true);
-
-        SetGameplayHudVisible(true);
-
-        // Second: lerp loginPanel CanvasGroup alpha from 1 to 0
-        if (loginPanel != null && fadeDuration > 0f)
+        // Fade out login panel only if it has visible Canvas content.
+        // When UIToolkit owns the visuals, alpha starts at 0 so we skip the fade.
+        if (loginPanel != null && fadeDuration > 0f && loginPanel.alpha > 0.01f)
         {
+            float startAlpha = loginPanel.alpha;
             float elapsed = 0f;
             while (elapsed < fadeDuration)
             {
                 elapsed += Time.deltaTime;
-                loginPanel.alpha = Mathf.Clamp01(1f - elapsed / fadeDuration);
+                loginPanel.alpha = Mathf.Clamp01(startAlpha * (1f - elapsed / fadeDuration));
                 yield return null;
             }
-            loginPanel.alpha = 0f;
         }
-        else if (loginPanel != null)
+        if (loginPanel != null)
             loginPanel.alpha = 0f;
 
-        // Third: hide login panel
-        if (loginPanel != null && loginPanel.gameObject != null)
-            loginPanel.gameObject.SetActive(false);
+        // Hide login panel.
+        // IMPORTANT: if this LoginUIHandler is attached to the same GameObject as `loginPanel`,
+        // deactivating it will stop coroutines and prevent post-login routing from completing.
+        if (loginPanel != null)
+        {
+            loginPanel.blocksRaycasts = false;
+            loginPanel.interactable = false;
+            if (loginPanel.gameObject != null && loginPanel.gameObject != gameObject)
+                loginPanel.gameObject.SetActive(false);
+        }
+
+        // Hide all pages before activating the container so no child page flashes for one frame.
+        var pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null)
+            pageManager.HideAllPages();
+
+        // Show the page system container so RoomPage (a child page) can render,
+        // but keep gameplay visuals/HUD hidden until a room is selected.
+        if (mainGameUI != null)
+            mainGameUI.SetActive(true);
+        if (mainRoomBackground != null)
+            mainRoomBackground.SetActive(false);
+        ResolveHudManagers();
+        SetGameplayHudVisible(false);
+        if (pageManager != null)
+        {
+            pageManager.ShowRoomPage();
+            Debug.Log("[LoginUIHandler] Post-login: requested ShowRoomPage()");
+            // If this component lives under LoginPanel, the panel may be deactivated right after fade-out.
+            // Run the "re-assert room page" coroutine on PageManager which stays active.
+            pageManager.StartCoroutine(ForceRoomPageNextFrame(pageManager));
+        }
+    }
+
+    IEnumerator ForceRoomPageNextFrame(PageManager pageManager)
+    {
+        // Some scripts can still toggle pages on the same frame when MainGame is activated.
+        // Re-assert RoomPage after a short delay to make the first screen deterministic.
+        yield return null;
+        yield return null;
+        if (pageManager != null && !GameplayHudReleased)
+        {
+            Debug.Log("[LoginUIHandler] Post-login: re-asserting ShowRoomPage() (HUD not released yet)");
+            pageManager.HideAllPages();
+            pageManager.ShowRoomPage();
+        }
     }
 }

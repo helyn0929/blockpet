@@ -20,11 +20,11 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientSkyColor: {r: 0, g: 0, b: 0, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
@@ -32,7 +32,7 @@ RenderSettings:
   m_FlareFadeSpeed: 3
   m_HaloTexture: {fileID: 0}
   m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
-  m_DefaultReflectionMode: 0
+  m_DefaultReflectionMode: 1
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
@@ -4587,7 +4587,6 @@ MonoBehaviour:
   createNewButton: {fileID: 1418102207}
   continueButton: {fileID: 217311510}
   hintText: {fileID: 677279794}
-  defaultRoomId: global
   generatedCodeLength: 6
 --- !u!1 &461887657
 GameObject:
@@ -7738,7 +7737,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1083364127
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7793,6 +7792,7 @@ MonoBehaviour:
   mainRoomBackground: {fileID: 1368587847}
   statusText: {fileID: 218712968}
   loadingIcon: {fileID: 772127843}
+  guestButton: {fileID: 460372421}
   economyManager: {fileID: 0}
   petCollectionManager: {fileID: 0}
   fadeDuration: 0.5
@@ -14100,8 +14100,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81428ab2700de0548be0525c0d13e9f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  autoAnonymousSignInInEditor: 1
-  autoAnonymousSignInOnDevice: 1
   enableCloudPhotoSync: 1
   photoUploadMaxEdge: 1024
   photoUploadMaxBytes: 450000

@@ -10,8 +10,8 @@ public class PetCollectionManager : MonoBehaviour
 {
     public static PetCollectionManager Instance;
 
-    static string PrefsPetIndex => $"PetCollection_PetIndex_{SaveManager.Instance?.CurrentRoomId ?? "global"}";
-    static string PrefsStartingCount => $"PetCollection_StartingCount_{SaveManager.Instance?.CurrentRoomId ?? "global"}";
+    static string PrefsPetIndex => $"PetCollection_PetIndex_{SaveManager.Instance?.CurrentRoomId ?? ""}";
+    static string PrefsStartingCount => $"PetCollection_StartingCount_{SaveManager.Instance?.CurrentRoomId ?? ""}";
 
     /// <summary>Pets 0–4 need 10 photos; pets 5–9 need 5 photos.</summary>
     static int GetTargetAmountForPet(int petIndex)

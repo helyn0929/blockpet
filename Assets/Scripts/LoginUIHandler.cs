@@ -40,6 +40,11 @@ public class LoginUIHandler : MonoBehaviour
             mainGameUI.SetActive(false);
         if (mainRoomBackground != null)
             mainRoomBackground.SetActive(false);
+
+        // Ensure the login screen is always visible on startup regardless of saved scene state.
+        var loginController = FindObjectOfType<LoginScreenController>(true);
+        if (loginController != null)
+            loginController.gameObject.SetActive(true);
     }
 
     void Start()
@@ -102,16 +107,19 @@ public class LoginUIHandler : MonoBehaviour
     void OnEnable()
     {
         FirebaseManager.OnLoginSuccess += OnLoginSuccess;
+        FirebaseManager.OnLogout += OnLoggedOut;
     }
 
     void OnDisable()
     {
         FirebaseManager.OnLoginSuccess -= OnLoginSuccess;
+        FirebaseManager.OnLogout -= OnLoggedOut;
     }
 
     void OnDestroy()
     {
         FirebaseManager.OnLoginSuccess -= OnLoginSuccess;
+        FirebaseManager.OnLogout -= OnLoggedOut;
     }
 
     public void OnClickGoogle()
@@ -151,6 +159,19 @@ public class LoginUIHandler : MonoBehaviour
             if (loadingIcon != null) loadingIcon.SetActive(false);
             Debug.LogWarning("[LoginUIHandler] FirebaseManager.Instance is null.");
         }
+    }
+
+    void OnLoggedOut()
+    {
+        GameplayHudReleased = false;
+        if (mainGameUI != null) mainGameUI.SetActive(false);
+        if (mainRoomBackground != null) mainRoomBackground.SetActive(false);
+        ResolveHudManagers();
+        SetGameplayHudVisible(false);
+
+        // Re-enable the UIToolkit login screen.
+        var loginController = FindObjectOfType<LoginScreenController>(true);
+        if (loginController != null) loginController.gameObject.SetActive(true);
     }
 
     // Invoked on Main Thread by FirebaseManager (thread-safe for UI updates)

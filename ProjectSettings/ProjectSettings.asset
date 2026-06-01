@@ -816,7 +816,7 @@ PlayerSettings:
   webGLMemoryGeometricGrowthCap: 96
   webGLPowerPreference: 2
   scriptingDefineSymbols:
-    iPhone: NATIVE_GALLERY
+    iPhone: NATIVE_GALLERY;GOOGLE_SIGN_IN
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

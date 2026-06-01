@@ -200,7 +200,7 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
                 list.Insert(0, new FirebaseManager.RoomSummary
                 {
                     roomId = currentRoomId,
-                    name = currentRoomId == "global" ? "預設房間 (global)" : currentRoomId,
+                    name = currentRoomId,
                 });
             }
 

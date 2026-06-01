@@ -9,12 +9,20 @@ using System.Threading.Tasks;
 #if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
 using Google;
 #endif
+#if UNITY_IOS
+using AppleAuth;
+using AppleAuth.Enums;
+using AppleAuth.Extensions;
+using AppleAuth.Interfaces;
+using AppleAuth.Native;
+#endif
 
 public class FirebaseManager : MonoBehaviour
 {
     public static FirebaseManager Instance;
     public static System.Action<bool> OnLoginSuccess;
     public static System.Action OnRoomChanged;
+    public static System.Action OnLogout;
     bool _loginNotified;
 
     DatabaseReference dbRef;
@@ -28,7 +36,8 @@ public class FirebaseManager : MonoBehaviour
     readonly HashSet<string> _seenPhotoFileNames = new HashSet<string>();
     string _roomId;
     const string PrefsRoomId = "Blockpet.RoomId";
-    public string RoomId => string.IsNullOrEmpty(_roomId) ? "global" : _roomId;
+    const string PrefsUserSignedOut = "Blockpet.UserSignedOut";
+    public string RoomId => _roomId ?? "";
 
     bool _petListening;
     DatabaseReference _petRef;
@@ -57,8 +66,16 @@ public class FirebaseManager : MonoBehaviour
 
     private Queue<Action> _mainThreadQueue = new Queue<Action>();
 
+#if UNITY_IOS
+    IAppleAuthManager _appleAuthManager;
+#endif
+
     void Awake()
     {
+#if UNITY_IOS
+        if (AppleAuthManager.IsCurrentPlatformSupported)
+            _appleAuthManager = new AppleAuthManager(new PayloadDeserializer());
+#endif
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
 
@@ -76,13 +93,15 @@ public class FirebaseManager : MonoBehaviour
                 dbRef = db.RootReference;
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
-                _roomId = PlayerPrefs.GetString(PrefsRoomId, "global");
+                _roomId = PlayerPrefs.GetString(PrefsRoomId, "");
 
                 // Listen for auth state changes (sign-in, token refresh, sign-out).
                 auth.StateChanged += OnAuthStateChanged;
 
                 // If already signed in (returning user), skip the login screen automatically.
-                if (!_loginNotified && auth != null && auth.CurrentUser != null)
+                // But respect explicit sign-out: if the user signed out last session, show the login screen.
+                if (!_loginNotified && auth != null && auth.CurrentUser != null
+                    && PlayerPrefs.GetInt(PrefsUserSignedOut, 0) == 0)
                 {
                     _loginNotified = true;
                     lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
@@ -162,8 +181,12 @@ public class FirebaseManager : MonoBehaviour
     /// <summary>Signs out the current user.</summary>
     public void SignOut()
     {
+        SetRoomId("");
+        PlayerPrefs.SetInt(PrefsUserSignedOut, 1);
+        PlayerPrefs.Save();
         auth?.SignOut();
         _loginNotified = false;
+        lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLogout?.Invoke()); }
     }
 
     void OnAuthStateChanged(object sender, System.EventArgs e)
@@ -174,6 +197,9 @@ public class FirebaseManager : MonoBehaviour
 
         if (uid != null && !_loginNotified)
         {
+            // User actively signed in — clear the signed-out flag so auto-login works next launch.
+            PlayerPrefs.SetInt(PrefsUserSignedOut, 0);
+            PlayerPrefs.Save();
             _loginNotified = true;
             lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
         }
@@ -212,6 +238,9 @@ public class FirebaseManager : MonoBehaviour
                 _mainThreadQueue.Dequeue().Invoke();
             }
         }
+#if UNITY_IOS
+        _appleAuthManager?.Update();
+#endif
     }
 
     // Web Client ID from Google Cloud Console (OAuth 2.0)
@@ -283,8 +312,73 @@ public class FirebaseManager : MonoBehaviour
 
     public void SignInWithApple()
     {
-        Debug.Log("Apple Sign In Called");
-        // TODO: Implement real Apple Sign-In and then enqueue OnLoginSuccess(true/false) on _mainThreadQueue.
+#if UNITY_IOS
+        if (_appleAuthManager == null)
+        {
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+            return;
+        }
+
+        string rawNonce = GenerateNonce(32);
+        string hashedNonce = HashNonce(rawNonce);
+
+        var loginArgs = new AppleAuthLoginArgs(
+            LoginOptions.IncludeEmail | LoginOptions.IncludeFullName, hashedNonce);
+
+        _appleAuthManager.LoginWithAppleId(loginArgs,
+            credential =>
+            {
+                var appleCredential = credential as IAppleIDCredential;
+                if (appleCredential == null)
+                {
+                    lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+                    return;
+                }
+
+                string identityToken = System.Text.Encoding.UTF8.GetString(appleCredential.IdentityToken);
+                var firebaseCredential = OAuthProvider.GetCredential("apple.com", identityToken, rawNonce, null);
+
+                auth.SignInWithCredentialAsync(firebaseCredential).ContinueWith(task =>
+                {
+                    lock (_mainThreadQueue)
+                    {
+                        _mainThreadQueue.Enqueue(() =>
+                        {
+                            bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+                            OnLoginSuccess?.Invoke(success);
+                        });
+                    }
+                });
+            },
+            error =>
+            {
+                Debug.LogError("Apple Sign-In failed: " + error.GetAuthorizationErrorCode() + " " + error);
+                lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+            });
+#else
+        Debug.LogWarning("Apple Sign-In is only supported on iOS.");
+        lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+#endif
+    }
+
+    static string GenerateNonce(int length)
+    {
+        const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var sb = new System.Text.StringBuilder();
+        var rng = new System.Random();
+        for (int i = 0; i < length; i++)
+            sb.Append(chars[rng.Next(chars.Length)]);
+        return sb.ToString();
+    }
+
+    static string HashNonce(string rawNonce)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        byte[] hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawNonce));
+        var sb = new System.Text.StringBuilder();
+        foreach (byte b in hash)
+            sb.Append(b.ToString("x2"));
+        return sb.ToString();
     }
 
     public void SignInWithEmail(string email, string password)
@@ -306,6 +400,27 @@ public class FirebaseManager : MonoBehaviour
                         TryStartListeningForPhotos();
                         TryStartListeningForPetState();
                     }
+                });
+            }
+        });
+    }
+
+    public void CreateUserWithEmail(string email, string password)
+    {
+        if (auth == null)
+        {
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+            return;
+        }
+        auth.CreateUserWithEmailAndPasswordAsync(email.Trim(), password).ContinueWith(task => {
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() => {
+                    bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+                    // On success, auth.StateChanged fires and raises OnLoginSuccess(true) automatically.
+                    // Only need to explicitly notify on failure.
+                    if (!success)
+                        OnLoginSuccess?.Invoke(false);
                 });
             }
         });
@@ -524,7 +639,7 @@ public class FirebaseManager : MonoBehaviour
                     _mainThreadQueue.Enqueue(() =>
                     {
                         if (_roomId == id)
-                            SetRoomId("global");
+                            SetRoomId("");
                         done?.Invoke(ok, ok ? null : t.Exception?.ToString());
                     });
                 }
@@ -565,7 +680,7 @@ public class FirebaseManager : MonoBehaviour
                 _mainThreadQueue.Enqueue(() =>
                 {
                     if (_roomId == id)
-                        SetRoomId("global");
+                        SetRoomId("");
                     done?.Invoke(ok, ok ? null : t.Exception?.ToString());
                 });
             }
@@ -716,6 +831,7 @@ public class FirebaseManager : MonoBehaviour
     void TryStartListeningForMessages()
     {
         if (_chatListening) return;
+        if (string.IsNullOrEmpty(_roomId)) return;
         if (dbRef == null || auth == null)
             return;
         if (auth.CurrentUser == null)
@@ -805,6 +921,7 @@ public class FirebaseManager : MonoBehaviour
     {
         if (_photoListening) return;
         if (!enableCloudPhotoSync) return;
+        if (string.IsNullOrEmpty(_roomId)) return;
         if (dbRef == null || auth == null) return;
         if (auth.CurrentUser == null) return;
 
@@ -913,7 +1030,7 @@ public class FirebaseManager : MonoBehaviour
 
     public void SetRoomId(string roomId)
     {
-        string normalized = string.IsNullOrWhiteSpace(roomId) ? "global" : roomId.Trim();
+        string normalized = roomId?.Trim() ?? "";
         if (normalized.Length > 32) normalized = normalized.Substring(0, 32);
         _roomId = normalized;
         PlayerPrefs.SetString(PrefsRoomId, _roomId);
@@ -942,7 +1059,7 @@ public class FirebaseManager : MonoBehaviour
 
         // Write membership + user room index, then retry listeners.
         // Guards against race condition where Firebase rules deny listeners before membership is confirmed.
-        if (dbRef != null && auth?.CurrentUser != null && _roomId != "global")
+        if (dbRef != null && auth?.CurrentUser != null && !string.IsNullOrEmpty(_roomId))
         {
             string uid = auth.CurrentUser.UserId;
             string roomSnap = _roomId;
@@ -983,6 +1100,7 @@ public class FirebaseManager : MonoBehaviour
     {
         if (_petListening) return;
         if (!enableSharedRoomPet) return;
+        if (string.IsNullOrEmpty(_roomId)) return;
         if (dbRef == null || auth == null) return;
         if (auth.CurrentUser == null) return;
 
@@ -1022,6 +1140,7 @@ public class FirebaseManager : MonoBehaviour
     void TryStartListeningForRoomEquipState()
     {
         if (_equipListening) return;
+        if (string.IsNullOrEmpty(_roomId)) return;
         if (dbRef == null || auth?.CurrentUser == null) return;
         _equipListening = true;
         _equipRef = RoomRoot().Child("roomState");
@@ -1085,6 +1204,7 @@ public class FirebaseManager : MonoBehaviour
     void TryStartListeningForRoomCoins()
     {
         if (_coinsListening) return;
+        if (string.IsNullOrEmpty(_roomId)) return;
         if (dbRef == null || auth?.CurrentUser == null) return;
         _coinsListening = true;
         _coinsRef = RoomRoot().Child("economy").Child("coins");

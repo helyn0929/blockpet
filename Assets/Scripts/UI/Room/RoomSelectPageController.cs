@@ -20,8 +20,6 @@ public class RoomSelectPageController : MonoBehaviour
     [SerializeField] TMP_Text hintText;
 
     [Header("Behavior")]
-    [Tooltip("Default room code when user does nothing.")]
-    [SerializeField] string defaultRoomId = "global";
     [Tooltip("Generated room codes length.")]
     [SerializeField] int generatedCodeLength = 6;
 
@@ -62,14 +60,16 @@ public class RoomSelectPageController : MonoBehaviour
     void RefreshUi()
     {
         var fb = FirebaseManager.Instance;
-        string room = fb != null ? fb.RoomId : defaultRoomId;
-        if (string.IsNullOrWhiteSpace(room)) room = defaultRoomId;
+        string room = fb != null ? fb.RoomId : "";
 
+        bool hasRoom = !string.IsNullOrEmpty(room);
         if (currentRoomCodeText != null)
-            currentRoomCodeText.text = room;
+            currentRoomCodeText.text = hasRoom ? room : "---";
+        if (continueButton != null)
+            continueButton.interactable = hasRoom;
 
         if (hintText != null)
-            hintText.text = "輸入相同房間碼即可連動";
+            hintText.text = hasRoom ? "輸入相同房間碼即可連動" : "請建立或加入房間";
     }
 
     void SetRoom(string roomId)
@@ -93,8 +93,12 @@ public class RoomSelectPageController : MonoBehaviour
 
     void CopyCodeToClipboard()
     {
-        string code = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : defaultRoomId;
-        if (string.IsNullOrWhiteSpace(code)) code = defaultRoomId;
+        string code = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : "";
+        if (string.IsNullOrEmpty(code))
+        {
+            if (hintText != null) hintText.text = "請先建立或加入房間";
+            return;
+        }
         GUIUtility.systemCopyBuffer = code;
         if (hintText != null)
             hintText.text = "已複製房間碼";
@@ -115,8 +119,12 @@ public class RoomSelectPageController : MonoBehaviour
 
     void ContinueCurrentRoom()
     {
-        if (FirebaseManager.Instance == null)
-            SetRoom(defaultRoomId);
+        string room = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : "";
+        if (string.IsNullOrEmpty(room))
+        {
+            if (hintText != null) hintText.text = "請先建立或加入房間";
+            return;
+        }
         EnterMainGameAndGoHome();
     }
 

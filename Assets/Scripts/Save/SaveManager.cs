@@ -20,7 +20,7 @@ public class SaveManager : MonoBehaviour
     public SaveData data = new SaveData();
 
     GlobalSaveData _globalData = new GlobalSaveData();
-    string _currentRoomId = "global";
+    string _currentRoomId = "";
     string _globalJsonPath;
     string _roomJsonPath;
     string _photoFolder;
@@ -47,14 +47,15 @@ public class SaveManager : MonoBehaviour
         if (!Directory.Exists(_photoFolder)) Directory.CreateDirectory(_photoFolder);
 
         LoadGlobal();
-        LoadRoomData("global");
+        data = new SaveData();
+        data.photos = new System.Collections.Generic.List<PhotoMeta>();
     }
 
     // ─── Room switching ───────────────────────────────────────────────
 
     public void SwitchRoom(string roomId)
     {
-        if (string.IsNullOrWhiteSpace(roomId)) roomId = "global";
+        roomId = roomId?.Trim() ?? "";
         if (_currentRoomId == roomId) return;
 
         OnBeforeRoomSwitch?.Invoke();

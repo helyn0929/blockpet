@@ -22,6 +22,9 @@ public class LoginScreenController : MonoBehaviour
     Label _signupHint;
     Label _modeToggleLabel;
     Label _mainError;
+    Label _btnGoogleLabel;
+    Label _btnAppleLabel;
+    Label _btnEmailLabel;
 
     // Email overlay
     VisualElement _emailOverlay;
@@ -70,6 +73,9 @@ public class LoginScreenController : MonoBehaviour
         _signupHint      = _root.Q<Label>("signup-hint");
         _modeToggleLabel = _root.Q<Label>("btn-mode-toggle-label");
         _mainError       = _root.Q<Label>("main-error");
+        _btnGoogleLabel  = _root.Q<Label>("btn-google-label");
+        _btnAppleLabel   = _root.Q<Label>("btn-apple-label");
+        _btnEmailLabel   = _root.Q<Label>("btn-email-label");
 
         _emailOverlay    = _root.Q<VisualElement>("email-overlay");
         _emailField      = _root.Q<TextField>("email-field");
@@ -133,6 +139,9 @@ public class LoginScreenController : MonoBehaviour
             if (_welcomeSubtitle != null) _welcomeSubtitle.text = "加入 Blockpet，開始你的寵物冒險！";
             if (_signupHint != null)      _signupHint.text      = "已有帳號？";
             if (_modeToggleLabel != null) _modeToggleLabel.text = "登入";
+            if (_btnGoogleLabel != null)  _btnGoogleLabel.text  = "使用 Google 建立帳號";
+            if (_btnAppleLabel != null)   _btnAppleLabel.text   = "使用 Apple 建立帳號";
+            if (_btnEmailLabel != null)   _btnEmailLabel.text   = "使用 Email 建立帳號";
         }
         else
         {
@@ -140,6 +149,9 @@ public class LoginScreenController : MonoBehaviour
             if (_welcomeSubtitle != null) _welcomeSubtitle.text = "Sign in to start your pet adventure";
             if (_signupHint != null)      _signupHint.text      = "沒有帳號？";
             if (_modeToggleLabel != null) _modeToggleLabel.text = "立即註冊";
+            if (_btnGoogleLabel != null)  _btnGoogleLabel.text  = "使用 Google 登入";
+            if (_btnAppleLabel != null)   _btnAppleLabel.text   = "使用 Apple 登入";
+            if (_btnEmailLabel != null)   _btnEmailLabel.text   = "使用 Email 登入";
         }
     }
 

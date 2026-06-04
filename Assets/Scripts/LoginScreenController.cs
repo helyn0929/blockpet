@@ -268,12 +268,22 @@ public class LoginScreenController : MonoBehaviour
         }
 
         HideMainError();
-        // If the user has no display name yet, prompt them to set one first.
-        bool needsNickname = FirebaseManager.Instance != null && !FirebaseManager.Instance.HasDisplayName;
-        if (needsNickname)
-            ShowNicknameOverlay();
+        // Check RTDB for nickname — covers all auth methods including Google (which auto-populates
+        // Firebase displayName from the Google profile, so HasDisplayName alone can't detect new users).
+        if (FirebaseManager.Instance != null)
+        {
+            FirebaseManager.Instance.CheckHasNickname(hasNickname =>
+            {
+                if (!hasNickname)
+                    ShowNicknameOverlay();
+                else
+                    EnterGame();
+            });
+        }
         else
+        {
             EnterGame();
+        }
     }
 
     void ShowMainError(string msg)

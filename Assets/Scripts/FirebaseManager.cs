@@ -144,20 +144,42 @@ public class FirebaseManager : MonoBehaviour
     public bool HasDisplayName =>
         auth?.CurrentUser != null && !string.IsNullOrEmpty(auth.CurrentUser.DisplayName);
 
-    /// <summary>Updates the Firebase Auth display name for the current user.</summary>
+    /// <summary>Updates the Firebase Auth display name and writes to RTDB Users/{uid}/nickname.</summary>
     public void SetDisplayName(string name, Action<bool> callback = null)
     {
         var user = auth?.CurrentUser;
         if (user == null) { callback?.Invoke(false); return; }
 
-        var profile = new UserProfile { DisplayName = name.Trim() };
+        string trimmed = name.Trim();
+        var profile = new UserProfile { DisplayName = trimmed };
         user.UpdateUserProfileAsync(profile).ContinueWith(task =>
         {
             bool ok = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+            if (ok && dbRef != null)
+                dbRef.Child(UsersNode).Child(user.UserId).Child("nickname").SetValueAsync(trimmed);
             lock (_mainThreadQueue)
             {
                 _mainThreadQueue.Enqueue(() => callback?.Invoke(ok));
             }
+        });
+    }
+
+    /// <summary>Checks RTDB Users/{uid}/nickname to determine if the user has completed registration.
+    /// Works for all auth methods (Google users have Firebase display name but may not have RTDB nickname).</summary>
+    public void CheckHasNickname(Action<bool> callback)
+    {
+        string uid = GetUserId();
+        if (string.IsNullOrEmpty(uid) || dbRef == null)
+        {
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => callback?.Invoke(false)); }
+            return;
+        }
+        dbRef.Child(UsersNode).Child(uid).Child("nickname").GetValueAsync().ContinueWith(t =>
+        {
+            bool has = t.IsCompleted && !t.IsFaulted && !t.IsCanceled
+                       && t.Result != null && t.Result.Exists
+                       && !string.IsNullOrEmpty(t.Result.Value as string);
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => callback?.Invoke(has)); }
         });
     }
 

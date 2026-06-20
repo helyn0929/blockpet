@@ -448,6 +448,25 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    public void UpdatePassword(string newPassword, Action<bool, string> callback)
+    {
+        var user = auth?.CurrentUser;
+        if (user == null) { callback?.Invoke(false, "未登入"); return; }
+        user.UpdatePasswordAsync(newPassword).ContinueWith(task =>
+        {
+            lock (_mainThreadQueue)
+            {
+                _mainThreadQueue.Enqueue(() =>
+                {
+                    if (task.IsCompletedSuccessfully)
+                        callback?.Invoke(true, null);
+                    else
+                        callback?.Invoke(false, task.Exception?.GetBaseException().Message ?? "更新失敗");
+                });
+            }
+        });
+    }
+
     public void SignInAnonymously()
     {
         Debug.Log("Guest Sign In Starting...");

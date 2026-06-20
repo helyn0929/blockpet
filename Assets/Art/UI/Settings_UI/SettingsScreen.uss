@@ -1,0 +1,286 @@
+/* =========================================
+   Blockpet Settings Screen - USS Stylesheet
+   ========================================= */
+
+.root {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgb(242, 242, 247);
+}
+
+/* ---------- HEADER ---------- */
+.header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    background-color: rgb(242, 242, 247);
+}
+
+.header-title {
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: rgb(0, 0, 0);
+    -unity-text-align: middle-center;
+    flex-grow: 1;
+}
+
+.header-close-btn {
+    position: absolute;
+    right: 16px;
+    background-color: rgba(0,0,0,0);
+    border-width: 0;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-close-label {
+    font-size: 16px;
+    color: rgb(142, 142, 147);
+}
+
+/* ---------- SCROLL ---------- */
+.scroll {
+    flex-grow: 1;
+    padding-bottom: 40px;
+}
+
+/* ---------- PROFILE SECTION ---------- */
+.profile-section {
+    align-items: center;
+    padding-top: 24px;
+    padding-bottom: 28px;
+}
+
+.avatar-wrapper {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 14px;
+}
+
+.avatar-image {
+    width: 90px;
+    height: 90px;
+    border-radius: 45px;
+    background-color: rgb(174, 193, 247);
+}
+
+.avatar-camera-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background-color: rgb(255, 255, 255);
+    border-width: 1.5px;
+    border-color: rgb(220, 220, 225);
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.avatar-camera-icon {
+    font-size: 14px;
+    -unity-text-align: middle-center;
+}
+
+.profile-name {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(0, 0, 0);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- SECTION LABEL ---------- */
+.section-label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(142, 142, 147);
+    padding-left: 20px;
+    padding-bottom: 8px;
+    padding-top: 4px;
+}
+
+/* ---------- CARD ---------- */
+.card {
+    background-color: rgb(255, 255, 255);
+    border-radius: 12px;
+    margin-left: 16px;
+    margin-right: 16px;
+    overflow: hidden;
+}
+
+/* ---------- ROW ---------- */
+.row-btn {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(0,0,0,0);
+    border-width: 0;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    padding-left: 16px;
+    padding-right: 16px;
+    width: 100%;
+}
+
+.row-btn:hover {
+    background-color: rgb(245, 245, 250);
+}
+
+.row-icon {
+    font-size: 18px;
+    width: 28px;
+    -unity-text-align: middle-left;
+    color: rgb(60, 60, 67);
+}
+
+.row-text {
+    flex-grow: 1;
+    font-size: 16px;
+    color: rgb(0, 0, 0);
+    -unity-text-align: middle-left;
+}
+
+.row-text--danger {
+    color: rgb(255, 59, 48);
+}
+
+.row-arrow {
+    font-size: 18px;
+    color: rgb(199, 199, 204);
+}
+
+.row-divider {
+    height: 1px;
+    background-color: rgb(235, 235, 240);
+    margin-left: 44px;
+}
+
+/* ---------- OVERLAY ---------- */
+.overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+.overlay--visible {
+    display: flex;
+}
+
+.overlay-card {
+    background-color: rgb(255, 255, 255);
+    border-radius: 16px;
+    padding-top: 24px;
+    padding-bottom: 20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    width: 82%;
+}
+
+.overlay-title {
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: rgb(0, 0, 0);
+    -unity-text-align: middle-center;
+    margin-bottom: 16px;
+}
+
+.overlay-body {
+    font-size: 14px;
+    color: rgb(142, 142, 147);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-bottom: 20px;
+}
+
+.overlay-input {
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: rgb(209, 209, 214);
+    background-color: rgb(242, 242, 247);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 15px;
+    color: rgb(0, 0, 0);
+    margin-bottom: 8px;
+}
+
+.overlay-input > .unity-base-field__input {
+    border-width: 0;
+    background-color: rgba(0,0,0,0);
+    font-size: 15px;
+    color: rgb(0, 0, 0);
+}
+
+.overlay-status {
+    font-size: 12px;
+    color: rgb(52, 199, 89);
+    -unity-text-align: middle-center;
+    margin-bottom: 12px;
+}
+
+.overlay-submit-btn {
+    width: 100%;
+    border-radius: 10px;
+    border-width: 0;
+    background-color: rgb(0, 122, 255);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.overlay-submit-btn--danger {
+    background-color: rgb(255, 59, 48);
+}
+
+.overlay-submit-btn:hover {
+    opacity: 0.9;
+}
+
+.overlay-submit-label {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+}
+
+.overlay-cancel-btn {
+    width: 100%;
+    border-width: 0;
+    background-color: rgba(0,0,0,0);
+    align-items: center;
+    justify-content: center;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.overlay-cancel-label {
+    font-size: 15px;
+    color: rgb(142, 142, 147);
+}
+
+/* ---------- VERSION LABEL ---------- */
+.version-label {
+    font-size: 13px;
+    color: rgb(142, 142, 147);
+    -unity-text-align: middle-center;
+    margin-top: 32px;
+    margin-bottom: 16px;
+}

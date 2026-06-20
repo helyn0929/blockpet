@@ -1,0 +1,115 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Art/UI/Settings_UI/SettingsScreen.uss?fileID=7433441132597879392&amp;guid=baf1edb3e3b8a40edbce59db83e5b3b7&amp;type=3#SettingsScreen" />
+    <ui:VisualElement name="root" class="root">
+
+        <!-- Header -->
+        <ui:VisualElement class="header">
+            <ui:Label text="Settings" class="header-title" />
+            <ui:Button name="btn-close" class="header-close-btn">
+                <ui:Label text="✕" class="header-close-label" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <ui:ScrollView class="scroll">
+
+            <!-- Avatar + Name -->
+            <ui:VisualElement class="profile-section">
+                <ui:VisualElement class="avatar-wrapper">
+                    <ui:VisualElement name="avatar-image" class="avatar-image" />
+                    <ui:Button name="btn-change-avatar" class="avatar-camera-btn">
+                        <ui:Label text="📷" class="avatar-camera-icon" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:Label name="display-name" text="Username" class="profile-name" />
+            </ui:VisualElement>
+
+            <!-- Account section -->
+            <ui:Label text="ACCOUNT" class="section-label" />
+            <ui:VisualElement class="card">
+                <ui:Button name="btn-change-name" class="row-btn">
+                    <ui:Label text="👤" class="row-icon" />
+                    <ui:Label text="Change Name" class="row-text" />
+                    <ui:Label text="›" class="row-arrow" />
+                </ui:Button>
+                <ui:VisualElement class="row-divider" />
+                <ui:Button name="btn-change-password" class="row-btn">
+                    <ui:Label text="🔒" class="row-icon" />
+                    <ui:Label text="Change Password" class="row-text" />
+                    <ui:Label text="›" class="row-arrow" />
+                </ui:Button>
+                <ui:VisualElement class="row-divider" />
+                <ui:Button name="btn-logout" class="row-btn">
+                    <ui:Label text="🚪" class="row-icon" />
+                    <ui:Label text="登出" class="row-text" />
+                    <ui:Label text="›" class="row-arrow" />
+                </ui:Button>
+                <ui:VisualElement class="row-divider" />
+                <ui:Button name="btn-delete-account" class="row-btn">
+                    <ui:Label text="🗑" class="row-icon" />
+                    <ui:Label text="刪除帳號" class="row-text row-text--danger" />
+                    <ui:Label text="›" class="row-arrow row-text--danger" />
+                </ui:Button>
+            </ui:VisualElement>
+
+            <!-- Legal section -->
+            <ui:Label text="LEGAL" class="section-label" style="margin-top: 24px;" />
+            <ui:VisualElement class="card">
+                <ui:Button name="btn-privacy" class="row-btn">
+                    <ui:Label text="📄" class="row-icon" />
+                    <ui:Label text="Privacy Policy" class="row-text" />
+                    <ui:Label text="›" class="row-arrow" />
+                </ui:Button>
+            </ui:VisualElement>
+
+            <!-- App version -->
+            <ui:Label name="app-version" text="Version 1.0.0" class="version-label" />
+
+        </ui:ScrollView>
+
+        <!-- Change Name overlay -->
+        <ui:VisualElement name="name-overlay" class="overlay">
+            <ui:VisualElement class="overlay-card">
+                <ui:Label text="Change Name" class="overlay-title" />
+                <ui:TextField name="nickname-field" placeholder-text="輸入暱稱" class="overlay-input" />
+                <ui:Label name="nickname-status" text="" class="overlay-status" />
+                <ui:Button name="btn-save-nickname" class="overlay-submit-btn">
+                    <ui:Label text="儲存" class="overlay-submit-label" />
+                </ui:Button>
+                <ui:Button name="btn-cancel-name" class="overlay-cancel-btn">
+                    <ui:Label text="取消" class="overlay-cancel-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Change Password overlay -->
+        <ui:VisualElement name="password-overlay" class="overlay">
+            <ui:VisualElement class="overlay-card">
+                <ui:Label text="Change Password" class="overlay-title" />
+                <ui:TextField name="new-password-field" placeholder-text="New Password" password="true" class="overlay-input" />
+                <ui:TextField name="confirm-password-field" placeholder-text="Confirm Password" password="true" class="overlay-input" />
+                <ui:Label name="password-status" text="" class="overlay-status" />
+                <ui:Button name="btn-save-password" class="overlay-submit-btn">
+                    <ui:Label text="更新密碼" class="overlay-submit-label" />
+                </ui:Button>
+                <ui:Button name="btn-cancel-password" class="overlay-cancel-btn">
+                    <ui:Label text="取消" class="overlay-cancel-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Delete confirm overlay -->
+        <ui:VisualElement name="delete-overlay" class="overlay">
+            <ui:VisualElement class="overlay-card">
+                <ui:Label text="刪除帳號？" class="overlay-title" />
+                <ui:Label text="此操作無法復原，所有資料將永久刪除。" class="overlay-body" />
+                <ui:Button name="btn-confirm-delete" class="overlay-submit-btn overlay-submit-btn--danger">
+                    <ui:Label text="確認刪除" class="overlay-submit-label" />
+                </ui:Button>
+                <ui:Button name="btn-cancel-delete" class="overlay-cancel-btn">
+                    <ui:Label text="取消" class="overlay-cancel-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

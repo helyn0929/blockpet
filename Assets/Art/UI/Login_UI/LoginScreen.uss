@@ -1,385 +1,206 @@
 /* =========================================
-   Blockpet Login Screen - Unity USS Stylesheet
-   Converted from React/Tailwind source
+   Blockpet Login Screen - USS Stylesheet
    ========================================= */
 
-/* ---------- ROOT ---------- */
 .root {
     width: 100%;
     height: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: rgb(15, 23, 42); /* slate-900 */
-}
-
-/* ---------- HERO SECTION ---------- */
-.hero-section {
-    width: 100%;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding-top: 32px;
-    padding-bottom: 24px;
-    padding-left: 24px;
-    padding-right: 24px;
-    background-color: rgb(237, 233, 254);
-    flex-shrink: 0;
+    background-color: rgb(255, 255, 255);
+    padding-left: 32px;
+    padding-right: 32px;
 }
 
 /* ---------- LOGO ---------- */
-.logo-container {
+.logo-section {
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.logo-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50px;
+    background-color: rgb(237, 233, 254);
     align-items: center;
     justify-content: center;
-    margin-bottom: 24px;
-    background-color: rgba(0,0,0,0);
 }
 
 .logo-icon {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
     background-image: resource("Icons/logo-icon");
     background-color: rgba(0,0,0,0);
-    border-radius: 0;
 }
 
-/* ---------- APP TITLE ---------- */
-.app-title {
-    font-size: 36px;
-    color: rgb(30, 27, 75);    /* deep purple-ish */
-    -unity-text-align: upper-center;
-    -unity-font-style: bold;
-    margin-bottom: 8px;
-}
-
-.app-subtitle {
-    font-size: 18px;
-    color: rgb(100, 116, 139); /* slate-500 */
-    -unity-text-align: middle-center;
-}
-
-/* ---------- PET ROW ---------- */
-.pet-row {
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 16px;
-}
-
-.pet-emoji {
-    width: 56px;
-    height: 56px;
-    margin-left: 8px;
-    margin-right: 8px;
-    background-color: rgba(0,0,0,0);
-    border-radius: 0;
-    transition-property: translate;
-    transition-duration: 0.2s;
-    transition-timing-function: ease-in-out;
-}
-
-.pet-dog   { background-image: resource("Icons/pet-dog"); }
-.pet-bull  { background-image: resource("Icons/pet-bull"); }
-.pet-mouse { background-image: resource("Icons/pet-mouse"); }
-.pet-fox   { background-image: resource("Icons/pet-fox"); }
-
-/* ---------- LOGIN CARD ---------- */
-.login-card {
-    width: 100%;
-    flex-grow: 1;
-    background-color: rgb(255, 255, 255);
-    border-top-left-radius: 32px;
-    border-top-right-radius: 32px;
-    padding-top: 28px;
-    padding-bottom: 24px;
-    padding-left: 28px;
-    padding-right: 28px;
-    /* Shadow approximated via border */
-    border-width: 0px;
-    /* Unity doesn't support box-shadow natively; use a shadow panel behind if needed */
-}
-
-/* ---------- CARD HEADINGS ---------- */
+/* ---------- TITLE ---------- */
 .welcome-title {
-    font-size: 24px;
+    font-size: 28px;
     -unity-font-style: bold;
-    color: rgb(30, 41, 59);    /* slate-800 */
-    -unity-text-align: upper-center;
+    color: rgb(15, 23, 42);
+    -unity-text-align: middle-center;
     margin-bottom: 6px;
 }
 
 .welcome-subtitle {
-    font-size: 14px;
-    color: rgb(100, 116, 139); /* slate-500 */
+    font-size: 15px;
+    color: rgb(100, 116, 139);
     -unity-text-align: middle-center;
+    margin-bottom: 24px;
+}
+
+/* ---------- INPUT FIELDS ---------- */
+.input-field {
+    width: 100%;
+    border-radius: 12px;
+    border-width: 1.5px;
+    border-color: rgb(203, 213, 225);
+    background-color: rgb(255, 255, 255);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
+    margin-bottom: 14px;
+    font-size: 15px;
+    color: rgb(30, 41, 59);
+}
+
+.input-field > .unity-base-field__input {
+    border-width: 0;
+    background-color: rgba(0,0,0,0);
+    font-size: 15px;
+    color: rgb(30, 41, 59);
+}
+
+.input-field .unity-text-element--inner-input-field-component {
+    color: rgb(30, 41, 59);
+    font-size: 15px;
+}
+
+.input-field > .unity-base-field__input > .unity-text-element--inner-input-field-component {
+    -unity-placeholder-color: rgb(148, 163, 184);
+}
+
+/* ---------- ERROR ---------- */
+.main-error {
+    font-size: 13px;
+    color: rgb(220, 38, 38);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-bottom: 8px;
+    display: none;
+}
+
+/* ---------- SUBMIT BUTTON ---------- */
+.submit-btn {
+    width: 100%;
+    border-radius: 14px;
+    border-width: 0;
+    background-color: rgb(99, 102, 241);
+    padding-top: 14px;
+    padding-bottom: 14px;
+    align-items: center;
+    justify-content: center;
     margin-bottom: 20px;
 }
 
-/* ---------- BUTTONS (shared) ---------- */
-.btn {
-    width: 100%;
-    border-radius: 14px;
-    padding-top: 13px;
-    padding-bottom: 13px;
-    padding-left: 16px;
-    padding-right: 16px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
-    border-width: 0;
-    cursor: link;
-    transition-duration: 0.2s;
+.submit-btn:hover {
+    background-color: rgb(79, 70, 229);
 }
 
-.btn:hover {
-    background-color: rgb(248, 250, 252);
-}
-
-.btn:active {
+.submit-btn:active {
     opacity: 0.85;
 }
 
-.btn-label {
-    font-size: 15px;
-    margin-left: 10px;
+.submit-btn-label {
+    font-size: 16px;
     -unity-font-style: bold;
-}
-
-.btn-label-dark {
-    color: rgb(51, 65, 85);    /* slate-700 */
-}
-
-.btn-label-light {
     color: rgb(255, 255, 255);
-}
-
-/* ---------- GOOGLE BUTTON ---------- */
-.btn-google {
-    background-color: rgb(255, 255, 255);
-    border-width: 2px;
-    border-color: rgb(203, 213, 225); /* slate-300 */
-}
-
-.btn-google:hover {
-    background-color: rgb(248, 250, 252); /* slate-50 */
-    border-color: rgb(148, 163, 184);     /* slate-400 */
-}
-
-.google-icon {
-    width: 24px;
-    height: 24px;
-    background-image: resource("Icons/google-icon");
-    background-color: rgba(0,0,0,0);
-    border-radius: 0;
-}
-
-/* ---------- APPLE BUTTON ---------- */
-.btn-apple {
-    background-color: rgb(0, 0, 0);
-    border-width: 2px;
-    border-color: rgb(0, 0, 0);
-}
-
-.btn-apple:hover {
-    background-color: rgb(15, 23, 42); /* slate-900 */
-}
-
-.apple-icon {
-    width: 24px;
-    height: 24px;
-    background-image: resource("Icons/apple-icon");
-    background-color: rgba(0,0,0,0);
-    border-radius: 0;
-}
-
-/* ---------- EMAIL BUTTON ---------- */
-.btn-email {
-    background-color: rgb(168, 85, 247); /* purple-500 */
-    border-width: 0;
-    margin-bottom: 16px;
-}
-
-.btn-email:hover {
-    background-color: rgb(147, 51, 234); /* purple-600 */
-}
-
-.email-icon {
-    width: 24px;
-    height: 24px;
-    background-image: resource("Icons/email-icon");
-    background-color: rgba(0,0,0,0);
-    border-radius: 0;
 }
 
 /* ---------- DIVIDER ---------- */
 .divider-row {
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
-    margin-bottom: 12px;
+    width: 100%;
+    margin-bottom: 20px;
 }
 
 .divider-line {
     flex-grow: 1;
     height: 1px;
-    background-color: rgb(203, 213, 225); /* slate-300 */
+    background-color: rgb(203, 213, 225);
 }
 
 .divider-text {
-    font-size: 14px;
-    color: rgb(100, 116, 139); /* slate-500 */
-    margin-left: 16px;
-    margin-right: 16px;
-    -unity-text-align: middle-center;
+    font-size: 13px;
+    color: rgb(148, 163, 184);
+    margin-left: 12px;
+    margin-right: 12px;
 }
 
-/* ---------- EMAIL OVERLAY ---------- */
-.email-overlay {
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.55);
-    align-items: center;
+/* ---------- SOCIAL BUTTONS ---------- */
+.social-row {
+    flex-direction: row;
     justify-content: center;
+    margin-bottom: 28px;
 }
 
-.email-overlay--visible {
-    display: flex;
-}
-
-.email-form {
-    background-color: rgb(255, 255, 255);
-    border-radius: 24px;
-    padding-top: 28px;
-    padding-bottom: 28px;
-    padding-left: 24px;
-    padding-right: 24px;
-    width: 85%;
-    flex-direction: column;
-    align-items: stretch;
-}
-
-.email-form-title {
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: rgb(30, 41, 59);
-    -unity-text-align: middle-center;
-    margin-bottom: 20px;
-}
-
-.email-field {
-    margin-bottom: 12px;
-    border-radius: 10px;
+.social-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     border-width: 1.5px;
     border-color: rgb(203, 213, 225);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-left: 12px;
-    padding-right: 12px;
-    font-size: 14px;
-    color: rgb(30, 41, 59);
+    background-color: rgb(255, 255, 255);
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.social-btn:hover {
     background-color: rgb(248, 250, 252);
 }
 
-.email-field > .unity-base-field__input {
-    border-width: 0;
+.social-btn--dark {
+    background-color: rgb(0, 0, 0);
+    border-color: rgb(0, 0, 0);
+}
+
+.social-btn--dark:hover {
+    background-color: rgb(30, 30, 30);
+}
+
+.google-icon {
+    width: 26px;
+    height: 26px;
+    background-image: resource("Icons/google-icon");
     background-color: rgba(0,0,0,0);
-    font-size: 14px;
-    color: rgb(30, 41, 59);
 }
 
-.email-error {
-    font-size: 12px;
-    color: rgb(220, 38, 38);
-    -unity-text-align: middle-center;
-    margin-bottom: 8px;
-    white-space: normal;
-}
-
-.email-submit-btn {
-    margin-top: 4px;
-    margin-bottom: 10px;
-}
-
-.email-back-btn {
+.apple-icon {
+    width: 26px;
+    height: 26px;
+    background-image: resource("Icons/apple-icon");
     background-color: rgba(0,0,0,0);
-    border-width: 0;
-    align-items: center;
-    justify-content: center;
-    padding-top: 6px;
-    padding-bottom: 6px;
 }
 
-.email-back-label {
-    font-size: 13px;
-    color: rgb(100, 116, 139);
-}
-
-/* ---------- AUTH TABS ---------- */
-.auth-tab-row {
-    flex-direction: row;
-    background-color: rgb(241, 245, 249); /* slate-100 */
-    border-radius: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-left: 4px;
-    padding-right: 4px;
-    margin-bottom: 20px;
-}
-
-.auth-tab {
-    flex-grow: 1;
-    border-width: 0;
-    border-radius: 8px;
-    background-color: rgba(0,0,0,0);
-    padding-top: 8px;
-    padding-bottom: 8px;
-}
-
-.auth-tab--active {
-    background-color: rgb(255, 255, 255);
-}
-
-.auth-tab-label {
-    font-size: 14px;
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    color: rgb(100, 116, 139); /* slate-500 */
-}
-
-.auth-tab--active > .auth-tab-label {
-    color: rgb(30, 41, 59); /* slate-800 */
-}
-
-/* ---------- MAIN ERROR ---------- */
-.main-error {
-    font-size: 13px;
-    color: rgb(220, 38, 38);
-    -unity-text-align: middle-center;
-    white-space: normal;
-    margin-top: 4px;
-    margin-bottom: 4px;
-    display: none;
-}
-
-/* ---------- SIGN UP ROW ---------- */
-.signup-row {
+/* ---------- BOTTOM LINK ---------- */
+.bottom-row {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin-top: 8px;
-    margin-bottom: 8px;
 }
 
-.signup-hint {
+.bottom-hint {
     font-size: 14px;
     color: rgb(100, 116, 139);
 }
 
-.btn-text-link {
+.bottom-link-btn {
     background-color: rgba(0,0,0,0);
     border-width: 0;
     padding-top: 0;
@@ -388,18 +209,87 @@
     padding-right: 0;
 }
 
-.btn-text-link-label {
+.bottom-link-label {
     font-size: 14px;
     -unity-font-style: bold;
-    color: rgb(168, 85, 247);
+    color: rgb(99, 102, 241);
 }
 
-/* ---------- TERMS ---------- */
-.terms-text {
-    font-size: 13px;
-    color: rgb(100, 116, 139); /* slate-500 */
+/* ---------- SIGN UP OVERLAY ---------- */
+.signup-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(255, 255, 255);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-left: 32px;
+    padding-right: 32px;
+}
+
+.signup-overlay--visible {
+    display: flex;
+}
+
+/* ---------- NICKNAME OVERLAY ---------- */
+.overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.overlay--visible {
+    display: flex;
+}
+
+.overlay-card {
+    background-color: rgb(255, 255, 255);
+    border-radius: 24px;
+    padding-top: 32px;
+    padding-bottom: 28px;
+    padding-left: 28px;
+    padding-right: 28px;
+    width: 85%;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.overlay-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(15, 23, 42);
     -unity-text-align: middle-center;
-    white-space: normal;
-    padding-left: 16px;
-    padding-right: 16px;
+    margin-bottom: 6px;
+}
+
+.overlay-subtitle {
+    font-size: 14px;
+    color: rgb(100, 116, 139);
+    -unity-text-align: middle-center;
+    margin-bottom: 20px;
+}
+
+/* ---------- SKIP BUTTON ---------- */
+.skip-btn {
+    background-color: rgba(0,0,0,0);
+    border-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.skip-label {
+    font-size: 14px;
+    color: rgb(148, 163, 184);
 }

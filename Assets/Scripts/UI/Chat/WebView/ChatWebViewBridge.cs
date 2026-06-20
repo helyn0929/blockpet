@@ -292,8 +292,10 @@ public class ChatWebViewBridge : MonoBehaviour
             editorWebViewCanvas = GetComponentInParent<Canvas>();
         if (editorWebViewCanvas == null)
             editorWebViewCanvas = FindAnyObjectByType<Canvas>();
+#if UNITY_EDITOR
         if (useDedicatedEditorWebViewCanvas)
             editorWebViewCanvas = EnsureDedicatedEditorCanvas(editorWebViewCanvas);
+#endif
         _webView.canvas = editorWebViewCanvas != null ? editorWebViewCanvas.gameObject : null;
 #endif
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
@@ -301,8 +303,10 @@ public class ChatWebViewBridge : MonoBehaviour
             editorWebViewCanvas = GetComponentInParent<Canvas>();
         if (editorWebViewCanvas == null)
             editorWebViewCanvas = FindAnyObjectByType<Canvas>();
+#if UNITY_EDITOR
         if (useDedicatedEditorWebViewCanvas)
             editorWebViewCanvas = EnsureDedicatedEditorCanvas(editorWebViewCanvas);
+#endif
         _webView.canvas = editorWebViewCanvas != null ? editorWebViewCanvas.gameObject : null;
 #endif
 

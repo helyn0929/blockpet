@@ -1,82 +1,106 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="project://database/Assets/Art/UI/Login_UI/LoginScreen.uss?fileID=7433441132597879392&amp;guid=ca0d9e63c19567246ac39970f88966b7&amp;type=3#LoginScreen" />
     <ui:VisualElement name="root" class="root">
-        <ui:VisualElement name="hero-section" class="hero-section">
-            <ui:VisualElement name="logo-container" class="logo-container">
+
+        <!-- Logo -->
+        <ui:VisualElement name="logo-section" class="logo-section">
+            <ui:VisualElement name="logo-circle" class="logo-circle">
                 <ui:VisualElement name="logo-icon" class="logo-icon" />
             </ui:VisualElement>
-            <ui:Label name="app-title" text="Blockpet" class="app-title" />
-            <ui:Label name="app-subtitle" text="Feed, Snap &amp; Earn Coins!" class="app-subtitle" />
-            <ui:VisualElement name="pet-row" class="pet-row">
-                <ui:VisualElement name="pet1" class="pet-emoji pet-dog" />
-                <ui:VisualElement name="pet2" class="pet-emoji pet-bull" />
-                <ui:VisualElement name="pet3" class="pet-emoji pet-mouse" />
-                <ui:VisualElement name="pet4" class="pet-emoji pet-fox" />
-            </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="login-card" class="login-card">
-            <ui:Label name="welcome-title" text="Welcome!" class="welcome-title" />
-            <ui:Label name="welcome-subtitle" text="Sign in to start your pet adventure" class="welcome-subtitle" />
-            <ui:Button name="btn-google" class="btn btn-google">
-                <ui:VisualElement name="google-icon" class="google-icon" />
-                <ui:Label name="btn-google-label" text="使用 Google 登入" class="btn-label btn-label-dark" />
-            </ui:Button>
-            <ui:Button name="btn-apple" class="btn btn-apple">
-                <ui:VisualElement name="apple-icon" class="apple-icon" />
-                <ui:Label name="btn-apple-label" text="使用 Apple 登入" class="btn-label btn-label-light" />
-            </ui:Button>
-            <ui:VisualElement name="divider-row" class="divider-row">
-                <ui:VisualElement name="divider-line-left" class="divider-line" />
-                <ui:Label name="divider-text" text="or" class="divider-text" />
-                <ui:VisualElement name="divider-line-right" class="divider-line" />
-            </ui:VisualElement>
-            <ui:Button name="btn-email" class="btn btn-email">
-                <ui:VisualElement name="email-icon" class="email-icon" />
-                <ui:Label name="btn-email-label" text="使用 Email 登入" class="btn-label btn-label-light" />
-            </ui:Button>
-            <ui:Label name="main-error" text="" class="main-error" />
-            <ui:VisualElement name="signup-row" class="signup-row">
-                <ui:Label name="signup-hint" text="沒有帳號？" class="signup-hint" />
-                <ui:Button name="btn-mode-toggle" class="btn-text-link">
-                    <ui:Label name="btn-mode-toggle-label" text="立即註冊" class="btn-text-link-label" />
-                </ui:Button>
-            </ui:VisualElement>
-            <ui:Label name="terms-text" text="By continuing, you agree to our Terms of Service and Privacy Policy" class="terms-text" />
+
+        <!-- Title -->
+        <ui:Label name="welcome-title" text="Welcome back!" class="welcome-title" />
+        <ui:Label name="welcome-subtitle" text="Sign in to continue" class="welcome-subtitle" />
+
+        <!-- Email / Password -->
+        <ui:TextField name="email-field" placeholder-text="Email" class="input-field" />
+        <ui:TextField name="password-field" placeholder-text="Password" password="true" class="input-field" />
+
+        <!-- Error -->
+        <ui:Label name="main-error" text="" class="main-error" />
+
+        <!-- Submit button -->
+        <ui:Button name="btn-submit" class="submit-btn">
+            <ui:Label name="btn-submit-label" text="Login" class="submit-btn-label" />
+        </ui:Button>
+
+        <!-- Or divider -->
+        <ui:VisualElement class="divider-row">
+            <ui:VisualElement class="divider-line" />
+            <ui:Label text="or" class="divider-text" />
+            <ui:VisualElement class="divider-line" />
         </ui:VisualElement>
-        <ui:VisualElement name="nickname-overlay" class="email-overlay">
-            <ui:VisualElement name="nickname-form" class="email-form">
-                <ui:Label text="設定你的暱稱" class="email-form-title" />
-                <ui:Label text="讓隊友認識你！" class="welcome-subtitle" style="margin-bottom:16px;" />
-                <ui:TextField name="nickname-field" placeholder-text="輸入暱稱" class="email-field" />
-                <ui:Label name="nickname-error" text="" class="email-error" />
-                <ui:Button name="btn-nickname-submit" class="btn btn-email email-submit-btn">
-                    <ui:Label text="確認" class="btn-label btn-label-light" />
-                </ui:Button>
-                <ui:Button name="btn-nickname-skip" class="email-back-btn">
-                    <ui:Label text="跳過" class="email-back-label" />
-                </ui:Button>
-            </ui:VisualElement>
+
+        <!-- Social icon buttons -->
+        <ui:VisualElement class="social-row">
+            <ui:Button name="btn-google" class="social-btn">
+                <ui:VisualElement class="google-icon" />
+            </ui:Button>
+            <ui:Button name="btn-apple" class="social-btn social-btn--dark">
+                <ui:VisualElement class="apple-icon" />
+            </ui:Button>
         </ui:VisualElement>
-        <ui:VisualElement name="email-overlay" class="email-overlay">
-            <ui:VisualElement name="email-form" class="email-form">
-                <ui:VisualElement name="auth-tab-row" class="auth-tab-row">
-                    <ui:Button name="btn-tab-login" class="auth-tab auth-tab--active">
-                        <ui:Label text="登入" class="auth-tab-label" />
-                    </ui:Button>
-                    <ui:Button name="btn-tab-register" class="auth-tab">
-                        <ui:Label text="註冊" class="auth-tab-label" />
-                    </ui:Button>
+
+        <!-- Sign up link -->
+        <ui:VisualElement class="bottom-row">
+            <ui:Label name="bottom-hint" text="Don't have an account?" class="bottom-hint" />
+            <ui:Button name="btn-goto-signup" class="bottom-link-btn">
+                <ui:Label name="btn-goto-signup-label" text="Sign up" class="bottom-link-label" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <!-- Sign up overlay (full screen) -->
+        <ui:VisualElement name="signup-overlay" class="signup-overlay">
+            <ui:VisualElement name="logo-section-2" class="logo-section">
+                <ui:VisualElement class="logo-circle">
+                    <ui:VisualElement class="logo-icon" />
                 </ui:VisualElement>
-                <ui:TextField name="email-field" placeholder-text="Email" class="email-field" />
-                <ui:TextField name="password-field" placeholder-text="Password" password="true" class="email-field" />
-                <ui:Label name="email-error" text="" class="email-error" />
-                <ui:Button name="btn-submit" class="btn btn-email email-submit-btn">
-                    <ui:Label name="btn-submit-label" text="登入" class="btn-label btn-label-light" />
+            </ui:VisualElement>
+            <ui:Label text="Create account" class="welcome-title" />
+            <ui:Label text="Join Blockpet today" class="welcome-subtitle" />
+            <ui:TextField name="signup-email-field" placeholder-text="Email" class="input-field" />
+            <ui:TextField name="signup-password-field" placeholder-text="Password" password="true" class="input-field" />
+            <ui:Label name="signup-error" text="" class="main-error" />
+            <ui:Button name="btn-signup-submit" class="submit-btn">
+                <ui:Label text="Sign up" class="submit-btn-label" />
+            </ui:Button>
+            <ui:VisualElement class="divider-row">
+                <ui:VisualElement class="divider-line" />
+                <ui:Label text="or" class="divider-text" />
+                <ui:VisualElement class="divider-line" />
+            </ui:VisualElement>
+            <ui:VisualElement class="social-row">
+                <ui:Button name="btn-signup-google" class="social-btn">
+                    <ui:VisualElement class="google-icon" />
                 </ui:Button>
-                <ui:Button name="btn-back" class="email-back-btn">
-                    <ui:Label text="取消" class="email-back-label" />
+                <ui:Button name="btn-signup-apple" class="social-btn social-btn--dark">
+                    <ui:VisualElement class="apple-icon" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="bottom-row">
+                <ui:Label text="Already have an account?" class="bottom-hint" />
+                <ui:Button name="btn-back-to-login" class="bottom-link-btn">
+                    <ui:Label text="Login" class="bottom-link-label" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <!-- Nickname overlay -->
+        <ui:VisualElement name="nickname-overlay" class="overlay">
+            <ui:VisualElement class="overlay-card">
+                <ui:Label text="設定你的暱稱" class="overlay-title" />
+                <ui:Label text="讓隊友認識你！" class="overlay-subtitle" />
+                <ui:TextField name="nickname-field" placeholder-text="輸入暱稱" class="input-field" />
+                <ui:Label name="nickname-error" text="" class="main-error" />
+                <ui:Button name="btn-nickname-submit" class="submit-btn">
+                    <ui:Label text="確認" class="submit-btn-label" />
+                </ui:Button>
+                <ui:Button name="btn-nickname-skip" class="skip-btn">
+                    <ui:Label text="跳過" class="skip-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
     </ui:VisualElement>
 </ui:UXML>

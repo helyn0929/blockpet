@@ -161,6 +161,13 @@ public class LoginUIHandler : MonoBehaviour
         }
     }
 
+    public void Logout()
+    {
+        AvatarManager.Instance?.ClearAvatar();
+        FirebaseManager.Instance?.SignOut();
+        OnLoggedOut();
+    }
+
     void OnLoggedOut()
     {
         GameplayHudReleased = false;
@@ -168,6 +175,10 @@ public class LoginUIHandler : MonoBehaviour
         if (mainRoomBackground != null) mainRoomBackground.SetActive(false);
         ResolveHudManagers();
         SetGameplayHudVisible(false);
+
+        // Hide page manager pages
+        var pageManager = FindObjectOfType<PageManager>(true);
+        if (pageManager != null) pageManager.HideAllPages();
 
         // Re-enable the UIToolkit login screen.
         var loginController = FindObjectOfType<LoginScreenController>(true);

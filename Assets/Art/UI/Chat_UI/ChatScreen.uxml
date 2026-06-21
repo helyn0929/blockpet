@@ -1,0 +1,37 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Art/UI/Chat_UI/ChatScreen.uss" />
+    <ui:VisualElement name="root" class="root">
+
+        <!-- Header -->
+        <ui:VisualElement class="header">
+            <ui:Button name="btn-back" class="back-btn">
+                <ui:Label text="‹" class="back-icon" />
+            </ui:Button>
+            <ui:VisualElement class="header-center">
+                <ui:Label name="room-name" text="Chat" class="room-name" />
+                <ui:Label name="member-count" text="" class="member-count" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Message list -->
+        <ui:ScrollView name="message-scroll" class="message-scroll" />
+
+        <!-- Reply preview bar (hidden by default) -->
+        <ui:VisualElement name="reply-bar" class="reply-bar">
+            <ui:VisualElement class="reply-accent" />
+            <ui:Label name="reply-text" text="" class="reply-text" />
+            <ui:Button name="btn-clear-reply" class="clear-reply-btn">
+                <ui:Label text="✕" class="clear-reply-icon" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <!-- Input bar -->
+        <ui:VisualElement class="input-bar">
+            <ui:TextField name="message-input" placeholder-text="輸入訊息..." class="message-input" />
+            <ui:Button name="btn-send" class="send-btn">
+                <ui:Label text="送出" class="send-label" />
+            </ui:Button>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

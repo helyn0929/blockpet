@@ -132,6 +132,10 @@ public class ChatUIHandler : MonoBehaviour
     [Tooltip("When Align Bubbles By Sender Side is on: if true, yours on the right and others on the left; if false, yours on the left and others on the right.")]
     [SerializeField] bool mineMessagesOnRight = true;
 
+    [Header("UI Toolkit chat (replaces WebView)")]
+    [Tooltip("Assign the ChatUIController component to use the native UI Toolkit chat instead of WebView.")]
+    [SerializeField] ChatUIController chatUIController;
+
     [Header("React WebView (primary UI)")]
     [Tooltip("When enabled with an assigned bridge, messages render in the WebView React UI instead of uGUI bubbles. Default on; disable only for legacy bubble debugging.")]
     [SerializeField] bool useWebViewUi = true;
@@ -169,6 +173,7 @@ public class ChatUIHandler : MonoBehaviour
 
     bool IsWebViewActive()
     {
+        if (chatUIController != null) return true;
 #if UNITY_EDITOR
         return false;
 #else
@@ -176,10 +181,16 @@ public class ChatUIHandler : MonoBehaviour
 #endif
     }
 
+    void DispatchToActiveBridge(Action<ChatWebViewBridge> webViewAction, Action<ChatUIController> uitoolkitAction)
+    {
+        if (chatUIController != null) { uitoolkitAction?.Invoke(chatUIController); return; }
+        if (webViewBridge != null)    webViewAction?.Invoke(webViewBridge);
+    }
+
     /// <summary>Used by <see cref="ChatWebViewBridge"/> to skip native WebView setup when legacy UI is active.</summary>
     public bool IsWebViewChatEnabled()
     {
-        return IsWebViewActive();
+        return IsWebViewActive() && chatUIController == null;
     }
 
     void OnDestroy()
@@ -365,23 +376,25 @@ public class ChatUIHandler : MonoBehaviour
             memberCountText.text = memberCount <= 0 ? string.Empty : $"{memberCount} members";
 
         if (IsWebViewActive())
-            webViewBridge.NotifyHeader(_headerRoomName, _headerMemberCount);
+            DispatchToActiveBridge(
+                b => b.NotifyHeader(_headerRoomName, _headerMemberCount),
+                c => c.NotifyHeader(_headerRoomName, _headerMemberCount));
     }
 
-    /// <summary>Called when the WebView page finishes loading so it can receive the current thread + header.</summary>
+    /// <summary>Called when the chat UI finishes loading so it can receive the current thread + header.</summary>
     public void PushFullStateToWebView()
     {
         if (!IsWebViewActive())
             return;
-        webViewBridge.RequestFullSync(
-            localHistory,
-            _headerRoomName,
-            FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : string.Empty,
-            _headerMemberCount,
-            GetLocalSenderDisplayName(),
-            mineMessagesOnRight,
-            GetHeaderAnimalImageBase64Png(),
-            ShouldKeepNativeComposerVisible());
+
+        string roomId       = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : string.Empty;
+        string localName    = GetLocalSenderDisplayName();
+        string animalBase64 = GetHeaderAnimalImageBase64Png();
+        bool   nativeComp   = ShouldKeepNativeComposerVisible();
+
+        DispatchToActiveBridge(
+            b => b.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, nativeComp),
+            c => c.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, nativeComp));
     }
 
     /// <summary>Used by <see cref="ChatWebViewBridge"/> to avoid covering the native input bar when Editor IME workaround is active.</summary>
@@ -1014,8 +1027,10 @@ public class ChatUIHandler : MonoBehaviour
         if (replyPreview != null)
             replyPreview.Clear();
         RefreshReplyUiHints();
-        if (IsWebViewActive() && webViewBridge != null)
-            webViewBridge.NotifyReplyCleared();
+        if (IsWebViewActive())
+            DispatchToActiveBridge(
+                b => b.NotifyReplyCleared(),
+                c => c.NotifyReplyCleared());
     }
 
     void RefreshReplyUiHints()
@@ -1039,7 +1054,7 @@ public class ChatUIHandler : MonoBehaviour
     {
         if (!IsWebViewActive() && (messagePrefab == null || chatContent == null))
             return;
-        if (IsWebViewActive() && webViewBridge == null)
+        if (IsWebViewActive() && chatUIController == null && webViewBridge == null)
             return;
         // Avoid duplicates when Firebase replays history or reconnects.
         if (!string.IsNullOrEmpty(msg.messageId))
@@ -1056,7 +1071,9 @@ public class ChatUIHandler : MonoBehaviour
         localHistory.Add(msg);
 
         if (IsWebViewActive())
-            webViewBridge.NotifyMessageAppended(msg);
+            DispatchToActiveBridge(
+                b => b.NotifyMessageAppended(msg),
+                c => c.NotifyMessageAppended(msg));
         else
             AddMessageBubbleToUI(msg);
 

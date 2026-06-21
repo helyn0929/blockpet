@@ -2,12 +2,9 @@
     <Style src="project://database/Assets/Art/UI/Settings_UI/SettingsScreen.uss?fileID=7433441132597879392&amp;guid=baf1edb3e3b8a40edbce59db83e5b3b7&amp;type=3#SettingsScreen" />
     <ui:VisualElement name="root" class="root">
 
-        <!-- Header -->
-        <ui:VisualElement class="header">
-            <ui:Label text="Settings" class="header-title" />
-            <ui:Button name="btn-close" class="header-close-btn">
-                <ui:Label text="✕" class="header-close-label" />
-            </ui:Button>
+        <!-- Drag handle -->
+        <ui:VisualElement name="drag-handle-area" class="drag-handle-area">
+            <ui:VisualElement class="drag-handle-pill" />
         </ui:VisualElement>
 
         <ui:ScrollView class="scroll">

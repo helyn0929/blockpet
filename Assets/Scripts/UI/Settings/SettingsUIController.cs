@@ -34,11 +34,23 @@ public class SettingsUIController : MonoBehaviour
         if (loginUIHandler == null) loginUIHandler = FindObjectOfType<LoginUIHandler>(true);
     }
 
+    float _dragStartY;
+
     void OnEnable()
     {
         _root = _doc.rootVisualElement;
 
-        WireButton("btn-close",            OnClickClose);
+        // Drag handle — swipe down to close
+        var handle = _root.Q<VisualElement>("drag-handle-area");
+        if (handle != null)
+        {
+            handle.RegisterCallback<PointerDownEvent>(e => _dragStartY = e.position.y);
+            handle.RegisterCallback<PointerUpEvent>(e =>
+            {
+                if (e.position.y - _dragStartY > 40f) OnClickClose();
+            });
+        }
+
         WireButton("btn-change-avatar",    OnClickChangeAvatar);
         WireButton("btn-change-name",      OnClickOpenChangeName);
         WireButton("btn-save-nickname",    OnClickSaveNickname);

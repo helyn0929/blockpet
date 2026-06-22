@@ -132,19 +132,10 @@ public class ChatUIHandler : MonoBehaviour
     [Tooltip("When Align Bubbles By Sender Side is on: if true, yours on the right and others on the left; if false, yours on the left and others on the right.")]
     [SerializeField] bool mineMessagesOnRight = true;
 
-    [Header("UI Toolkit chat (replaces WebView)")]
-    [Tooltip("Assign the ChatUIController component to use the native UI Toolkit chat instead of WebView.")]
+    [Header("UI Toolkit chat")]
     [SerializeField] ChatUIController chatUIController;
-
-    [Header("React WebView (primary UI)")]
-    [Tooltip("When enabled with an assigned bridge, messages render in the WebView React UI instead of uGUI bubbles. Default on; disable only for legacy bubble debugging.")]
-    [SerializeField] bool useWebViewUi = true;
-    [SerializeField] ChatWebViewBridge webViewBridge;
-    [Tooltip("Hidden while WebView UI is active (e.g. legacy header, message list, input bar).")]
-    [SerializeField] GameObject[] legacyUiRootsToHideWhenWebView;
-    [Header("Editor IME workaround")]
-    [Tooltip("Unity Editor WebView text input often can't type Chinese IME reliably. When enabled, keep the native TMP composer visible (send still goes through Firebase) and ask the web UI to hide its composer.")]
-    [SerializeField] bool keepNativeComposerInEditorForIme = true;
+    [Tooltip("Hidden while UI Toolkit chat is active (e.g. legacy header, message list, input bar).")]
+    [SerializeField] GameObject[] legacyUiRootsToHide;
 
     string _headerRoomName;
     int _headerMemberCount;
@@ -171,27 +162,14 @@ public class ChatUIHandler : MonoBehaviour
         SaveManager.OnRoomSwitched += OnRoomSwitched;
     }
 
-    bool IsWebViewActive()
+    bool IsWebViewActive() => chatUIController != null;
+
+    void DispatchToActiveBridge(Action<object> _, Action<ChatUIController> uitoolkitAction)
     {
-        if (chatUIController != null) return true;
-#if UNITY_EDITOR
-        return false;
-#else
-        return useWebViewUi && webViewBridge != null;
-#endif
+        uitoolkitAction?.Invoke(chatUIController);
     }
 
-    void DispatchToActiveBridge(Action<ChatWebViewBridge> webViewAction, Action<ChatUIController> uitoolkitAction)
-    {
-        if (chatUIController != null) { uitoolkitAction?.Invoke(chatUIController); return; }
-        if (webViewBridge != null)    webViewAction?.Invoke(webViewBridge);
-    }
-
-    /// <summary>Used by <see cref="ChatWebViewBridge"/> to skip native WebView setup when legacy UI is active.</summary>
-    public bool IsWebViewChatEnabled()
-    {
-        return IsWebViewActive() && chatUIController == null;
-    }
+    public bool IsWebViewChatEnabled() => false;
 
     void OnDestroy()
     {
@@ -233,13 +211,7 @@ public class ChatUIHandler : MonoBehaviour
     void ClearChatUI()
     {
         if (IsWebViewActive())
-        {
-            if (webViewBridge != null)
-            {
-                // Push empty state to WebView.
-                PushFullStateToWebView();
-            }
-        }
+            PushFullStateToWebView();
         else if (chatContent != null)
         {
             for (int i = chatContent.childCount - 1; i >= 0; i--)
@@ -250,33 +222,19 @@ public class ChatUIHandler : MonoBehaviour
     void Start()
     {
         ApplyChatRoomLayout();
-
-        // In some scenes these references might not be wired (or were wired to legacy objects that got replaced).
-        // Auto-wire to ensure WebView mode can reliably hide legacy composer + bubble list.
         AutoWireLegacyUiReferencesIfMissing();
 
-        if (IsWebViewActive() && legacyUiRootsToHideWhenWebView != null)
+        // Hide legacy uGUI roots when UI Toolkit is active
+        if (IsWebViewActive() && legacyUiRootsToHide != null)
         {
-            foreach (GameObject root in legacyUiRootsToHideWhenWebView)
-            {
-                if (root != null)
-                {
-                    if (ShouldKeepNativeComposerVisible() && (IsNativeComposerRoot(root) || IsNativeHeaderRoot(root)))
-                        continue;
-                    root.SetActive(false);
-                }
-            }
+            foreach (GameObject root in legacyUiRootsToHide)
+                if (root != null) root.SetActive(false);
         }
 
-        // Some scenes may not include the input bar root in legacyUiRootsToHideWhenWebView.
-        // In WebView mode we never want the legacy composer visible (unless Editor IME workaround is enabled).
-        if (IsWebViewActive() && !ShouldKeepNativeComposerVisible())
-        {
+        if (IsWebViewActive())
             DisableAllLegacyComposersUnderThisPanel();
-        }
 
-        // In Editor IME workaround mode, allow the native Send button to send even while WebView renders the thread.
-        if (sendButton != null && (!IsWebViewActive() || ShouldKeepNativeComposerVisible()))
+        if (sendButton != null && !IsWebViewActive())
             sendButton.onClick.AddListener(OnSendMessage);
 
         if (backButton != null)
@@ -390,45 +348,13 @@ public class ChatUIHandler : MonoBehaviour
         string roomId       = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : string.Empty;
         string localName    = GetLocalSenderDisplayName();
         string animalBase64 = GetHeaderAnimalImageBase64Png();
-        bool   nativeComp   = ShouldKeepNativeComposerVisible();
 
         DispatchToActiveBridge(
-            b => b.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, nativeComp),
-            c => c.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, nativeComp));
+            null,
+            c => c.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, false));
     }
 
-    /// <summary>Used by <see cref="ChatWebViewBridge"/> to avoid covering the native input bar when Editor IME workaround is active.</summary>
-    public RectTransform GetNativeComposerRectTransform()
-    {
-        return enterMessageBar;
-    }
-
-    bool ShouldKeepNativeComposerVisible()
-    {
-#if UNITY_EDITOR
-        return keepNativeComposerInEditorForIme;
-#else
-        return false;
-#endif
-    }
-
-    bool IsNativeComposerRoot(GameObject go)
-    {
-        if (go == null) return false;
-        Transform rt = go.transform;
-        if (enterMessageBar != null && (go == enterMessageBar.gameObject || enterMessageBar.IsChildOf(rt))) return true;
-        if (inputField != null && (go == inputField.gameObject || inputField.transform.IsChildOf(rt))) return true;
-        if (sendButton != null && (go == sendButton.gameObject || sendButton.transform.IsChildOf(rt))) return true;
-        return false;
-    }
-
-    bool IsNativeHeaderRoot(GameObject go)
-    {
-        if (go == null) return false;
-        if (chatHeaderBar == null) return false;
-        Transform rt = go.transform;
-        return go == chatHeaderBar.gameObject || chatHeaderBar.IsChildOf(rt);
-    }
+    public RectTransform GetNativeComposerRectTransform() => enterMessageBar;
 
     void EnsureActiveHierarchy(Transform t)
     {
@@ -504,7 +430,7 @@ public class ChatUIHandler : MonoBehaviour
         }
     }
 
-    /// <summary>Invoked from <see cref="ChatWebViewBridge"/> when the user sends from the React composer.</summary>
+    /// <summary>Invoked from <see cref="ChatUIController"/> when the user sends a message.</summary>
     public void SendFromWebView(string text, string replyToMessageId, string replyToDisplayName, string replyToMessagePreview)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -1054,7 +980,7 @@ public class ChatUIHandler : MonoBehaviour
     {
         if (!IsWebViewActive() && (messagePrefab == null || chatContent == null))
             return;
-        if (IsWebViewActive() && chatUIController == null && webViewBridge == null)
+        if (IsWebViewActive() && chatUIController == null)
             return;
         // Avoid duplicates when Firebase replays history or reconnects.
         if (!string.IsNullOrEmpty(msg.messageId))

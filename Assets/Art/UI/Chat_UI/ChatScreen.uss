@@ -9,17 +9,21 @@
     background-color: rgb(245, 245, 250);
 }
 
-/* ---------- HEADER ---------- */
+/* ---------- HEADER (absolute overlay — renders on top of scroll) ---------- */
 .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     flex-direction: row;
     align-items: center;
-    background-color: rgb(255, 255, 255);
-    padding-top: 12px;
-    padding-bottom: 12px;
+    background-color: rgba(255, 255, 255, 0.78);
+    padding-top: 10px;
+    padding-bottom: 10px;
     padding-left: 8px;
-    padding-right: 16px;
+    padding-right: 12px;
     border-bottom-width: 1px;
-    border-color: rgb(220, 220, 225);
+    border-color: rgba(220, 220, 225, 0.6);
 }
 
 .back-btn {
@@ -29,6 +33,9 @@
     border-width: 0;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
 }
 
 .back-icon {
@@ -37,30 +44,71 @@
     -unity-text-align: middle-center;
 }
 
-.header-center {
+/* Pet avatar — fully opaque, white border so it pops above the transparent bar */
+.pet-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 23px;
+    background-color: rgb(237, 237, 242);
+    border-width: 2px;
+    border-color: rgb(255, 255, 255);
+    margin-right: 10px;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+/* Pet name + member count */
+.header-info {
     flex-grow: 1;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .room-name {
     font-size: 16px;
     -unity-font-style: bold;
     color: rgb(15, 23, 42);
-    -unity-text-align: middle-center;
+    -unity-text-align: upper-left;
 }
 
 .member-count {
     font-size: 12px;
     color: rgb(142, 142, 147);
+    -unity-text-align: upper-left;
+}
+
+/* Member avatar circles (overlapping, built in code) */
+.member-avatars {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.member-avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background-color: rgb(99, 102, 241);
+    border-width: 2px;
+    border-color: rgb(255, 255, 255);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+.member-avatar-initial {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
     -unity-text-align: middle-center;
 }
 
 /* ---------- MESSAGE SCROLL ---------- */
 .message-scroll {
     flex-grow: 1;
-    padding-top: 12px;
-    padding-bottom: 8px;
+    padding-top: 72px;
+    padding-bottom: 96px;
     padding-left: 12px;
     padding-right: 12px;
 }
@@ -79,11 +127,13 @@
 
 /* ---------- AVATAR ---------- */
 .msg-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 17px;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
     background-color: rgb(174, 193, 247);
-    margin-right: 8px;
+    border-width: 2px;
+    border-color: rgb(255, 255, 255);
+    margin-right: 6px;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
@@ -199,6 +249,10 @@
 /* ---------- REPLY BAR ---------- */
 .reply-bar {
     display: none;
+    position: absolute;
+    bottom: 90px;
+    left: 12px;
+    right: 12px;
     flex-direction: row;
     align-items: center;
     background-color: rgb(255, 255, 255);
@@ -206,7 +260,8 @@
     padding-bottom: 8px;
     padding-left: 12px;
     padding-right: 12px;
-    border-top-width: 1px;
+    border-radius: 16px;
+    border-width: 1px;
     border-color: rgb(220, 220, 225);
 }
 
@@ -244,58 +299,69 @@
     color: rgb(142, 142, 147);
 }
 
-/* ---------- INPUT BAR ---------- */
+/* ---------- INPUT BAR — floating pill overlay ---------- */
 .input-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 12px;
+    right: 12px;
     flex-direction: row;
     align-items: center;
+    min-height: 58px;
     background-color: rgb(255, 255, 255);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-left: 12px;
-    padding-right: 12px;
-    border-top-width: 1px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 20px;
+    padding-right: 8px;
+    border-radius: 30px;
+    border-width: 1px;
     border-color: rgb(220, 220, 225);
 }
 
 .message-input {
     flex-grow: 1;
-    border-radius: 20px;
-    border-width: 1px;
-    border-color: rgb(209, 209, 214);
-    background-color: rgb(242, 242, 247);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-left: 16px;
-    padding-right: 16px;
-    font-size: 14px;
+    min-width: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 8px;
+    font-size: 15px;
     color: rgb(15, 23, 42);
-    margin-right: 8px;
 }
 
 .message-input > .unity-base-field__input {
+    min-width: 0;
     border-width: 0;
     background-color: rgba(0,0,0,0);
-    font-size: 14px;
+    font-size: 15px;
     color: rgb(15, 23, 42);
+    padding: 0;
 }
 
 .message-input > .unity-base-field__input > .unity-text-element--inner-input-field-component {
-    -unity-placeholder-color: rgb(148, 163, 184);
+    min-width: 0;
+    -unity-placeholder-color: rgb(180, 180, 190);
 }
 
 .send-btn {
-    width: 56px;
-    height: 40px;
-    border-radius: 20px;
+    flex-shrink: 0;
+    align-self: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 21px;
     border-width: 0;
-    background-color: rgb(99, 102, 241);
+    margin: 0;
+    padding: 0;
+    background-color: rgb(200, 200, 210);
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
 }
 
 .send-btn:hover {
-    background-color: rgb(79, 70, 229);
+    background-color: rgb(99, 102, 241);
 }
 
 .send-label {

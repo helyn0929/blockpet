@@ -728,6 +728,39 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    /// <summary>Updates the room's display name. Callback runs on main thread.</summary>
+    public void SetRoomName(string roomId, string newName, Action<bool> done)
+    {
+        if (dbRef == null || string.IsNullOrWhiteSpace(roomId) || string.IsNullOrWhiteSpace(newName))
+        {
+            done?.Invoke(false);
+            return;
+        }
+        dbRef.Child("Rooms").Child(roomId).Child("meta").Child("name")
+            .SetValueAsync(newName.Trim()).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    /// <summary>Fetches meta (name, createdAt, ownerUserId) for a single room. Callback runs on main thread.</summary>
+    public void GetRoomMeta(string roomId, Action<RoomMeta> done)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(roomId)) { done?.Invoke(null); return; }
+        dbRef.Child("Rooms").Child(roomId).Child("meta").GetValueAsync().ContinueWith(t =>
+        {
+            RoomMeta meta = null;
+            if (t.IsCompleted && !t.IsFaulted && t.Result != null && t.Result.Exists)
+            {
+                string json = t.Result.GetRawJsonValue();
+                if (!string.IsNullOrEmpty(json))
+                    try { meta = JsonUtility.FromJson<RoomMeta>(json); } catch { }
+            }
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(meta));
+        });
+    }
+
     /// <summary>Fetches the signed-in user's rooms as summaries. Callback runs on main thread.</summary>
     public void GetMyRoomSummaries(Action<List<RoomSummary>> done)
     {
@@ -820,6 +853,72 @@ public class FirebaseManager : MonoBehaviour
                                 return string.CompareOrdinal(a.roomId ?? "", b.roomId ?? "");
                             });
                             lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(results));
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // ── Room members ─────────────────────────────────────────────────────────
+
+    [Serializable]
+    public class RoomMemberInfo
+    {
+        public string uid;
+        public string nickname;
+    }
+
+    /// <summary>Reads Rooms/{roomId}/members, fetches each member's nickname, returns on main thread.</summary>
+    public void GetRoomMembers(string roomId, Action<List<RoomMemberInfo>> done)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(roomId))
+        {
+            done?.Invoke(new List<RoomMemberInfo>());
+            return;
+        }
+
+        dbRef.Child("Rooms").Child(roomId).Child("members").GetValueAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted || t.IsCanceled || t.Result == null || !t.Result.Exists)
+            {
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(new List<RoomMemberInfo>()));
+                return;
+            }
+
+            var uids = new List<string>();
+            foreach (var child in t.Result.Children)
+                if (child != null) uids.Add(child.Key);
+
+            if (uids.Count == 0)
+            {
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(new List<RoomMemberInfo>()));
+                return;
+            }
+
+            var results  = new List<RoomMemberInfo>();
+            int remaining = uids.Count;
+
+            foreach (string uid in uids)
+            {
+                string capturedUid = uid;
+                dbRef.Child(UsersNode).Child(capturedUid).Child("nickname").GetValueAsync().ContinueWith(tNick =>
+                {
+                    string nick = "?";
+                    try
+                    {
+                        if (tNick.IsCompleted && !tNick.IsFaulted && tNick.Result != null && tNick.Result.Exists)
+                            nick = tNick.Result.Value?.ToString() ?? "?";
+                    }
+                    catch { }
+
+                    lock (results)
+                    {
+                        results.Add(new RoomMemberInfo { uid = capturedUid, nickname = nick });
+                        if (System.Threading.Interlocked.Decrement(ref remaining) == 0)
+                        {
+                            var final = new List<RoomMemberInfo>(results);
+                            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(final));
                         }
                     }
                 });

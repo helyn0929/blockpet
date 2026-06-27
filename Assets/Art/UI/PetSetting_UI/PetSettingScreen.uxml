@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Art/UI/PetSetting_UI/PetSettingScreen.uss" />
+    <ui:VisualElement name="root" class="ps-root">
+
+        <ui:ScrollView name="scroll" class="ps-scroll">
+
+            <ui:VisualElement class="ps-hero">
+                <ui:VisualElement name="pet-avatar" class="ps-avatar" />
+                <ui:VisualElement class="ps-name-row">
+                    <ui:TextField name="name-input" class="ps-name-input" />
+                    <ui:Button name="btn-save-name" class="ps-save-btn">
+                        <ui:Label text="save" class="ps-save-label" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:Label name="name-hint" text="" class="ps-name-hint" />
+            </ui:VisualElement>
+
+            <ui:Label text="ROOM ID" class="ps-section-title" />
+            <ui:VisualElement class="ps-card">
+                <ui:Label name="room-id-label" text="" class="ps-room-id-text" />
+                <ui:Button name="btn-copy-id" class="ps-copy-btn">
+                    <ui:Label text="copy" class="ps-copy-label" />
+                </ui:Button>
+            </ui:VisualElement>
+
+            <ui:Label text="Birthday" class="ps-section-title" />
+            <ui:VisualElement class="ps-card">
+                <ui:Label name="birth-label" text="-" class="ps-card-value" />
+            </ui:VisualElement>
+
+            <ui:Label text="Parents" class="ps-section-title" />
+            <ui:VisualElement name="parents-list" class="ps-parents-list" />
+
+        </ui:ScrollView>
+
+        <ui:VisualElement class="ps-header">
+            <ui:Button name="btn-back" class="ps-back-btn">
+                <ui:Label text="&lt;" class="ps-back-icon" />
+            </ui:Button>
+            <ui:Label text="Pet Settings" class="ps-header-title" />
+            <ui:VisualElement class="ps-header-spacer" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

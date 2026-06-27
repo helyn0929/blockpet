@@ -1,0 +1,261 @@
+/* =========================================
+   Pet Setting Screen
+   ========================================= */
+
+.ps-root {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgb(245, 245, 250);
+}
+
+/* ---------- HEADER ---------- */
+.ps-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.92);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-bottom-width: 1px;
+    border-color: rgb(220, 220, 225);
+}
+
+.ps-back-btn {
+    width: 44px;
+    height: 44px;
+    background-color: rgba(0,0,0,0);
+    border-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.ps-back-icon {
+    font-size: 30px;
+    color: rgb(99, 102, 241);
+    -unity-text-align: middle-center;
+}
+
+.ps-header-spacer {
+    width: 44px;
+    flex-shrink: 0;
+}
+
+.ps-header-title {
+    flex-grow: 1;
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: rgb(15, 23, 42);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- SCROLL ---------- */
+.ps-scroll {
+    flex-grow: 1;
+    padding-top: 76px;
+    padding-bottom: 24px;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+/* ---------- HERO (avatar + name) ---------- */
+.ps-hero {
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.ps-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 48px;
+    background-color: rgb(224, 231, 255);
+    border-width: 3px;
+    border-color: rgb(99, 102, 241);
+    margin-bottom: 16px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.ps-name-row {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+}
+
+.ps-name-input {
+    flex-grow: 1;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: rgb(209, 209, 214);
+    background-color: rgb(255, 255, 255);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(15, 23, 42);
+    margin-right: 8px;
+}
+
+.ps-name-input > .unity-base-field__input {
+    border-width: 0;
+    background-color: rgba(0,0,0,0);
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(15, 23, 42);
+}
+
+.ps-name-input > .unity-base-field__input > .unity-text-element--inner-input-field-component {
+    -unity-placeholder-color: rgb(180, 180, 190);
+}
+
+.ps-save-btn {
+    flex-shrink: 0;
+    width: 60px;
+    height: 42px;
+    border-radius: 21px;
+    border-width: 0;
+    background-color: rgb(99, 102, 241);
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.ps-save-label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+.ps-name-hint {
+    font-size: 12px;
+    color: rgb(99, 102, 241);
+    margin-top: 6px;
+    -unity-text-align: upper-center;
+}
+
+/* ---------- SECTION TITLE ---------- */
+.ps-section-title {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(142, 142, 147);
+    margin-top: 20px;
+    margin-bottom: 8px;
+    margin-left: 4px;
+}
+
+/* ---------- CARD ---------- */
+.ps-card {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgb(255, 255, 255);
+    border-radius: 14px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    padding-left: 16px;
+    padding-right: 12px;
+    margin-bottom: 8px;
+}
+
+.ps-card-icon {
+    font-size: 22px;
+    margin-right: 12px;
+    -unity-text-align: middle-center;
+}
+
+.ps-card-value {
+    flex-grow: 1;
+    font-size: 15px;
+    color: rgb(15, 23, 42);
+    -unity-text-align: middle-left;
+}
+
+/* ---------- ROOM ID ---------- */
+.ps-room-id-text {
+    flex-grow: 1;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(99, 102, 241);
+    -unity-text-align: middle-left;
+}
+
+.ps-copy-btn {
+    flex-shrink: 0;
+    width: 56px;
+    height: 34px;
+    border-radius: 17px;
+    border-width: 0;
+    background-color: rgb(237, 237, 242);
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.ps-copy-label {
+    font-size: 13px;
+    color: rgb(60, 60, 70);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- PARENTS LIST ---------- */
+.ps-parents-list {
+    flex-direction: column;
+}
+
+.ps-parent-row {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgb(255, 255, 255);
+    border-radius: 14px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
+    margin-bottom: 8px;
+}
+
+.ps-parent-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    background-color: rgb(199, 210, 254);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 12px;
+}
+
+.ps-parent-initial {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(99, 102, 241);
+    -unity-text-align: middle-center;
+}
+
+.ps-parent-name {
+    flex-grow: 1;
+    font-size: 15px;
+    color: rgb(15, 23, 42);
+    -unity-text-align: middle-left;
+}
+
+.ps-parent-badge {
+    font-size: 10px;
+    color: rgb(99, 102, 241);
+    background-color: rgb(224, 231, 255);
+    border-radius: 8px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 8px;
+    padding-right: 8px;
+}

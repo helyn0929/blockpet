@@ -1,37 +1,30 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
-    <Style src="project://database/Assets/Art/UI/Chat_UI/ChatScreen.uss" />
+    <Style src="project://database/Assets/Art/UI/Chat_UI/ChatScreen.uss?fileID=7433441132597879392&amp;guid=5e757792e151f476b8e36d520e82abaa&amp;type=3#ChatScreen" />
     <ui:VisualElement name="root" class="root">
-
-        <!-- Header -->
-        <ui:VisualElement class="header">
-            <ui:Button name="btn-back" class="back-btn">
-                <ui:Label text="‹" class="back-icon" />
-            </ui:Button>
-            <ui:VisualElement class="header-center">
-                <ui:Label name="room-name" text="Chat" class="room-name" />
-                <ui:Label name="member-count" text="" class="member-count" />
-            </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- Message list -->
         <ui:ScrollView name="message-scroll" class="message-scroll" />
-
-        <!-- Reply preview bar (hidden by default) -->
         <ui:VisualElement name="reply-bar" class="reply-bar">
             <ui:VisualElement class="reply-accent" />
-            <ui:Label name="reply-text" text="" class="reply-text" />
+            <ui:Label name="reply-text" class="reply-text" />
             <ui:Button name="btn-clear-reply" class="clear-reply-btn">
                 <ui:Label text="✕" class="clear-reply-icon" />
             </ui:Button>
         </ui:VisualElement>
-
-        <!-- Input bar -->
-        <ui:VisualElement class="input-bar">
-            <ui:TextField name="message-input" placeholder-text="輸入訊息..." class="message-input" />
-            <ui:Button name="btn-send" class="send-btn">
-                <ui:Label text="送出" class="send-label" />
+        <ui:VisualElement class="input-bar" style="right: 47px; height: 60px; bottom: 16px;">
+            <ui:TextField name="message-input" placeholder-text="say something!" class="message-input" />
+            <ui:Button name="btn-send" class="send-btn" style="white-space: nowrap; width: 42px;">
+                <ui:Label text="送出" class="send-label" style="height: 24px; width: 63px;" />
             </ui:Button>
         </ui:VisualElement>
-
+        <ui:VisualElement class="header">
+            <ui:Button name="btn-back" class="back-btn">
+                <ui:Label text="‹" class="back-icon" />
+            </ui:Button>
+            <ui:VisualElement name="pet-avatar" class="pet-avatar" />
+            <ui:VisualElement class="header-info">
+                <ui:Label name="room-name" text="Chat" class="room-name" />
+                <ui:Label name="member-count" class="member-count" />
+            </ui:VisualElement>
+            <ui:VisualElement name="member-avatars" class="member-avatars" />
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

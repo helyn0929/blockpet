@@ -14,6 +14,7 @@ public class PageManager : MonoBehaviour
     [SerializeField] GameObject photoDetailPage;
     [SerializeField] GameObject marketPage;
     [SerializeField] GameObject settingsPage;
+    [SerializeField] GameObject petSettingPage;
 
     [Header("Startup")]
     [Tooltip("If set, runs once in Start() so play mode always begins on that page.")]
@@ -238,6 +239,16 @@ public class PageManager : MonoBehaviour
         ShowOnly(settingsPage, false);
     }
 
+    public void ShowPetSettingPage()
+    {
+        if (petSettingPage == null)
+        {
+            Debug.LogWarning("[PageManager] Assign Pet Setting Page in the Inspector.");
+            return;
+        }
+        ShowOnly(petSettingPage, false);
+    }
+
     void DeactivateAllPageRoots()
     {
         SetActiveSafe(homePage, false);
@@ -247,6 +258,7 @@ public class PageManager : MonoBehaviour
         SetActiveSafe(photoDetailPage, false);
         SetActiveSafe(marketPage, false);
         SetActiveSafe(settingsPage, false);
+        SetActiveSafe(petSettingPage, false);
     }
 
     void ShowOnly(GameObject page, bool isHomePage)

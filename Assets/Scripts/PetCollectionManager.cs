@@ -191,7 +191,9 @@ public class PetCollectionManager : MonoBehaviour
             petNameText.text = GetPetDisplayName(currentPetIndex);
     }
 
-    /// <summary>Display name by current pet index: 0–4 = Dog, 5–9 = Cat.</summary>
+    /// <summary>Display name for the current pet.</summary>
+    public string GetPetDisplayName() => GetPetDisplayName(currentPetIndex);
+
     static string GetPetDisplayName(int petIndex)
     {
         return petIndex >= 5 ? "Cat" : "Dog";

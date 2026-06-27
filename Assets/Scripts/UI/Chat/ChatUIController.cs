@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+using System.Collections;
 
 [RequireComponent(typeof(UIDocument))]
 public class ChatUIController : MonoBehaviour
@@ -14,10 +15,14 @@ public class ChatUIController : MonoBehaviour
 
     Label _roomName;
     Label _memberCount;
+    VisualElement _petAvatar;
+    VisualElement _memberAvatars;
     ScrollView _messageScroll;
     VisualElement _replyBar;
     Label _replyText;
     TextField _messageInput;
+
+    Texture2D _petAvatarTex;
 
     string _localUserId;
     bool _mineOnRight = true;
@@ -25,6 +30,15 @@ public class ChatUIController : MonoBehaviour
     string _pendingReplyId;
     string _pendingReplyDisplayName;
     string _pendingReplyPreview;
+
+    void OnDestroy()
+    {
+        if (_petAvatarTex != null)
+        {
+            Destroy(_petAvatarTex);
+            _petAvatarTex = null;
+        }
+    }
 
     void Awake()
     {
@@ -39,6 +53,8 @@ public class ChatUIController : MonoBehaviour
 
         _roomName      = _root.Q<Label>("room-name");
         _memberCount   = _root.Q<Label>("member-count");
+        _petAvatar     = _root.Q<VisualElement>("pet-avatar");
+        _memberAvatars = _root.Q<VisualElement>("member-avatars");
         _messageScroll = _root.Q<ScrollView>("message-scroll");
         _replyBar      = _root.Q<VisualElement>("reply-bar");
         _replyText     = _root.Q<Label>("reply-text");
@@ -73,6 +89,8 @@ public class ChatUIController : MonoBehaviour
                 AppendBubble(msg);
 
         UpdateHeader(roomName, memberCount);
+        SetPetAvatar(animalImageBase64);
+        RebuildMemberAvatars(messages);
         ScrollToBottom();
     }
 
@@ -91,6 +109,14 @@ public class ChatUIController : MonoBehaviour
     public void NotifyReplyCleared()
     {
         ClearReplyUI();
+    }
+
+    public void NotifyMembers(List<FirebaseManager.RoomMemberInfo> members)
+    {
+        if (members == null) return;
+        if (_memberCount != null)
+            _memberCount.text = members.Count > 0 ? $"{members.Count} members" : string.Empty;
+        RebuildMemberAvatars(members);
     }
 
     // ── UI building ───────────────────────────────────────────────────────────
@@ -194,6 +220,70 @@ public class ChatUIController : MonoBehaviour
 
         row.Add(col);
         _messageScroll.contentContainer.Add(row);
+    }
+
+    void SetPetAvatar(string base64)
+    {
+        if (_petAvatar == null || string.IsNullOrEmpty(base64)) return;
+        try
+        {
+            byte[] bytes = Convert.FromBase64String(base64);
+            if (_petAvatarTex != null) Destroy(_petAvatarTex);
+            _petAvatarTex = new Texture2D(2, 2);
+            if (_petAvatarTex.LoadImage(bytes))
+                _petAvatar.style.backgroundImage = new StyleBackground(_petAvatarTex);
+        }
+        catch { }
+    }
+
+    void RebuildMemberAvatars(List<FirebaseManager.RoomMemberInfo> members)
+    {
+        if (_memberAvatars == null) return;
+        _memberAvatars.Clear();
+
+        int count = Mathf.Min(members.Count, 3);
+        for (int i = 0; i < count; i++)
+        {
+            var circle = new VisualElement();
+            circle.AddToClassList("member-avatar-circle");
+            if (i > 0) circle.style.marginLeft = -10;
+
+            var label = new Label(GetInitial(members[i].nickname));
+            label.AddToClassList("member-avatar-initial");
+            circle.Add(label);
+            _memberAvatars.Add(circle);
+        }
+    }
+
+    void RebuildMemberAvatars(IReadOnlyList<ChatMessage> messages)
+    {
+        if (_memberAvatars == null) return;
+        _memberAvatars.Clear();
+
+        var seen  = new HashSet<string>();
+        var names = new List<string>();
+        if (messages != null)
+        {
+            foreach (var msg in messages)
+            {
+                string key = string.IsNullOrEmpty(msg.senderId) ? msg.userName : msg.senderId;
+                if (!string.IsNullOrEmpty(key) && seen.Add(key))
+                    names.Add(ChatMessage.GetBestDisplayName(msg));
+                if (names.Count >= 3) break;
+            }
+        }
+
+        for (int i = 0; i < names.Count; i++)
+        {
+            var circle = new VisualElement();
+            circle.AddToClassList("member-avatar-circle");
+            if (i > 0) circle.style.marginLeft = -10;
+
+            var label = new Label(GetInitial(names[i]));
+            label.AddToClassList("member-avatar-initial");
+            circle.Add(label);
+            _memberAvatars.Add(circle);
+        }
     }
 
     void UpdateHeader(string roomName, int memberCount)

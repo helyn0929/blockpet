@@ -32,7 +32,7 @@ public class RoomUIController : MonoBehaviour
     const float MarginTop     = 20f;   // small top margin
     const float MarginBottom  = 110f;  // clear action bar
     const float MarginSide    = 10f;
-    const float PetHalfW      = 55f;   // half pet element width for clamping
+    const float PetHalfW      = 165f;  // half pet element width for clamping
 
     // ── Unity lifecycle ───────────────────────────────────────────────────────
 

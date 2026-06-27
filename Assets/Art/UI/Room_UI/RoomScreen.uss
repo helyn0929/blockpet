@@ -23,7 +23,7 @@
 /* ---------- INDIVIDUAL PET (built in code) ---------- */
 .pet {
     position: absolute;
-    width: 110px;
+    width: 330px;
     flex-direction: column;
     align-items: center;
 }
@@ -49,14 +49,14 @@
 
 /* Pet sprite — always shown below the bubble */
 .pet-sprite {
-    width: 80px;
-    height: 80px;
+    width: 240px;
+    height: 240px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
 .pet-sprite--active {
-    width: 96px;
-    height: 96px;
+    width: 288px;
+    height: 288px;
 }
 
 .pet:active {

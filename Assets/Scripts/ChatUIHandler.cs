@@ -1,18 +1,9 @@
-using UnityEngine;
-using TMPro;
-using UnityEngine.UI;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
 using System;
-using System.Text;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class ChatUIHandler : MonoBehaviour
 {
-    /// <summary>
-    /// Works even when the chat panel GameObject starts inactive: Unity does not run Awake/Start until activation,
-    /// so Firebase can deliver messages first — lazy lookup includes inactive objects.
-    /// </summary>
     static ChatUIHandler _instance;
 
     public static ChatUIHandler Instance
@@ -25,964 +16,90 @@ public class ChatUIHandler : MonoBehaviour
         }
     }
 
-
-    [Header("UI 連結")]
-    public TMP_InputField inputField; 
-    public Button sendButton;
-    public Transform chatContent;    // 拖入 Scroll View 裡的 Content
-    public ScrollRect scrollRect;    // 拖入 Scroll View 本身，用於自動捲動
-
-    [Header("Group chat header (new)")]
+    [Header("Navigation")]
     [SerializeField] PageManager pageManager;
-    [SerializeField] Button backButton;
-    [SerializeField] TMP_Text roomNameText;
-    [SerializeField] TMP_Text memberCountText;
-    [Tooltip("Optional: header root button/area reserved for future room switching (no switching implemented).")]
-    [SerializeField] Button roomSwitcherButton;
-    [Tooltip("Shown once in Start() if room/member labels are assigned. Your game code can replace this anytime by calling SetRoomHeader (e.g. when joining a Firebase room).")]
     [SerializeField] string startupRoomDisplayName = "Chat";
-    [Tooltip("Shown as \"N members\" when N > 0. Use SetRoomHeader from code when you have a live count.")]
     [SerializeField] int startupMemberCount;
-
-    [Header("Reply UI (new)")]
-    [SerializeField] GroupChatReplyPreview replyPreview;
-    [Tooltip("Optional. Shown when no message is selected for reply (e.g. “Tap a message to reply”).")]
-    [SerializeField] TMP_Text tapToReplyHintText;
-    ChatMessage _activeReplyTarget;
-
-    [Header("Modern full-screen chat (recommended hierarchy)")]
-    [Tooltip("Uses layered layout: full-screen BG → semi-transparent message panel → Scroll View inside panel → header + input as overlays. Turn off to use legacy insets only.")]
-    [SerializeField] bool useModernChatLayout;
-    [Tooltip("Background → Message container → Header → Input (draw order).")]
-    [SerializeField] bool enforceModernSiblingOrder = true;
-    [SerializeField] RectTransform chatHeaderBar;
-    [Tooltip("Used when header height cannot be read yet (e.g. first frame).")]
-    [SerializeField] float referenceHeaderHeight = 56f;
-    [Tooltip("Semi-transparent panel behind messages only (child: Scroll View). Assign Image + optional rounded 9-slice sprite.")]
-    [SerializeField] Image messageContainerOverlay;
-    [SerializeField] Color messageContainerTint = new Color(0.04f, 0.06f, 0.1f, 0.5f);
-    [Tooltip("Only applied when Apply Rounded Sprite is enabled. Do not use the input-bar art (e.g. img_EnterMessageBox) here.")]
-    [SerializeField] Sprite roundedMessageContainerSprite;
-    [Tooltip("If off, Message Container keeps its Inspector sprite (or none) — avoids forcing e.g. img_EnterMessageBox on the panel.")]
-    [SerializeField] bool applyRoundedMessageContainerSprite;
-    [SerializeField] float messageContainerGapFromHeader = 10f;
-    [SerializeField] float messageContainerGapFromInput = 10f;
-    [SerializeField] float messageContainerHorizontalPadding = 16f;
-    [SerializeField] float scrollInnerPadding = 12f;
-    [Tooltip("If header/input RectTransforms are accidentally stretch-full-height, their rect.height equals the whole panel and the message band collapses. This caps each bar’s contribution.")]
-    [SerializeField] bool clampBarHeightsToParent = true;
-    [Tooltip("Header height and input-bar height each use at most this fraction of the panel height (e.g. 0.25 = 25%).")]
-    [SerializeField] float maxBarHeightFractionOfParent = 0.28f;
-
-    [Header("Scroll polish")]
-    [SerializeField] bool smoothScrollToLatest = true;
-    [SerializeField] float smoothScrollDuration = 0.15f;
-
-    [Header("Chat room chrome (optional)")]
-    [Tooltip("Assign sprite e.g. bg_chatRoom on this Image in the Inspector.")]
-    [SerializeField] Image chatRoomBackground;
-    [Tooltip("If true, stretches the background RectTransform to fill its parent (typical full-screen chat panel).")]
-    [SerializeField] bool stretchBackgroundToParent = true;
-    [Tooltip("If true, background uses the same RectTransform layout as the Scroll View (after insets). Use the same parent as the Scroll View. Disable Stretch Background To Parent when using this.")]
-    [SerializeField] bool matchBackgroundToScrollView;
-    [Tooltip("If true, moves the background to render under the Scroll View (lower sibling index). Same parent only.")]
-    [SerializeField] bool placeBackgroundBehindScroll = true;
-    [Tooltip("Root RectTransform for input field + send button row; pinned to bottom of parent when enabled below.")]
-    [SerializeField] RectTransform enterMessageBar;
-    [SerializeField] bool pinEnterMessageBarToBottom = true;
-    [Tooltip("Adds bottom inset to the ScrollRect so messages scroll above the input bar.")]
-    [SerializeField] bool resizeScrollAboveInputBar = true;
-
-    [Header("Scroll area (bubbles only in this band)")]
-    [Tooltip("ScrollRect should use stretch anchors on the same parent as your background. Insets shrink the scroll area from each edge.")]
-    [SerializeField] bool applyScrollViewInsets = true;
-    [Tooltip("Empty space at top of panel for close / title / other buttons (e.g. 100–160).")]
-    [SerializeField] float scrollTopInset;
-    [Tooltip("Extra empty space below the message list, after the input bar height (e.g. gap or room for bottom buttons).")]
-    [SerializeField] float scrollBottomExtraInset;
-    [Tooltip("Optional side margins for the bubble list.")]
-    [SerializeField] float scrollLeftInset;
-    [SerializeField] float scrollRightInset;
-
-    [Header("預製物")]
-    public GameObject messagePrefab; // 拖入妳做的文字泡泡 Prefab（根節點或子物件上有 Image 當泡泡底圖）
-
-    [Header("Bubble sprites (9-slice / sliced)")]
-    [Tooltip("Sprites should use Sprite Mode Single with borders set (3-grid); Image type will be Sliced.")]
-    [SerializeField] Sprite chatBubbleSelf;
-    [SerializeField] Sprite chatBubbleOther;
-    [Tooltip("If set, applies sprites to this child by name instead of the first Image found.")]
-    [SerializeField] string bubbleBackgroundImageName;
-
-    [Header("Group chat avatars")]
-    [Tooltip("Assign a sprite (e.g. from Art/UI/Chatroom_UI/avatar_test01 — set texture as Sprite 2D). Used when no per-user avatar is available.")]
-    [SerializeField] Sprite defaultChatAvatarSprite;
-
-    [Header("Bubble layout (Content Size Fitter)")]
-    [Tooltip("Adds Content Size Fitter (Preferred) + LayoutElement on bubble root; sizes TMP to text with max width.")]
-    [SerializeField] bool useBubbleAutoSize = true;
-    [Tooltip("Maximum bubble width in canvas units; longer lines wrap.")]
-    [SerializeField] float bubbleMaxWidth = 280f;
-    [Tooltip("Inset of TMP text from bubble root (left/top used for anchored position).")]
-    [SerializeField] Vector2 bubbleTextPadding = new Vector2(14f, 10f);
-    [Tooltip("If chat Content has VerticalLayoutGroup, disable width stretch so bubbles stay narrow.")]
-    [SerializeField] bool chatContentIntrinsicBubbleWidth = true;
-    [Tooltip("Full-width row + flexible spacer so messages can sit on opposite sides of the thread.")]
-    [SerializeField] bool alignBubblesBySenderSide = true;
-    [Tooltip("When Align Bubbles By Sender Side is on: if true, yours on the right and others on the left; if false, yours on the left and others on the right.")]
-    [SerializeField] bool mineMessagesOnRight = true;
 
     [Header("UI Toolkit chat")]
     [SerializeField] ChatUIController chatUIController;
-    [Tooltip("Hidden while UI Toolkit chat is active (e.g. legacy header, message list, input bar).")]
-    [SerializeField] GameObject[] legacyUiRootsToHide;
+    [SerializeField] bool mineMessagesOnRight = true;
 
     string _headerRoomName;
     int _headerMemberCount;
-
-    List<ChatMessage> localHistory = new List<ChatMessage>();
-    Coroutine _smoothScrollRoutine;
+    readonly List<ChatMessage> localHistory = new List<ChatMessage>();
 
     void Awake()
     {
         if (_instance != null && _instance != this)
         {
-            Debug.LogWarning("[ChatUIHandler] Multiple ChatUIHandler instances; destroying duplicate.");
+            Debug.LogWarning("[ChatUIHandler] Duplicate instance destroyed.");
             Destroy(gameObject);
             return;
         }
-
         _instance = this;
         _headerRoomName = startupRoomDisplayName;
         _headerMemberCount = startupMemberCount;
-
-        // Subscribe here (not OnEnable) so localHistory is always cleared on room switch
-        // even when the chat panel is hidden — prevents stale history leaking into
-        // PushFullStateToWebView if the WebView page reloads while chat is inactive.
         SaveManager.OnRoomSwitched += OnRoomSwitched;
     }
-
-    bool IsWebViewActive() => chatUIController != null;
-
-    void DispatchToActiveBridge(Action<object> _, Action<ChatUIController> uitoolkitAction)
-    {
-        uitoolkitAction?.Invoke(chatUIController);
-    }
-
-    public bool IsWebViewChatEnabled() => false;
 
     void OnDestroy()
     {
         SaveManager.OnRoomSwitched -= OnRoomSwitched;
-        if (_instance == this)
-            _instance = null;
-        if (_cachedAvatarSpriteFromTex != null)
-        {
-            Destroy(_cachedAvatarSpriteFromTex);
-            _cachedAvatarSpriteFromTex = null;
-            _cachedAvatarTex = null;
-        }
+        if (_instance == this) _instance = null;
     }
 
     void OnEnable()
     {
-        if (useModernChatLayout)
-            ApplyModernChatLayout();
-
+        FirebaseManager.Instance?.EnsureChatListening();
         if (FirebaseManager.Instance != null)
-            FirebaseManager.Instance.EnsureChatListening();
-
-        if (FirebaseManager.Instance != null)
-            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", _headerMemberCount);
-    }
-
-    void OnDisable()
-    {
-    }
-
-    void OnRoomSwitched()
-    {
-        localHistory.Clear();
-        ClearChatUI();
-        if (FirebaseManager.Instance != null)
-            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
-    }
-
-    void ClearChatUI()
-    {
-        if (IsWebViewActive())
-            PushFullStateToWebView();
-        else if (chatContent != null)
         {
-            for (int i = chatContent.childCount - 1; i >= 0; i--)
-                Destroy(chatContent.GetChild(i).gameObject);
+            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", _headerMemberCount);
+            FetchAndUpdateMembers();
         }
     }
 
     void Start()
     {
-        ApplyChatRoomLayout();
-        AutoWireLegacyUiReferencesIfMissing();
-
-        // Hide legacy uGUI roots when UI Toolkit is active
-        if (IsWebViewActive() && legacyUiRootsToHide != null)
-        {
-            foreach (GameObject root in legacyUiRootsToHide)
-                if (root != null) root.SetActive(false);
-        }
-
-        if (IsWebViewActive())
-            DisableAllLegacyComposersUnderThisPanel();
-
-        if (sendButton != null && !IsWebViewActive())
-            sendButton.onClick.AddListener(OnSendMessage);
-
-        if (backButton != null)
-            backButton.onClick.AddListener(OnBackClicked);
-
-        if (roomNameText != null || memberCountText != null)
-            SetRoomHeader(startupRoomDisplayName, startupMemberCount);
-
+        SetRoomHeader(startupRoomDisplayName, startupMemberCount);
         LoadChatHistoryAndRebuildUI();
-
-        if (useModernChatLayout)
-        {
-            // PageManager can toggle this panel off during the first frame; starting a coroutine on an inactive object throws.
-            if (isActiveAndEnabled && gameObject.activeInHierarchy)
-                StartCoroutine(ApplyModernLayoutAfterFirstFrame());
-        }
-
-        EnsureChatContentVerticalLayoutForBubbles();
-
-        RefreshReplyUiHints();
     }
 
-    void DisableAllLegacyComposersUnderThisPanel()
+    void OnRoomSwitched()
     {
-        // If the legacy input bar remains visible in a scene, users might type into it and press Send,
-        // but in WebView mode we intentionally route sending through the web UI.
-        // So we hard-disable all TMP input fields under this chat panel.
-        TMP_InputField[] fields = GetComponentsInChildren<TMP_InputField>(true);
-        foreach (var f in fields)
+        localHistory.Clear();
+        PushFullStateToWebView();
+        if (FirebaseManager.Instance != null)
         {
-            if (f == null) continue;
-            // Disable the whole input root (usually InputField(TMP)).
-            f.gameObject.SetActive(false);
-        }
-
-        // Additionally, hide the known bar root if it's wired.
-        if (enterMessageBar != null)
-            enterMessageBar.gameObject.SetActive(false);
-        if (inputField != null)
-            inputField.gameObject.SetActive(false);
-        if (sendButton != null)
-            sendButton.gameObject.SetActive(false);
-    }
-
-    void AutoWireLegacyUiReferencesIfMissing()
-    {
-        // Only needed for hiding legacy UI; safe in both modes.
-        if (inputField == null)
-            inputField = GetComponentInChildren<TMP_InputField>(true);
-
-        if (sendButton == null)
-        {
-            // Prefer a sibling button near the input field if possible.
-            if (inputField != null && inputField.transform.parent != null)
-                sendButton = inputField.transform.parent.GetComponentInChildren<Button>(true);
-            if (sendButton == null)
-                sendButton = GetComponentInChildren<Button>(true);
-        }
-
-        if (enterMessageBar == null && inputField != null)
-        {
-            // Typical hierarchy: InputField(TMP) is the root bar, or it sits under the bar container.
-            enterMessageBar = inputField.transform as RectTransform;
-            if (enterMessageBar != null && enterMessageBar.parent is RectTransform prt)
-            {
-                // If the input field is nested (e.g. Text Area), promote to the bar root.
-                if (enterMessageBar.name.Contains("Text Area", StringComparison.OrdinalIgnoreCase) ||
-                    enterMessageBar.name.Contains("Placeholder", StringComparison.OrdinalIgnoreCase) ||
-                    enterMessageBar.name.Contains("Text", StringComparison.OrdinalIgnoreCase))
-                {
-                    enterMessageBar = prt;
-                }
-            }
+            SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
+            FetchAndUpdateMembers();
         }
     }
 
-    void OnBackClicked()
-    {
-        if (pageManager == null)
-            pageManager = FindObjectOfType<PageManager>(true);
-        if (pageManager != null)
-            pageManager.ShowHomePage();
-    }
+    // ── Public API ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Updates the chat screen title and member subtitle. Call from your lobby / party / Firebase flow when the player enters a room.
-    /// Example: <c>ChatUIHandler.Instance?.SetRoomHeader(teamName, onlineCount);</c>
-    /// </summary>
     public void SetRoomHeader(string roomName, int memberCount)
     {
         _headerRoomName = roomName ?? string.Empty;
         _headerMemberCount = memberCount;
-
-        if (roomNameText != null)
-            roomNameText.text = roomName ?? string.Empty;
-        if (memberCountText != null)
-            memberCountText.text = memberCount <= 0 ? string.Empty : $"{memberCount} members";
-
-        if (IsWebViewActive())
-            DispatchToActiveBridge(
-                b => b.NotifyHeader(_headerRoomName, _headerMemberCount),
-                c => c.NotifyHeader(_headerRoomName, _headerMemberCount));
+        chatUIController?.NotifyHeader(_headerRoomName, _headerMemberCount);
     }
 
-    /// <summary>Called when the chat UI finishes loading so it can receive the current thread + header.</summary>
     public void PushFullStateToWebView()
     {
-        if (!IsWebViewActive())
-            return;
-
-        string roomId       = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : string.Empty;
-        string localName    = GetLocalSenderDisplayName();
+        if (chatUIController == null) return;
+        string roomId      = FirebaseManager.Instance?.RoomId ?? string.Empty;
+        string localName   = GetLocalSenderDisplayName();
         string animalBase64 = GetHeaderAnimalImageBase64Png();
-
-        DispatchToActiveBridge(
-            null,
-            c => c.RequestFullSync(localHistory, _headerRoomName, roomId, _headerMemberCount, localName, mineMessagesOnRight, animalBase64, false));
+        chatUIController.RequestFullSync(
+            localHistory, _headerRoomName, roomId, _headerMemberCount,
+            localName, mineMessagesOnRight, animalBase64, false);
     }
 
-    public RectTransform GetNativeComposerRectTransform() => enterMessageBar;
-
-    void EnsureActiveHierarchy(Transform t)
-    {
-        if (t == null) return;
-
-        // If any parent was disabled (e.g. a legacy root got hidden), the TMP input can't receive focus.
-        // Walk up until this ChatUIHandler root and re-enable everything on the path.
-        Transform stop = transform;
-        Transform cur = t;
-        while (cur != null)
-        {
-            cur.gameObject.SetActive(true);
-            if (cur == stop)
-                break;
-            cur = cur.parent;
-        }
-    }
-
-    string GetHeaderAnimalImageBase64Png()
-    {
-        try
-        {
-            Texture2D tex = AvatarManager.Instance != null ? AvatarManager.Instance.CurrentAvatar : null;
-            if (tex == null)
-                return null;
-
-            byte[] png = null;
-            try
-            {
-                png = tex.EncodeToPNG();
-            }
-            catch
-            {
-                png = EncodeToPngViaReadback(tex);
-            }
-
-            if (png == null || png.Length == 0)
-                return null;
-
-            return Convert.ToBase64String(png);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    static byte[] EncodeToPngViaReadback(Texture2D tex)
-    {
-        if (tex == null) return null;
-        RenderTexture rt = null;
-        RenderTexture prev = RenderTexture.active;
-        try
-        {
-            rt = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
-            Graphics.Blit(tex, rt);
-            RenderTexture.active = rt;
-            Texture2D copy = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
-            copy.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
-            copy.Apply(false, false);
-            byte[] png = copy.EncodeToPNG();
-            Destroy(copy);
-            return png;
-        }
-        catch
-        {
-            return null;
-        }
-        finally
-        {
-            RenderTexture.active = prev;
-            if (rt != null) RenderTexture.ReleaseTemporary(rt);
-        }
-    }
-
-    /// <summary>Invoked from <see cref="ChatUIController"/> when the user sends a message.</summary>
-    public void SendFromWebView(string text, string replyToMessageId, string replyToDisplayName, string replyToMessagePreview)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return;
-
-        if (FirebaseManager.Instance == null)
-        {
-            Debug.LogError("找不到 FirebaseManager 物件！");
-            return;
-        }
-
-        ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), text.Trim());
-        outgoing.senderId = FirebaseManager.Instance?.GetUserId() ?? string.Empty;
-        if (!string.IsNullOrEmpty(replyToMessageId))
-        {
-            outgoing.replyToMessageId = replyToMessageId;
-            outgoing.replyToDisplayName = replyToDisplayName ?? string.Empty;
-            outgoing.replyToMessagePreview = replyToMessagePreview ?? string.Empty;
-        }
-
-        FirebaseManager.Instance.SendChatMessage(outgoing);
-        ClearReply();
-    }
-
-    public void WebViewRequestBack()
-    {
-        OnBackClicked();
-    }
-
-    /// <summary>Stops Firebase chat listener, clears reply state, then navigates home (WebView <c>leaveChat</c>).</summary>
-    public void WebViewRequestLeaveChat()
-    {
-        ClearReply();
-        if (FirebaseManager.Instance != null)
-            FirebaseManager.Instance.StopChatListening();
-        OnBackClicked();
-    }
-
-    /// <summary>Syncs WebView reply selection to the same reply target used for TMP send (WebView <c>replySelect</c>). Empty id clears reply.</summary>
-    public void WebViewSelectReply(string messageId, string userName, string displayName, string messageBody)
-    {
-        if (string.IsNullOrEmpty(messageId))
-        {
-            ClearReply();
-            return;
-        }
-
-        ChatMessage match = null;
-        for (int i = localHistory.Count - 1; i >= 0; i--)
-        {
-            ChatMessage m = localHistory[i];
-            if (!string.IsNullOrEmpty(m.messageId) && m.messageId == messageId)
-            {
-                match = m;
-                break;
-            }
-        }
-
-        if (match != null)
-            SetReply(match);
-        else
-        {
-            var synthetic = new ChatMessage
-            {
-                messageId = messageId,
-                userName = userName ?? string.Empty,
-                displayName = string.IsNullOrEmpty(displayName) ? (userName ?? string.Empty) : displayName,
-                message = messageBody ?? string.Empty,
-                timestamp = 0
-            };
-            SetReply(synthetic);
-        }
-    }
-
-    public void WebViewRequestOpenAlbum()
-    {
-        if (pageManager == null)
-            pageManager = FindObjectOfType<PageManager>(true);
-        if (pageManager != null)
-            pageManager.ShowAlbumFromChat();
-    }
-
-    public void WebViewSetRoom(string roomId)
-    {
-        if (FirebaseManager.Instance == null)
-            return;
-
-        FirebaseManager.Instance.SetRoomId(roomId);
-        SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
-    }
-
-    public void WebViewClearReply()
-    {
-        ClearReply();
-    }
-
-    IEnumerator ApplyModernLayoutAfterFirstFrame()
-    {
-        yield return null;
-        ApplyModernChatLayout();
-    }
-
-    void ApplyChatRoomLayout()
-    {
-        if (useModernChatLayout)
-        {
-            ApplyModernChatLayout();
-            return;
-        }
-
-        if (chatRoomBackground != null && stretchBackgroundToParent && !matchBackgroundToScrollView)
-        {
-            RectTransform brt = chatRoomBackground.rectTransform;
-            brt.anchorMin = Vector2.zero;
-            brt.anchorMax = Vector2.one;
-            brt.offsetMin = Vector2.zero;
-            brt.offsetMax = Vector2.zero;
-        }
-
-        float inputBarHeight = 0f;
-        if (enterMessageBar != null && pinEnterMessageBarToBottom)
-        {
-            inputBarHeight = enterMessageBar.sizeDelta.y;
-            if (inputBarHeight < 2f)
-                inputBarHeight = enterMessageBar.rect.height;
-            if (inputBarHeight < 2f)
-                inputBarHeight = 120f;
-
-            enterMessageBar.anchorMin = new Vector2(0f, 0f);
-            enterMessageBar.anchorMax = new Vector2(1f, 0f);
-            enterMessageBar.pivot = new Vector2(0.5f, 0f);
-            enterMessageBar.sizeDelta = new Vector2(0f, inputBarHeight);
-            enterMessageBar.anchoredPosition = Vector2.zero;
-        }
-
-        ApplyScrollViewAreaInsets(inputBarHeight);
-
-        if (chatRoomBackground != null && matchBackgroundToScrollView && scrollRect != null)
-            MatchBackgroundRectToScrollView();
-    }
-
-    void TryAutoWireModernLayoutReferences()
-    {
-        if (!useModernChatLayout)
-            return;
-
-        if (messageContainerOverlay == null)
-        {
-            Transform t = transform.Find("MessageContainer");
-            if (t != null)
-                messageContainerOverlay = t.GetComponent<Image>();
-        }
-
-        if (chatRoomBackground == null)
-        {
-            Transform t = transform.Find("BackGround");
-            if (t == null)
-                t = transform.Find("Background");
-            if (t != null)
-                chatRoomBackground = t.GetComponent<Image>();
-        }
-
-        if (chatHeaderBar == null)
-        {
-            Transform t = transform.Find("Header");
-            if (t != null)
-                chatHeaderBar = t as RectTransform;
-        }
-
-        if (enterMessageBar == null && inputField != null)
-            enterMessageBar = inputField.transform as RectTransform;
-    }
-
-    /// <summary>
-    /// Default Unity UI creates a small centered box; expand to fill the chat panel before applying insets.
-    /// </summary>
-    void EnsureMessageContainerStretchesPanel(RectTransform mrt)
-    {
-        if (mrt == null || mrt.parent is not RectTransform parentRt)
-            return;
-
-        float pw = Mathf.Max(10f, parentRt.rect.width);
-        float ph = Mathf.Max(10f, parentRt.rect.height);
-        bool centered = Mathf.Approximately(mrt.anchorMin.x, 0.5f) && Mathf.Approximately(mrt.anchorMax.x, 0.5f);
-        bool tiny = mrt.rect.width < pw * 0.65f || mrt.rect.height < ph * 0.3f;
-        if (!centered && !tiny)
-            return;
-
-        mrt.anchorMin = Vector2.zero;
-        mrt.anchorMax = Vector2.one;
-        mrt.pivot = new Vector2(0.5f, 0.5f);
-        mrt.offsetMin = Vector2.zero;
-        mrt.offsetMax = Vector2.zero;
-    }
-
-    void EnsureFullStretchIfUnderSized(RectTransform rt)
-    {
-        if (rt == null || rt.parent is not RectTransform parentRt)
-            return;
-
-        float pw = Mathf.Max(10f, parentRt.rect.width);
-        float ph = Mathf.Max(10f, parentRt.rect.height);
-        bool centered = Mathf.Approximately(rt.anchorMin.x, 0.5f) && Mathf.Approximately(rt.anchorMax.x, 0.5f);
-        bool small = rt.rect.width < pw * 0.92f || rt.rect.height < ph * 0.92f;
-        if (!centered && !small)
-            return;
-
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-    }
-
-    /// <summary>
-    /// Hierarchy: ChatPanel → Background (full) → MessageContainer (Image, translucent) → ScrollView → Header + InputBar (siblings, overlays).
-    /// </summary>
-    void ApplyModernChatLayout()
-    {
-        TryAutoWireModernLayoutReferences();
-
-        if (chatRoomBackground != null)
-        {
-            RectTransform brt = chatRoomBackground.rectTransform;
-            EnsureFullStretchIfUnderSized(brt);
-            brt.anchorMin = Vector2.zero;
-            brt.anchorMax = Vector2.one;
-            brt.offsetMin = Vector2.zero;
-            brt.offsetMax = Vector2.zero;
-        }
-
-        float headerH = GetBarHeight(chatHeaderBar, referenceHeaderHeight);
-        float inputH = GetBarHeight(enterMessageBar, 120f);
-
-        if (chatHeaderBar != null)
-        {
-            chatHeaderBar.anchorMin = new Vector2(0f, 1f);
-            chatHeaderBar.anchorMax = new Vector2(1f, 1f);
-            chatHeaderBar.pivot = new Vector2(0.5f, 1f);
-            if (chatHeaderBar.sizeDelta.y < 2f && chatHeaderBar.rect.height < 2f)
-                chatHeaderBar.sizeDelta = new Vector2(0f, referenceHeaderHeight);
-            chatHeaderBar.anchoredPosition = Vector2.zero;
-        }
-
-        if (enterMessageBar != null)
-        {
-            enterMessageBar.anchorMin = new Vector2(0f, 0f);
-            enterMessageBar.anchorMax = new Vector2(1f, 0f);
-            enterMessageBar.pivot = new Vector2(0.5f, 0f);
-            if (enterMessageBar.sizeDelta.y < 2f && enterMessageBar.rect.height < 2f)
-                enterMessageBar.sizeDelta = new Vector2(0f, 120f);
-            enterMessageBar.anchoredPosition = Vector2.zero;
-            inputH = GetBarHeight(enterMessageBar, 120f);
-        }
-
-        headerH = GetBarHeight(chatHeaderBar, referenceHeaderHeight);
-
-        float panelH = ResolveChatPanelContentHeight();
-        if (clampBarHeightsToParent && panelH > 50f)
-        {
-            float cap = Mathf.Max(referenceHeaderHeight, panelH * maxBarHeightFractionOfParent);
-            headerH = Mathf.Min(headerH, cap);
-            inputH = Mathf.Min(inputH, cap);
-        }
-
-        if (messageContainerOverlay != null)
-        {
-            RectTransform mrt = messageContainerOverlay.rectTransform;
-            EnsureMessageContainerStretchesPanel(mrt);
-            mrt.anchorMin = Vector2.zero;
-            mrt.anchorMax = Vector2.one;
-            float top = headerH + messageContainerGapFromHeader;
-            float bottom = inputH + messageContainerGapFromInput;
-            float minMiddle = panelH > 50f ? panelH * 0.2f : 120f;
-            if (top + bottom > panelH - minMiddle)
-            {
-                float excess = top + bottom - (panelH - minMiddle);
-                float shrink = excess * 0.5f;
-                top = Mathf.Max(messageContainerGapFromHeader, top - shrink);
-                bottom = Mathf.Max(messageContainerGapFromInput, bottom - shrink);
-            }
-
-            mrt.offsetMin = new Vector2(messageContainerHorizontalPadding, bottom);
-            mrt.offsetMax = new Vector2(-messageContainerHorizontalPadding, -top);
-
-            messageContainerOverlay.color = messageContainerTint;
-            messageContainerOverlay.raycastTarget = true;
-            if (applyRoundedMessageContainerSprite && roundedMessageContainerSprite != null)
-            {
-                messageContainerOverlay.sprite = roundedMessageContainerSprite;
-                messageContainerOverlay.type = Image.Type.Sliced;
-            }
-        }
-
-        if (scrollRect != null)
-        {
-            RectTransform srt = scrollRect.transform as RectTransform;
-            if (srt != null && srt.parent is RectTransform scrollParent)
-            {
-                EnsureMessageContainerStretchesPanel(scrollParent);
-                bool scrollUnderOverlay = messageContainerOverlay != null &&
-                                          scrollParent == messageContainerOverlay.rectTransform;
-                if (messageContainerOverlay == null || scrollUnderOverlay)
-                {
-                    srt.anchorMin = Vector2.zero;
-                    srt.anchorMax = Vector2.one;
-                    srt.offsetMin = new Vector2(scrollInnerPadding, scrollInnerPadding);
-                    srt.offsetMax = new Vector2(-scrollInnerPadding, -scrollInnerPadding);
-                }
-            }
-        }
-
-        if (enforceModernSiblingOrder)
-            EnsureModernSiblingOrder();
-
-        Canvas.ForceUpdateCanvases();
-    }
-
-    /// <summary>Height of the chat panel area used to cap header/input insets (message container’s parent).</summary>
-    float ResolveChatPanelContentHeight()
-    {
-        RectTransform parent =
-            messageContainerOverlay != null ? messageContainerOverlay.transform.parent as RectTransform :
-            chatRoomBackground != null ? chatRoomBackground.transform.parent as RectTransform :
-            chatHeaderBar != null ? chatHeaderBar.parent as RectTransform :
-            enterMessageBar != null ? enterMessageBar.parent as RectTransform :
-            null;
-        if (parent != null && parent.rect.height > 10f)
-            return parent.rect.height;
-        return Mathf.Max(400f, Screen.height);
-    }
-
-    /// <summary>
-    /// Prefer fixed top/bottom bar height from sizeDelta. If the bar is vertically stretch-anchored across the full panel,
-    /// rect.height is misleading — use fallback instead.
-    /// </summary>
-    static float GetBarHeight(RectTransform rt, float fallback)
-    {
-        if (rt == null)
-            return fallback;
-
-        bool verticallyStretched = Mathf.Abs(rt.anchorMax.y - rt.anchorMin.y) > 0.01f;
-        if (verticallyStretched)
-        {
-            if (rt.sizeDelta.y > 2f)
-                return rt.sizeDelta.y;
-            return fallback;
-        }
-
-        float sd = rt.sizeDelta.y;
-        if (sd > 2f)
-            return sd;
-
-        float rh = rt.rect.height;
-        if (rh > 2f)
-            return rh;
-
-        return fallback;
-    }
-
-    void EnsureModernSiblingOrder()
-    {
-        Transform root =
-            chatRoomBackground != null ? chatRoomBackground.transform.parent :
-            messageContainerOverlay != null ? messageContainerOverlay.transform.parent :
-            chatHeaderBar != null ? chatHeaderBar.parent :
-            enterMessageBar != null ? enterMessageBar.parent :
-            null;
-        if (root == null)
-            return;
-
-        int i = 0;
-        void Place(Transform t)
-        {
-            if (t == null || t.parent != root)
-                return;
-            t.SetSiblingIndex(i++);
-        }
-
-        Place(chatRoomBackground != null ? chatRoomBackground.transform : null);
-        Place(messageContainerOverlay != null ? messageContainerOverlay.transform : null);
-        Place(chatHeaderBar);
-        Place(enterMessageBar);
-    }
-
-    void MatchBackgroundRectToScrollView()
-    {
-        RectTransform scrollRt = scrollRect.transform as RectTransform;
-        RectTransform brt = chatRoomBackground.rectTransform;
-        if (scrollRt == null || brt == null)
-            return;
-
-        if (brt.parent != scrollRt.parent)
-        {
-            Debug.LogWarning("[ChatUIHandler] matchBackgroundToScrollView: assign the same parent for Chat Room Background and Scroll View so sizes match.");
-            return;
-        }
-
-        CopyRectTransformLayout(scrollRt, brt);
-
-        if (placeBackgroundBehindScroll && brt.GetSiblingIndex() > scrollRt.GetSiblingIndex())
-            brt.SetSiblingIndex(scrollRt.GetSiblingIndex());
-    }
-
-    static void CopyRectTransformLayout(RectTransform from, RectTransform to)
-    {
-        to.anchorMin = from.anchorMin;
-        to.anchorMax = from.anchorMax;
-        to.pivot = from.pivot;
-        to.anchoredPosition = from.anchoredPosition;
-        to.sizeDelta = from.sizeDelta;
-        to.offsetMin = from.offsetMin;
-        to.offsetMax = from.offsetMax;
-        to.localScale = from.localScale;
-        to.localRotation = from.localRotation;
-    }
-
-    /// <summary>
-    /// Keeps chat bubbles inside a rectangle inset from the panel edges so top/bottom (and sides) stay clear for other UI.
-    /// Expects the ScrollRect's RectTransform to be parented under the same full-rect panel with stretch anchors.
-    /// </summary>
-    void ApplyScrollViewAreaInsets(float pinnedInputBarHeight)
-    {
-        if (!applyScrollViewInsets || scrollRect == null)
-            return;
-
-        RectTransform scrollRt = scrollRect.transform as RectTransform;
-        if (scrollRt == null)
-            return;
-
-        float bottom = scrollBottomExtraInset;
-        if (resizeScrollAboveInputBar)
-        {
-            if (pinnedInputBarHeight > 0f)
-                bottom += pinnedInputBarHeight;
-            bottom += GetActiveReplyPreviewHeight();
-        }
-
-        float top = Mathf.Max(0f, scrollTopInset);
-        float left = Mathf.Max(0f, scrollLeftInset);
-        float right = Mathf.Max(0f, scrollRightInset);
-
-        scrollRt.offsetMin = new Vector2(left, bottom);
-        scrollRt.offsetMax = new Vector2(-right, -top);
-    }
-
-    float GetActiveReplyPreviewHeight()
-    {
-        if (replyPreview == null) return 0f;
-        if (!replyPreview.isActiveAndEnabled) return 0f;
-        RectTransform rt = replyPreview.transform as RectTransform;
-        if (rt == null) return 0f;
-        float h = rt.rect.height;
-        if (h < 1f) h = rt.sizeDelta.y;
-        return Mathf.Max(0f, h);
-    }
-
-    string GetLocalSenderDisplayName()
-    {
-        if (FirebaseManager.Instance != null)
-            return FirebaseManager.Instance.GetDisplayName();
-        return "Guest";
-    }
-
-    bool IsMessageFromLocalUser(ChatMessage msg)
-    {
-        if (msg == null) return false;
-        string uid = FirebaseManager.Instance?.GetUserId();
-        if (!string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(msg.senderId))
-            return msg.senderId == uid;
-        return msg.userName == GetLocalSenderDisplayName();
-    }
-
-    void OnSendMessage()
-    {
-        if (inputField == null) return;
-        if (string.IsNullOrEmpty(inputField.text)) return;
-
-        if (FirebaseManager.Instance != null)
-        {
-            ChatMessage outgoing = new ChatMessage(GetLocalSenderDisplayName(), inputField.text);
-            outgoing.senderId = FirebaseManager.Instance.GetUserId() ?? string.Empty;
-            if (_activeReplyTarget != null)
-            {
-                outgoing.replyToMessageId = _activeReplyTarget.messageId;
-                outgoing.replyToDisplayName = ChatMessage.GetBestDisplayName(_activeReplyTarget);
-                outgoing.replyToMessagePreview = MakeReplyPreviewSnippet(_activeReplyTarget.message);
-            }
-
-            FirebaseManager.Instance.SendChatMessage(outgoing);
-            inputField.text = ""; 
-            ClearReply();
-        }
-        else
-        {
-            Debug.LogError("找不到 FirebaseManager 物件！");
-        }
-    }
-
-    static string MakeReplyPreviewSnippet(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return string.Empty;
-        s = s.Replace("\n", " ").Replace("\r", " ");
-        const int max = 90;
-        if (s.Length <= max) return s;
-        return s.Substring(0, max).TrimEnd() + "…";
-    }
-
-    void SetReply(ChatMessage target)
-    {
-        _activeReplyTarget = target;
-        if (replyPreview != null && target != null)
-            replyPreview.Set(ChatMessage.GetBestDisplayName(target), MakeReplyPreviewSnippet(target.message), ClearReply);
-        RefreshReplyUiHints();
-    }
-
-    void ClearReply()
-    {
-        _activeReplyTarget = null;
-        if (replyPreview != null)
-            replyPreview.Clear();
-        RefreshReplyUiHints();
-        if (IsWebViewActive())
-            DispatchToActiveBridge(
-                b => b.NotifyReplyCleared(),
-                c => c.NotifyReplyCleared());
-    }
-
-    void RefreshReplyUiHints()
-    {
-        if (tapToReplyHintText == null)
-            return;
-        bool pickingReply = _activeReplyTarget != null;
-        tapToReplyHintText.gameObject.SetActive(!pickingReply);
-        if (!pickingReply && string.IsNullOrEmpty(tapToReplyHintText.text))
-            tapToReplyHintText.text = "Tap a message to reply";
-    }
-
-    /// <summary>Call after rotation or safe-area changes if layout does not update automatically.</summary>
-    public void RefreshChatLayout()
-    {
-        ApplyChatRoomLayout();
-    }
-
-    // 由 FirebaseManager 監聽到新訊息時呼叫
     public void DisplayMessage(ChatMessage msg)
     {
-        if (!IsWebViewActive() && (messagePrefab == null || chatContent == null))
-            return;
-        if (IsWebViewActive() && chatUIController == null)
-            return;
-        // Avoid duplicates when Firebase replays history or reconnects.
+        if (chatUIController == null || msg == null) return;
+
         if (!string.IsNullOrEmpty(msg.messageId))
         {
             if (localHistory.Exists(m => !string.IsNullOrEmpty(m.messageId) && m.messageId == msg.messageId))
@@ -990,310 +107,139 @@ public class ChatUIHandler : MonoBehaviour
         }
         else
         {
-            if (localHistory.Exists(m => m.userName == msg.userName && m.message == msg.message && m.timestamp == msg.timestamp))
+            if (localHistory.Exists(m => m.userName == msg.userName &&
+                                         m.message  == msg.message  &&
+                                         m.timestamp == msg.timestamp))
                 return;
         }
 
         localHistory.Add(msg);
-
-        if (IsWebViewActive())
-            DispatchToActiveBridge(
-                b => b.NotifyMessageAppended(msg),
-                c => c.NotifyMessageAppended(msg));
-        else
-            AddMessageBubbleToUI(msg);
-
-        ScrollToLatest();
+        chatUIController.NotifyMessageAppended(msg);
     }
 
-    void AddMessageBubbleToUI(ChatMessage msg)
+    public void SendFromWebView(string text, string replyToMessageId, string replyToDisplayName, string replyToMessagePreview)
     {
-        if (IsWebViewActive())
-            return;
-        // May run before Start() if messages arrive while panel is still inactive.
-        EnsureChatContentVerticalLayoutForBubbles();
-
-        bool isSelf = IsMessageFromLocalUser(msg);
-        GameObject row = null;
-        if (alignBubblesBySenderSide)
+        if (string.IsNullOrWhiteSpace(text)) return;
+        if (FirebaseManager.Instance == null)
         {
-            row = CreateChatBubbleRowShell();
-            bool spacerFirst = mineMessagesOnRight ? isSelf : !isSelf;
-            if (spacerFirst)
-                AddChatRowFlexSpacer(row.transform);
-        }
-
-        Transform bubbleParent = row != null ? row.transform : chatContent;
-        GameObject newMsg = Instantiate(messagePrefab, bubbleParent);
-        if (row != null)
-        {
-            bool spacerAfter = mineMessagesOnRight ? !isSelf : isSelf;
-            if (spacerAfter)
-                AddChatRowFlexSpacer(row.transform);
-        }
-
-        // New reusable prefab path (avatar + name + reply quote + bubble)
-        GroupChatMessageView view = newMsg.GetComponentInChildren<GroupChatMessageView>(true);
-        if (view != null)
-        {
-            Sprite avatar = ResolveAvatarSprite(msg);
-            view.Bind(msg, avatar, isSelf);
-
-            // Apply bubble sprites if configured
-            Image bg = view.BubbleBackground;
-            if (bg != null)
-            {
-                Sprite pick = isSelf ? chatBubbleSelf : chatBubbleOther;
-                if (pick != null)
-                {
-                    bg.sprite = pick;
-                    bg.type = Image.Type.Sliced;
-                }
-            }
-
-            // Button makes taps reliable inside ScrollRect (IPointerClick alone is often swallowed).
-            if (bg != null)
-            {
-                bg.raycastTarget = true;
-                Button bubbleButton = view.GetComponent<Button>();
-                if (bubbleButton == null)
-                    bubbleButton = view.gameObject.AddComponent<Button>();
-                bubbleButton.transition = Selectable.Transition.None;
-                bubbleButton.navigation = new Navigation { mode = Navigation.Mode.None };
-                bubbleButton.targetGraphic = bg;
-                ChatMessage captured = msg;
-                bubbleButton.onClick.RemoveAllListeners();
-                bubbleButton.onClick.AddListener(() => OnMessageClickedForReply(captured));
-            }
-
-            // Let prefab handle its own layout; do not force TMP injection below.
+            Debug.LogError("[ChatUIHandler] FirebaseManager not found.");
             return;
         }
 
-        Image bubbleImage = null;
-        if (!string.IsNullOrEmpty(bubbleBackgroundImageName))
+        var outgoing = new ChatMessage(GetLocalSenderDisplayName(), text.Trim())
         {
-            Transform t = newMsg.transform.Find(bubbleBackgroundImageName);
-            if (t != null)
-                bubbleImage = t.GetComponent<Image>();
-        }
-        if (bubbleImage == null)
-            bubbleImage = newMsg.GetComponent<Image>();
-        if (bubbleImage == null)
-            bubbleImage = newMsg.GetComponentInChildren<Image>(true);
+            senderId = FirebaseManager.Instance.GetUserId() ?? string.Empty
+        };
 
-        if (bubbleImage != null)
+        if (!string.IsNullOrEmpty(replyToMessageId))
         {
-            Sprite pick = isSelf ? chatBubbleSelf : chatBubbleOther;
-            if (pick != null)
-            {
-                bubbleImage.sprite = pick;
-                bubbleImage.type = Image.Type.Sliced;
-            }
+            outgoing.replyToMessageId      = replyToMessageId;
+            outgoing.replyToDisplayName    = replyToDisplayName    ?? string.Empty;
+            outgoing.replyToMessagePreview = replyToMessagePreview ?? string.Empty;
         }
 
-        TMP_Text textComponent = newMsg.GetComponentInChildren<TMP_Text>();
-        if (textComponent != null)
-            textComponent.text = isSelf ? msg.message : $"{msg.userName}: {msg.message}";
-
-        ApplyBubbleAutoLayout(newMsg, textComponent);
+        FirebaseManager.Instance.SendChatMessage(outgoing);
+        chatUIController?.NotifyReplyCleared();
     }
 
-    void OnMessageClickedForReply(ChatMessage msg)
+    public void WebViewRequestBack() => OnBackClicked();
+
+    public void WebViewRequestLeaveChat()
     {
-        if (msg == null) return;
-        if (IsWebViewActive())
-            return;
-        // Don’t allow replying to money/system empty messages if you add them later.
-        SetReply(msg);
+        FirebaseManager.Instance?.StopChatListening();
+        OnBackClicked();
     }
 
-    Texture2D _cachedAvatarTex;
-    Sprite _cachedAvatarSpriteFromTex;
+    // Reply state is tracked entirely in ChatUIController; this is kept for call-site compatibility.
+    public void WebViewSelectReply(string messageId, string userName, string displayName, string messageBody) { }
 
-    Sprite ResolveAvatarSprite(ChatMessage msg)
+    public void WebViewClearReply() => chatUIController?.NotifyReplyCleared();
+
+    public void WebViewRequestOpenAlbum()
     {
-        if (IsMessageFromLocalUser(msg) && AvatarManager.Instance != null && AvatarManager.Instance.CurrentAvatar != null)
+        if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
+        pageManager?.ShowAlbumFromChat();
+    }
+
+    public void WebViewSetRoom(string roomId)
+    {
+        if (FirebaseManager.Instance == null) return;
+        FirebaseManager.Instance.SetRoomId(roomId);
+        SetRoomHeader($"Room: {FirebaseManager.Instance.RoomId}", 0);
+    }
+
+    public bool IsWebViewChatEnabled() => false;
+
+    public void RefreshChatLayout() { }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    void FetchAndUpdateMembers()
+    {
+        string roomId = FirebaseManager.Instance?.RoomId;
+        if (string.IsNullOrEmpty(roomId)) return;
+
+        FirebaseManager.Instance.GetRoomMembers(roomId, members =>
         {
-            Texture2D tex = AvatarManager.Instance.CurrentAvatar;
-            if (tex != _cachedAvatarTex || _cachedAvatarSpriteFromTex == null)
-            {
-                if (_cachedAvatarSpriteFromTex != null)
-                    Destroy(_cachedAvatarSpriteFromTex);
-                _cachedAvatarTex = tex;
-                try
-                {
-                    _cachedAvatarSpriteFromTex = Sprite.Create(
-                        tex,
-                        new Rect(0f, 0f, tex.width, tex.height),
-                        new Vector2(0.5f, 0.5f),
-                        100f);
-                }
-                catch
-                {
-                    _cachedAvatarSpriteFromTex = null;
-                }
-            }
-            if (_cachedAvatarSpriteFromTex != null)
-                return _cachedAvatarSpriteFromTex;
-        }
-
-        return defaultChatAvatarSprite;
+            if (members == null || members.Count == 0) return;
+            _headerMemberCount = members.Count;
+            SetRoomHeader(_headerRoomName, _headerMemberCount);
+            chatUIController?.NotifyMembers(members);
+        });
     }
 
-    void EnsureChatContentVerticalLayoutForBubbles()
+    void OnBackClicked()
     {
-        if (!chatContentIntrinsicBubbleWidth || chatContent == null)
-            return;
-
-        VerticalLayoutGroup v = chatContent.GetComponent<VerticalLayoutGroup>();
-        if (v == null)
-            return;
-
-        v.childControlWidth = false;
-        v.childForceExpandWidth = false;
-        v.childControlHeight = false;
-        v.childForceExpandHeight = false;
-    }
-
-    GameObject CreateChatBubbleRowShell()
-    {
-        GameObject row = new GameObject("ChatBubbleRow", typeof(RectTransform));
-        RectTransform rt = row.GetComponent<RectTransform>();
-        rt.SetParent(chatContent, false);
-        rt.localScale = Vector3.one;
-
-        HorizontalLayoutGroup h = row.AddComponent<HorizontalLayoutGroup>();
-        h.spacing = 6f;
-        h.padding = new RectOffset(6, 6, 4, 4);
-        h.childAlignment = TextAnchor.UpperLeft;
-        h.childControlWidth = true;
-        h.childControlHeight = true;
-        h.childForceExpandWidth = false;
-        h.childForceExpandHeight = false;
-
-        LayoutElement rowLe = row.AddComponent<LayoutElement>();
-        rowLe.flexibleWidth = 1f;
-
-        ContentSizeFitter rowFit = row.AddComponent<ContentSizeFitter>();
-        rowFit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        rowFit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        return row;
-    }
-
-    static void AddChatRowFlexSpacer(Transform row)
-    {
-        GameObject sp = new GameObject("FlexSpacer", typeof(RectTransform));
-        sp.transform.SetParent(row, false);
-        LayoutElement le = sp.AddComponent<LayoutElement>();
-        le.flexibleWidth = 1f;
-        le.minWidth = 0f;
-    }
-
-    void ApplyBubbleAutoLayout(GameObject bubbleRoot, TMP_Text tmp)
-    {
-        if (!useBubbleAutoSize || bubbleRoot == null || tmp == null)
-            return;
-
-        RectTransform rootRt = bubbleRoot.transform as RectTransform;
-        if (rootRt == null)
-            return;
-
-        tmp.enableWordWrapping = true;
-        tmp.overflowMode = TextOverflowModes.Overflow;
-
-        RectTransform textRt = tmp.rectTransform;
-        textRt.anchorMin = new Vector2(0f, 1f);
-        textRt.anchorMax = new Vector2(0f, 1f);
-        textRt.pivot = new Vector2(0f, 1f);
-        textRt.anchoredPosition = new Vector2(bubbleTextPadding.x, -bubbleTextPadding.y);
-
-        float innerMax = Mathf.Max(40f, bubbleMaxWidth - bubbleTextPadding.x * 2f);
-        string s = tmp.text ?? string.Empty;
-
-        tmp.enableWordWrapping = false;
-        tmp.ForceMeshUpdate(true);
-        float unwrappedW = Mathf.Max(tmp.GetPreferredValues(s).x, 8f);
-        tmp.enableWordWrapping = true;
-
-        float lineWidth = Mathf.Min(unwrappedW, innerMax);
-
-        textRt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, lineWidth);
-        tmp.ForceMeshUpdate(true);
-        float bodyH = tmp.preferredHeight + bubbleTextPadding.y;
-        textRt.sizeDelta = new Vector2(lineWidth, Mathf.Max(bodyH, 18f));
-
-        rootRt.anchorMin = new Vector2(0f, 1f);
-        rootRt.anchorMax = new Vector2(0f, 1f);
-        rootRt.pivot = new Vector2(0f, 1f);
-
-        ContentSizeFitter fit = bubbleRoot.GetComponent<ContentSizeFitter>();
-        if (fit == null)
-            fit = bubbleRoot.AddComponent<ContentSizeFitter>();
-        fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        LayoutElement le = bubbleRoot.GetComponent<LayoutElement>();
-        if (le == null)
-            le = bubbleRoot.AddComponent<LayoutElement>();
-        le.flexibleWidth = 0f;
-        le.flexibleHeight = 0f;
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(rootRt);
+        if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
+        pageManager?.ShowHomePage();
     }
 
     void LoadChatHistoryAndRebuildUI()
     {
-        // Local file cache removed — Firebase SDK persistence handles offline caching.
-        // Just clear in-memory history; Firebase listener will repopulate via DisplayMessage.
         localHistory.Clear();
-
-        if (!IsWebViewActive() && chatContent != null)
-        {
-            for (int i = chatContent.childCount - 1; i >= 0; i--)
-                Destroy(chatContent.GetChild(i).gameObject);
-        }
-
-        if (IsWebViewActive())
-            PushFullStateToWebView();
-        else
-            ScrollToLatest();
+        PushFullStateToWebView();
     }
 
-    void ScrollToLatest()
+    string GetLocalSenderDisplayName() =>
+        FirebaseManager.Instance != null ? FirebaseManager.Instance.GetDisplayName() : "Guest";
+
+    string GetHeaderAnimalImageBase64Png()
     {
-        if (scrollRect == null)
-            return;
-
-        Canvas.ForceUpdateCanvases();
-
-        if (!smoothScrollToLatest || !isActiveAndEnabled)
+        try
         {
-            scrollRect.verticalNormalizedPosition = 0f;
-            return;
+            Texture2D tex = AvatarManager.Instance?.CurrentAvatar;
+            if (tex == null) return null;
+            byte[] png;
+            try { png = tex.EncodeToPNG(); }
+            catch { png = EncodeToPngViaReadback(tex); }
+            if (png == null || png.Length == 0) return null;
+            return Convert.ToBase64String(png);
         }
-
-        if (_smoothScrollRoutine != null)
-            StopCoroutine(_smoothScrollRoutine);
-        _smoothScrollRoutine = StartCoroutine(SmoothScrollToBottom());
+        catch { return null; }
     }
 
-    IEnumerator SmoothScrollToBottom()
+    static byte[] EncodeToPngViaReadback(Texture2D tex)
     {
-        float start = scrollRect.verticalNormalizedPosition;
-        float t = 0f;
-        float dur = Mathf.Max(0.02f, smoothScrollDuration);
-        while (t < dur)
+        if (tex == null) return null;
+        RenderTexture rt   = null;
+        RenderTexture prev = RenderTexture.active;
+        try
         {
-            t += Time.unscaledDeltaTime;
-            float k = Mathf.Clamp01(t / dur);
-            k = k * k * (3f - 2f * k);
-            scrollRect.verticalNormalizedPosition = Mathf.Lerp(start, 0f, k);
-            yield return null;
+            rt = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
+            Graphics.Blit(tex, rt);
+            RenderTexture.active = rt;
+            var copy = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
+            copy.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+            copy.Apply(false, false);
+            byte[] png = copy.EncodeToPNG();
+            Destroy(copy);
+            return png;
         }
-
-        scrollRect.verticalNormalizedPosition = 0f;
-        _smoothScrollRoutine = null;
+        catch { return null; }
+        finally
+        {
+            RenderTexture.active = prev;
+            if (rt != null) RenderTexture.ReleaseTemporary(rt);
+        }
     }
 }

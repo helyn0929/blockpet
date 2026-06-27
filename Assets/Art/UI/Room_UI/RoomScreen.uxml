@@ -1,38 +1,37 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
-    <Style src="project://database/Assets/Art/UI/Room_UI/RoomScreen.uss" />
+    <Style src="project://database/Assets/Art/UI/Room_UI/RoomScreen.uss?fileID=7433441132597879392&amp;guid=c3df07d8341f4424287225b82e21c6ef&amp;type=3#RoomScreen" />
     <ui:VisualElement name="room-root" class="room-root">
-
-        <!-- Wandering pet world (absolute fill, pets added here in code) -->
-        <ui:VisualElement name="pet-world" class="pet-world" />
-
-        <!-- Floating settings button (top-right) -->
-        <ui:Button name="btn-settings" class="floating-settings-btn">
-            <ui:VisualElement class="floating-settings-img" />
-        </ui:Button>
-
-        <!-- Join panel (slides up above action bar) -->
-        <ui:VisualElement name="join-panel" class="join-panel">
-            <ui:TextField name="join-input" placeholder-text="輸入房間碼..." class="join-input" />
-            <ui:Button name="btn-join-confirm" class="join-confirm-btn">
-                <ui:Label text="加入" class="join-confirm-label" />
-            </ui:Button>
-        </ui:VisualElement>
-
-        <!-- Frosted action bar at bottom -->
-        <ui:VisualElement class="action-bar">
-            <ui:Button name="btn-create" class="action-btn action-btn--primary">
-                <ui:Label text="建立房間" class="action-btn-label" />
-            </ui:Button>
-            <ui:Button name="btn-join-toggle" class="action-btn action-btn--secondary">
-                <ui:Label text="加入房間" class="action-btn-label" />
-            </ui:Button>
-        </ui:VisualElement>
-
-        <!-- Empty state (no rooms) -->
+        <ui:VisualElement name="pet-world" class="pet-world" style="background-image: url(&quot;project://database/Assets/Art/UI/Room_UI/room_background.jpg?fileID=2800000&amp;guid=2379b8b5822fd9a49a0fa0bc05262566&amp;type=3#room_background&quot;);" />
         <ui:VisualElement name="empty-state" class="empty-state">
             <ui:Label text="還沒有房間" class="empty-title" />
             <ui:Label text="建立或加入一個吧！" class="empty-subtitle" />
         </ui:VisualElement>
-
+        <ui:Button name="btn-settings" class="floating-settings-btn">
+            <ui:VisualElement class="floating-settings-img" />
+        </ui:Button>
+        <ui:VisualElement name="join-panel" class="join-panel">
+            <ui:TextField name="join-input" placeholder-text="輸入房間碼..." class="join-input" />
+            <ui:Button name="btn-join-confirm" class="join-confirm-btn">
+                <ui:Label text="Join" class="join-confirm-label" />
+            </ui:Button>
+        </ui:VisualElement>
+        <ui:VisualElement class="action-bar">
+            <ui:Button name="btn-create" class="action-btn action-btn--primary">
+                <ui:Label text="Create Room" class="action-btn-label" />
+            </ui:Button>
+            <ui:Button name="btn-join-toggle" class="action-btn action-btn--secondary">
+                <ui:Label text="Join Room" class="action-btn-label" />
+            </ui:Button>
+        </ui:VisualElement>
+        <ui:VisualElement name="code-overlay" class="code-overlay">
+            <ui:VisualElement class="code-card">
+                <ui:Label text="Room Created!" class="code-card-title" />
+                <ui:Label name="generated-code" text="------" class="code-card-code" />
+                <ui:Label text="Share this code with friends" class="code-card-hint" />
+                <ui:Button name="btn-enter-room" class="code-enter-btn">
+                    <ui:Label text="Enter" class="code-enter-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -23,20 +23,44 @@
 /* ---------- INDIVIDUAL PET (built in code) ---------- */
 .pet {
     position: absolute;
-    width: 80px;
+    width: 110px;
     flex-direction: column;
     align-items: center;
 }
 
-.pet-image {
+/* Photo chat bubble — floats above the sprite */
+.pet-bubble {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    background-color: rgb(255, 255, 255);
+    border-width: 2px;
+    border-color: rgb(255, 255, 255);
+    overflow: hidden;
+    -unity-background-scale-mode: scale-and-crop;
+    margin-bottom: 2px;
+}
+
+.pet-bubble--active {
+    border-color: rgb(255, 220, 50);
+    border-width: 3px;
+}
+
+/* Pet sprite — always shown below the bubble */
+.pet-sprite {
     width: 80px;
     height: 80px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
-.pet-image--active {
+.pet-sprite--active {
     width: 96px;
     height: 96px;
+}
+
+.pet:active {
+    opacity: 0.6;
 }
 
 .pet-name {
@@ -222,4 +246,74 @@
     font-size: 14px;
     color: rgba(255, 255, 255, 0.8);
     -unity-text-align: upper-center;
+}
+
+/* ---------- CODE OVERLAY ---------- */
+.code-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    align-items: center;
+    justify-content: center;
+}
+
+.code-overlay--visible {
+    display: flex;
+}
+
+.code-card {
+    width: 280px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 24px;
+    padding-top: 36px;
+    padding-bottom: 36px;
+    padding-left: 24px;
+    padding-right: 24px;
+    align-items: center;
+}
+
+.code-card-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(15, 23, 42);
+    -unity-text-align: upper-center;
+    margin-bottom: 20px;
+}
+
+.code-card-code {
+    font-size: 38px;
+    -unity-font-style: bold;
+    color: rgb(99, 102, 241);
+    -unity-text-align: upper-center;
+    margin-bottom: 12px;
+}
+
+.code-card-hint {
+    font-size: 13px;
+    color: rgb(142, 142, 147);
+    -unity-text-align: upper-center;
+    margin-bottom: 28px;
+}
+
+.code-enter-btn {
+    width: 200px;
+    height: 50px;
+    border-radius: 25px;
+    border-width: 0;
+    background-color: rgb(99, 102, 241);
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.code-enter-label {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
 }

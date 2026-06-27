@@ -2,19 +2,25 @@ using UnityEngine;
 
 public class FitWidth : MonoBehaviour
 {
-    void Start()
+    void Start() => Fit();
+
+    void Fit()
     {
         var cam = Camera.main;
+        if (cam == null) return;
 
-        float screenHeight = cam.orthographicSize * 2;
-        float screenWidth = screenHeight * cam.aspect;
+        var sr = GetComponent<SpriteRenderer>();
+        if (sr == null || sr.sprite == null) return;
 
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        float screenH = cam.orthographicSize * 2f;
+        float screenW = screenH * cam.aspect;
 
-        float spriteWidth = sr.sprite.bounds.size.x;
+        float spriteW = sr.sprite.bounds.size.x;
+        float spriteH = sr.sprite.bounds.size.y;
 
-        float scale = screenWidth / spriteWidth;
+        // Use the larger scale so the sprite covers the full screen on both axes
+        float scale = Mathf.Max(screenW / spriteW, screenH / spriteH);
 
-        transform.localScale = new Vector3(scale, scale, 1);
+        transform.localScale = new Vector3(scale, scale, 1f);
     }
 }

@@ -200,4 +200,29 @@ public class SaveManager : MonoBehaviour
         }
         catch (Exception e) { Debug.LogError("[SaveManager] LoadPhoto failed: " + e.Message); return null; }
     }
+
+    /// <summary>Returns the latest photo texture for any room without switching the active room.</summary>
+    public Texture2D GetLatestPhotoTextureForRoom(string roomId)
+    {
+        if (string.IsNullOrEmpty(roomId)) return null;
+
+        // Use already-loaded data for the current room
+        if (roomId == _currentRoomId)
+        {
+            if (data?.photos == null || data.photos.Count == 0) return null;
+            return LoadPhoto(data.photos[data.photos.Count - 1]);
+        }
+
+        // Read the save file for a different room without touching global state
+        string safe = roomId.Replace("/", "_").Replace("\\", "_").Replace("..", "_");
+        string jsonPath = Path.Combine(Application.persistentDataPath, $"save_{safe}.json");
+        if (!File.Exists(jsonPath)) return null;
+        try
+        {
+            var sd = JsonUtility.FromJson<SaveData>(File.ReadAllText(jsonPath));
+            if (sd?.photos == null || sd.photos.Count == 0) return null;
+            return LoadPhoto(sd.photos[sd.photos.Count - 1]);
+        }
+        catch { return null; }
+    }
 }

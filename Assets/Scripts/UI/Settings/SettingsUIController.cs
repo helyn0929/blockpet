@@ -35,19 +35,43 @@ public class SettingsUIController : MonoBehaviour
     }
 
     float _dragStartY;
+    bool  _dragging;
+    const float DismissThreshold = 120f;
 
     void OnEnable()
     {
         _root = _doc.rootVisualElement;
+        _root.style.top = 0;
 
-        // Drag handle — swipe down to close
+        // Drag handle — swipe down to close with visual slide
         var handle = _root.Q<VisualElement>("drag-handle-area");
         if (handle != null)
         {
-            handle.RegisterCallback<PointerDownEvent>(e => _dragStartY = e.position.y);
+            handle.RegisterCallback<PointerDownEvent>(e =>
+            {
+                _dragStartY = e.position.y;
+                _dragging   = true;
+                handle.CapturePointer(e.pointerId);
+            });
+
+            handle.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!_dragging) return;
+                float delta = e.position.y - _dragStartY;
+                _root.style.top = Mathf.Max(0, delta);
+            });
+
             handle.RegisterCallback<PointerUpEvent>(e =>
             {
-                if (e.position.y - _dragStartY > 40f) OnClickClose();
+                if (!_dragging) return;
+                _dragging = false;
+                handle.ReleasePointer(e.pointerId);
+
+                float delta = e.position.y - _dragStartY;
+                if (delta > DismissThreshold)
+                    AnimateOutAndClose();
+                else
+                    AnimateSnapBack();
             });
         }
 
@@ -102,7 +126,39 @@ public class SettingsUIController : MonoBehaviour
 
     void OnClickClose()
     {
+        _root.style.top = 0;
         if (pageManager != null) pageManager.ShowRoomPage();
+    }
+
+    void AnimateOutAndClose()
+    {
+        float screenH = _root.resolvedStyle.height;
+        if (screenH <= 0) screenH = Screen.height;
+        float start = _root.resolvedStyle.top;
+        float elapsed = 0f;
+        const float duration = 0.18f;
+
+        _root.schedule.Execute(() =>
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            _root.style.top = Mathf.Lerp(start, screenH, t);
+            if (t >= 1f) OnClickClose();
+        }).Every(16).Until(() => false);
+    }
+
+    void AnimateSnapBack()
+    {
+        float start = _root.resolvedStyle.top;
+        float elapsed = 0f;
+        const float duration = 0.12f;
+
+        _root.schedule.Execute(() =>
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            _root.style.top = Mathf.Lerp(start, 0, t);
+        }).Every(16).Until(() => elapsed >= duration);
     }
 
     void OnClickChangeAvatar()

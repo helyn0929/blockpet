@@ -566,6 +566,14 @@ public class FirebaseManager : MonoBehaviour
             lastActiveAt = DateTime.UtcNow.ToString("o"),
         };
 
+        var initPet = new RoomPetState
+        {
+            currentHealth = 86400f,
+            lastUpdateTime = DateTime.UtcNow.ToString("o"),
+            petIndex = 0,
+            startingPhotoCount = 0,
+        };
+
         var roomRoot = dbRef.Child("Rooms").Child(id);
         roomRoot.Child("meta").SetRawJsonValueAsync(JsonUtility.ToJson(meta)).ContinueWith(t =>
         {
@@ -575,6 +583,9 @@ public class FirebaseManager : MonoBehaviour
                 lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(false, t.Exception?.ToString()));
                 return;
             }
+
+            // Initialize pet as kirby (petIndex 0). Fire-and-forget.
+            roomRoot.Child("petState").SetRawJsonValueAsync(JsonUtility.ToJson(initPet));
 
             // Join as a member + add to "my rooms" list.
             roomRoot.Child("members").Child(auth.CurrentUser.UserId).SetValueAsync(true).ContinueWith(tMember =>

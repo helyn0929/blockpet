@@ -37,13 +37,13 @@
                 <ui:VisualElement class="row-divider" />
                 <ui:Button name="btn-logout" class="row-btn">
                     <ui:Label text="🚪" class="row-icon" />
-                    <ui:Label text="登出" class="row-text" />
+                    <ui:Label text="Logout" class="row-text" />
                     <ui:Label text="›" class="row-arrow" />
                 </ui:Button>
                 <ui:VisualElement class="row-divider" />
                 <ui:Button name="btn-delete-account" class="row-btn">
                     <ui:Label text="🗑" class="row-icon" />
-                    <ui:Label text="刪除帳號" class="row-text row-text--danger" />
+                    <ui:Label text="Delete Account" class="row-text row-text--danger" />
                     <ui:Label text="›" class="row-arrow row-text--danger" />
                 </ui:Button>
             </ui:VisualElement>

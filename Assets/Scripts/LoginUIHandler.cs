@@ -180,6 +180,9 @@ public class LoginUIHandler : MonoBehaviour
         var pageManager = FindObjectOfType<PageManager>(true);
         if (pageManager != null) pageManager.HideAllPages();
 
+        // loginPanel was deactivated after login — re-enable it so its child LoginUIDocument can show.
+        if (loginPanel != null) loginPanel.gameObject.SetActive(true);
+
         // Re-enable the UIToolkit login screen.
         var loginController = FindObjectOfType<LoginScreenController>(true);
         if (loginController != null) loginController.gameObject.SetActive(true);

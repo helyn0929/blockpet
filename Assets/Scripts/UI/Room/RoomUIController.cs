@@ -9,6 +9,8 @@ public class RoomUIController : MonoBehaviour
     [SerializeField] PageManager pageManager;
     [Tooltip("Pet sprites cycled across rooms: kirby, ibu, imagine, …")]
     [SerializeField] Sprite[] petSprites;
+    [Tooltip("Pet names matching petSprites order: Kirby, Image, …")]
+    [SerializeField] string[] petNames;
 
     UIDocument _doc;
     VisualElement _root;
@@ -18,6 +20,8 @@ public class RoomUIController : MonoBehaviour
     TextField _joinInput;
 
     bool _joinPanelOpen;
+    VisualElement _codeOverlay;
+    Label _generatedCodeLabel;
     List<FirebaseManager.RoomSummary> _rooms = new();
     List<PetActor> _actors = new();
     Firebase.Database.DatabaseReference _userRoomsRef;
@@ -28,7 +32,7 @@ public class RoomUIController : MonoBehaviour
     const float MarginTop     = 20f;   // small top margin
     const float MarginBottom  = 110f;  // clear action bar
     const float MarginSide    = 10f;
-    const float PetHalfW      = 50f;   // half pet element width for clamping
+    const float PetHalfW      = 55f;   // half pet element width for clamping
 
     // ── Unity lifecycle ───────────────────────────────────────────────────────
 
@@ -45,11 +49,14 @@ public class RoomUIController : MonoBehaviour
         _joinPanel = _root.Q<VisualElement>("join-panel");
         _emptyState = _root.Q<VisualElement>("empty-state");
         _joinInput = _root.Q<TextField>("join-input");
+        _codeOverlay = _root.Q<VisualElement>("code-overlay");
+        _generatedCodeLabel = _root.Q<Label>("generated-code");
 
         WireButton("btn-settings",     OnClickSettings);
         WireButton("btn-create",       OnClickCreate);
         WireButton("btn-join-toggle",  OnClickJoinToggle);
         WireButton("btn-join-confirm", OnClickJoinConfirm);
+        WireButton("btn-enter-room",   OnClickEnterRoom);
 
         if (_joinInput != null)
             _joinInput.RegisterCallback<KeyDownEvent>(e =>
@@ -209,10 +216,21 @@ public class RoomUIController : MonoBehaviour
         var pet = new VisualElement();
         pet.AddToClassList("pet");
 
-        // Pet image
+        // Photo chat bubble — only shown when a photo exists, floats above the sprite
+        var latestPhoto = SaveManager.Instance?.GetLatestPhotoTextureForRoom(room.roomId);
+        if (latestPhoto != null)
+        {
+            var bubble = new VisualElement();
+            bubble.AddToClassList("pet-bubble");
+            if (isCurrent) bubble.AddToClassList("pet-bubble--active");
+            bubble.style.backgroundImage = new StyleBackground(latestPhoto);
+            pet.Add(bubble);
+        }
+
+        // Pet sprite — always visible below the bubble
         var img = new VisualElement();
-        img.AddToClassList("pet-image");
-        if (isCurrent) img.AddToClassList("pet-image--active");
+        img.AddToClassList("pet-sprite");
+        if (isCurrent) img.AddToClassList("pet-sprite--active");
         if (petSprites != null && petSprites.Length > 0)
         {
             var sprite = petSprites[room.petIndex % petSprites.Length];
@@ -221,8 +239,10 @@ public class RoomUIController : MonoBehaviour
         }
         pet.Add(img);
 
-        // Room name label
-        string displayName = string.IsNullOrEmpty(room.name) ? room.roomId : room.name;
+        // Pet name label — prefer custom name, fall back to species name
+        string displayName = !string.IsNullOrEmpty(room.name)
+            ? room.name
+            : PetNameAt(room.petIndex);
         var nameLabel = new Label(displayName);
         nameLabel.AddToClassList("pet-name");
         if (isCurrent) nameLabel.AddToClassList("pet-name--active");
@@ -236,9 +256,9 @@ public class RoomUIController : MonoBehaviour
             pet.Add(badge);
         }
 
-        // Tap to enter room
+        // Tap to enter room — PointerDown fires immediately on touch regardless of drift
         string capturedId = room.roomId;
-        pet.RegisterCallback<ClickEvent>(_ => EnterRoom(capturedId));
+        pet.RegisterCallback<PointerDownEvent>(_ => EnterRoom(capturedId));
 
         return pet;
     }
@@ -252,10 +272,18 @@ public class RoomUIController : MonoBehaviour
         string code = GenerateCode(6);
         FirebaseManager.Instance?.SetRoomId(code);
         GUIUtility.systemCopyBuffer = code;
-        FirebaseManager.Instance?.CreateRoom(code, "Room " + code, (ok, err) =>
+        string defaultPetName = PetNameAt(0);
+        FirebaseManager.Instance?.CreateRoom(code, defaultPetName, (ok, err) =>
         {
             if (!ok) Debug.LogWarning("[RoomUIController] CreateRoom failed: " + err);
         });
+        if (_generatedCodeLabel != null) _generatedCodeLabel.text = code;
+        _codeOverlay?.AddToClassList("code-overlay--visible");
+    }
+
+    void OnClickEnterRoom()
+    {
+        _codeOverlay?.RemoveFromClassList("code-overlay--visible");
         EnterGameAndGoHome();
     }
 
@@ -311,6 +339,15 @@ public class RoomUIController : MonoBehaviour
     {
         var btn = _root?.Q<Button>(name);
         if (btn != null) btn.clicked += cb;
+    }
+
+    string PetNameAt(int index)
+    {
+        if (petNames != null && petNames.Length > 0)
+            return petNames[index % petNames.Length];
+        // Hardcoded fallbacks matching default sprite order
+        string[] defaults = { "Kirby", "Image" };
+        return defaults[index % defaults.Length];
     }
 
     static string GenerateCode(int len)

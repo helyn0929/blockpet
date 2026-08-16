@@ -58,6 +58,9 @@ public class AIController : MonoBehaviour
 
     IEnumerator StateMachine()
     {
+        // Wait until agent is placed on NavMesh before starting
+        yield return new WaitUntil(() => _agent.isOnNavMesh);
+
         while (true)
         {
             switch (_state)
@@ -74,7 +77,7 @@ public class AIController : MonoBehaviour
 
     IEnumerator RunIdle()
     {
-        _agent.ResetPath();
+        if (_agent.isOnNavMesh) _agent.ResetPath();
         int lvl = Mathf.Clamp(heartLevel, 1, 5) - 1;
         float wait = Random.Range(IdleMin[lvl], IdleMax[lvl]);
         yield return new WaitForSeconds(wait);
@@ -94,6 +97,7 @@ public class AIController : MonoBehaviour
             yield break;
         }
 
+        if (!_agent.isOnNavMesh) { _state = State.Idle; yield break; }
         _agent.SetDestination(target);
 
         // Wait until agent arrives (or path becomes invalid)

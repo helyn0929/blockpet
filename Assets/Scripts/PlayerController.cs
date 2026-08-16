@@ -50,12 +50,12 @@ public class PlayerController : MonoBehaviour
 
     void TryMoveTo(Vector3 screenPos)
     {
-        // Convert screen → world (keep agent's Z so the 2D plane stays correct)
         Vector3 worldPos = _cam.ScreenToWorldPoint(screenPos);
         worldPos.z = transform.position.z;
 
-        if (NavMesh.SamplePosition(worldPos, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
-            _agent.SetDestination(hit.position);
+        bool found = NavMesh.SamplePosition(worldPos, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas);
+        Debug.Log($"[PlayerController] click world={worldPos} onNavMesh={_agent.isOnNavMesh} sampleFound={found}");
+        if (found) _agent.SetDestination(hit.position);
     }
 
     void ApplyFlip()

@@ -93,18 +93,20 @@ public class FirebaseManager : MonoBehaviour
                 dbRef = db.RootReference;
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
-                _roomId = PlayerPrefs.GetString(PrefsRoomId, "");
+                lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => _roomId = PlayerPrefs.GetString(PrefsRoomId, "")); }
 
                 // Listen for auth state changes (sign-in, token refresh, sign-out).
                 auth.StateChanged += OnAuthStateChanged;
 
                 // If already signed in (returning user), skip the login screen automatically.
                 // But respect explicit sign-out: if the user signed out last session, show the login screen.
-                if (!_loginNotified && auth != null && auth.CurrentUser != null
-                    && PlayerPrefs.GetInt(PrefsUserSignedOut, 0) == 0)
+                if (!_loginNotified && auth != null && auth.CurrentUser != null)
                 {
                     _loginNotified = true;
-                    lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
+                    lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => {
+                        if (PlayerPrefs.GetInt(PrefsUserSignedOut, 0) == 0)
+                            OnLoginSuccess?.Invoke(true);
+                    }); }
                 }
 
                 // IMPORTANT: many RTDB security rules require an authenticated user.

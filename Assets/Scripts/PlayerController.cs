@@ -1,28 +1,23 @@
 using UnityEngine;
-using UnityEngine.AI;
 
-[RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(SpriteRenderer))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Navigation")]
-    [SerializeField] float sampleRadius = 1f;
+    [Header("Movement")]
+    [SerializeField] float moveSpeed = 3f;
 
     [Header("Y-Sort")]
     [SerializeField] int sortingBase = 0;
     [SerializeField] float sortingScale = 100f;
 
-    NavMeshAgent _agent;
     SpriteRenderer _sr;
     Camera _cam;
+    Vector3 _target;
+    bool _moving;
 
     void Awake()
     {
-        _agent = GetComponent<NavMeshAgent>();
-        _sr    = GetComponent<SpriteRenderer>();
-
-        _agent.updateRotation = false;
-        _agent.updateUpAxis   = false;
+        _sr = GetComponent<SpriteRenderer>();
+        _target = transform.position;
     }
 
     void Start()
@@ -33,6 +28,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleInput();
+        MoveToTarget();
         ApplyFlip();
         ApplyYSort();
     }
@@ -41,28 +37,35 @@ public class PlayerController : MonoBehaviour
     {
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (Input.GetMouseButtonDown(0))
-            TryMoveTo(Input.mousePosition);
+            SetTarget(Input.mousePosition);
 #else
         if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
-            TryMoveTo(Input.GetTouch(0).position);
+            SetTarget(Input.GetTouch(0).position);
 #endif
     }
 
-    void TryMoveTo(Vector3 screenPos)
+    void SetTarget(Vector3 screenPos)
     {
-        Vector3 worldPos = _cam.ScreenToWorldPoint(screenPos);
-        worldPos.z = transform.position.z;
+        Vector3 world = _cam.ScreenToWorldPoint(screenPos);
+        world.z = transform.position.z;
+        _target = world;
+        _moving = true;
+    }
 
-        bool found = NavMesh.SamplePosition(worldPos, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas);
-        Debug.Log($"[PlayerController] click world={worldPos} onNavMesh={_agent.isOnNavMesh} sampleFound={found}");
-        if (found) _agent.SetDestination(hit.position);
+    void MoveToTarget()
+    {
+        if (!_moving) return;
+        transform.position = Vector3.MoveTowards(transform.position, _target, moveSpeed * Time.deltaTime);
+        if (Vector3.Distance(transform.position, _target) < 0.05f)
+            _moving = false;
     }
 
     void ApplyFlip()
     {
-        float vx = _agent.velocity.x;
-        if (vx > 0.05f)       _sr.flipX = false;
-        else if (vx < -0.05f) _sr.flipX = true;
+        if (!_moving) return;
+        float dx = _target.x - transform.position.x;
+        if (dx > 0.05f)       _sr.flipX = false;
+        else if (dx < -0.05f) _sr.flipX = true;
     }
 
     void ApplyYSort()

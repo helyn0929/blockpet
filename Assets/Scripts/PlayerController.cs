@@ -5,6 +5,10 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] float moveSpeed = 3f;
 
+    [Header("Bounds")]
+    [Tooltip("拖入 WalkableBounds 物件的 PolygonCollider2D")]
+    [SerializeField] Collider2D walkableBounds;
+
     [Header("Y-Sort")]
     [SerializeField] int sortingBase = 0;
     [SerializeField] float sortingScale = 100f;
@@ -48,7 +52,12 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 world = _cam.ScreenToWorldPoint(screenPos);
         world.z = transform.position.z;
-        _target = world;
+
+        Vector2 target2D = new Vector2(world.x, world.y);
+        if (walkableBounds != null && !walkableBounds.OverlapPoint(target2D))
+            target2D = walkableBounds.ClosestPoint(target2D);
+
+        _target = new Vector3(target2D.x, target2D.y, transform.position.z);
         _moving = true;
     }
 

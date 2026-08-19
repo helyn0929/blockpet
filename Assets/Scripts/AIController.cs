@@ -8,6 +8,10 @@ public class AIController : MonoBehaviour
     [Header("Wander")]
     [SerializeField] float wanderRadius = 4f;
 
+    [Header("Bounds")]
+    [Tooltip("拖入 WalkableBounds 物件的 PolygonCollider2D")]
+    [SerializeField] Collider2D walkableBounds;
+
     [Header("Heart Level (1–5)")]
     [Tooltip("Higher level → shorter idle wait and faster movement")]
     [SerializeField, Range(1, 5)] int heartLevel = 1;
@@ -65,11 +69,22 @@ public class AIController : MonoBehaviour
     {
         int lvl = Mathf.Clamp(heartLevel, 1, 5) - 1;
         yield return new WaitForSeconds(Random.Range(IdleMin[lvl], IdleMax[lvl]));
-        _target = _startPos + new Vector3(
-            Random.Range(-wanderRadius, wanderRadius),
-            Random.Range(-wanderRadius, wanderRadius),
-            0f);
-        _speed  = SpeedVal[lvl];
+
+        Vector2 candidate = (Vector2)_startPos + Random.insideUnitCircle * wanderRadius;
+        if (walkableBounds != null)
+        {
+            // 最多試8次找一個在範圍內的點，找不到就用最近合法點
+            bool found = false;
+            for (int i = 0; i < 8; i++)
+            {
+                candidate = (Vector2)_startPos + Random.insideUnitCircle * wanderRadius;
+                if (walkableBounds.OverlapPoint(candidate)) { found = true; break; }
+            }
+            if (!found) candidate = walkableBounds.ClosestPoint(candidate);
+        }
+
+        _target = new Vector3(candidate.x, candidate.y, transform.position.z);
+        _speed  = SpeedVal[Mathf.Clamp(heartLevel, 1, 5) - 1];
         _state  = State.Walking;
     }
 

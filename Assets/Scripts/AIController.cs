@@ -1,7 +1,8 @@
 using System.Collections;
 using UnityEngine;
+using BlockPet.Core;
 
-public class AIController : MonoBehaviour
+public class AIController : MonoBehaviour, IEditModeFreezable
 {
     public enum State { Idle, Walking }
 
@@ -25,6 +26,7 @@ public class AIController : MonoBehaviour
     Vector3 _startPos;
     Vector3 _target;
     float _speed;
+    bool _frozen;
 
     static readonly float[] IdleMin  = { 3f, 2.5f, 2f,  1f,  0.5f };
     static readonly float[] IdleMax  = { 6f, 5f,   4f,  3f,  2f   };
@@ -44,9 +46,23 @@ public class AIController : MonoBehaviour
 
     void OnDisable() => StopAllCoroutines();
 
+    public void SetEditModeFrozen(bool frozen)
+    {
+        _frozen = frozen;
+        if (frozen)
+        {
+            StopAllCoroutines();
+            _state = State.Idle;
+        }
+        else if (gameObject.activeInHierarchy)
+        {
+            StartCoroutine(StateMachine());
+        }
+    }
+
     void Update()
     {
-        if (_state == State.Walking)
+        if (!_frozen && _state == State.Walking)
         {
             transform.position = Vector3.MoveTowards(transform.position, _target, _speed * Time.deltaTime);
             ApplyFlip();

@@ -1,6 +1,7 @@
 using UnityEngine;
+using BlockPet.Core;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IEditModeFreezable
 {
     [Header("Movement")]
     [SerializeField] float moveSpeed = 3f;
@@ -17,6 +18,7 @@ public class PlayerController : MonoBehaviour
     Camera _cam;
     Vector3 _target;
     bool _moving;
+    bool _frozen;
 
     void Awake()
     {
@@ -37,8 +39,15 @@ public class PlayerController : MonoBehaviour
         ApplyYSort();
     }
 
+    public void SetEditModeFrozen(bool frozen)
+    {
+        _frozen = frozen;
+        if (frozen) _moving = false;
+    }
+
     void HandleInput()
     {
+        if (_frozen) return;
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (Input.GetMouseButtonDown(0))
             SetTarget(Input.mousePosition);

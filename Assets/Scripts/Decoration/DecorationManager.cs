@@ -29,6 +29,7 @@ namespace BlockPet.Decoration
         bool _isListening;
         bool _isEditLockHeld;
         public bool IsEditLockHeld => _isEditLockHeld;
+        public bool IsListening => _isListening;
 
         // ─── Lifecycle ─────────────────────────────────────────────────
 
@@ -36,6 +37,25 @@ namespace BlockPet.Decoration
         {
             if (Instance != null) { Destroy(gameObject); return; }
             Instance = this;
+        }
+
+        void Start()
+        {
+            // Firebase 初始化是非同步的，訂閱登入成功事件確保 roomId 拿到後再開始監聽
+            FirebaseManager.OnLoginSuccess += OnFirebaseReady;
+
+            // 若已登入（重新進主頁）直接啟動
+            string roomId = FirebaseManager.Instance?.RoomId ?? "";
+            if (!string.IsNullOrEmpty(roomId))
+                StartListening(roomId);
+        }
+
+        void OnFirebaseReady(bool success)
+        {
+            if (!success) return;
+            string roomId = FirebaseManager.Instance?.RoomId ?? "";
+            if (!string.IsNullOrEmpty(roomId) && !_isListening)
+                StartListening(roomId);
         }
 
         void Update()
@@ -46,6 +66,7 @@ namespace BlockPet.Decoration
 
         void OnDestroy()
         {
+            FirebaseManager.OnLoginSuccess -= OnFirebaseReady;
             StopListening();
             if (Instance == this) Instance = null;
         }
@@ -126,6 +147,7 @@ namespace BlockPet.Decoration
                                      Quaternion.Euler(0f, 0f, rotation),
                                      decorationContainer);
                 go.name = $"Decor_{decorId}";
+                go.transform.localScale = Vector3.one * item.worldScale;
                 var obj = go.GetComponent<DecorationObject>();
                 obj.Init(decorId, itemId, placedBy, item.worldSprite, sortingOrder);
                 obj.OnDeleteRequested += HandleDeleteRequested;
@@ -155,12 +177,6 @@ namespace BlockPet.Decoration
         public void PlaceDecoration(DecorationItem item, Vector3 worldPos, float rotation,
                                     int sortingOrder, Action<bool, string> onDone)
         {
-            if (!EconomyManager.Instance.TrySpend(item.price))
-            {
-                onDone?.Invoke(false, null);
-                return;
-            }
-
             var newRef  = _decorRef.Push();
             string decorId = newRef.Key;
 
@@ -180,7 +196,6 @@ namespace BlockPet.Decoration
                 bool ok = !task.IsFaulted && !task.IsCanceled;
                 lock (_mainQueue) _mainQueue.Enqueue(() =>
                 {
-                    if (!ok) EconomyManager.Instance?.AddCoins(item.price); // refund
                     onDone?.Invoke(ok, ok ? decorId : null);
                 });
             });
@@ -201,6 +216,12 @@ namespace BlockPet.Decoration
 
         public void AcquireEditLock(Action<bool> onResult)
         {
+            if (_editingByRef == null)
+            {
+                Debug.LogWarning("[DecorationManager] AcquireEditLock called before StartListening.");
+                onResult?.Invoke(false);
+                return;
+            }
             _editingByRef.GetValueAsync().ContinueWith(readTask =>
             {
                 if (readTask.IsFaulted || readTask.IsCanceled)

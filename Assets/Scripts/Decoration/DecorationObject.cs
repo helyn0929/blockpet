@@ -28,8 +28,9 @@ namespace BlockPet.Decoration
             DecorId  = decorId;
             ItemId   = itemId;
             PlacedBy = placedBy;
-            _sr.sprite       = sprite;
-            _sr.sortingOrder = sortingOrder;
+            _sr.sprite            = sprite;
+            _sr.sortingLayerName  = "Pet";
+            _sr.sortingOrder      = sortingOrder;
         }
 
         // ─── Edit mode ─────────────────────────────────────────────────

@@ -15,5 +15,7 @@ namespace BlockPet.Decoration
         public DecorationCategory category;
         public Vector2 pivotOffset;
         public int defaultSortingOrder;
+        [Tooltip("世界裡的縮放比例，調到跟角色比例相符")]
+        public float worldScale = 1f;
     }
 }

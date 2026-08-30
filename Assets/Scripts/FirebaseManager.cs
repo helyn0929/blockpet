@@ -221,11 +221,14 @@ public class FirebaseManager : MonoBehaviour
 
         if (uid != null && !_loginNotified)
         {
-            // User actively signed in — clear the signed-out flag so auto-login works next launch.
-            PlayerPrefs.SetInt(PrefsUserSignedOut, 0);
-            PlayerPrefs.Save();
             _loginNotified = true;
-            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(true)); }
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() =>
+            {
+                // Must run on main thread — PlayerPrefs is not thread-safe.
+                PlayerPrefs.SetInt(PrefsUserSignedOut, 0);
+                PlayerPrefs.Save();
+                OnLoginSuccess?.Invoke(true);
+            }); }
         }
 
         // Restart listeners whenever auth becomes valid (e.g. after token refresh).

@@ -1,0 +1,109 @@
+/* =========================================
+   Decoration Picker Panel
+   ========================================= */
+
+.overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    justify-content: flex-end;
+}
+
+/* ─── Bottom panel ─────────────────────── */
+
+.picker-panel {
+    background-color: rgba(30, 25, 20, 0.88);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    padding-top: 12px;
+    padding-bottom: 24px;
+    padding-left: 12px;
+    padding-right: 12px;
+    flex-direction: column;
+}
+
+/* ─── Scroll row ───────────────────────── */
+
+.item-scroll {
+    height: 130px;
+    flex-shrink: 0;
+}
+
+.item-container {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* ─── Individual item button ───────────── */
+
+.item-btn {
+    width: 96px;
+    height: 110px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.0);
+    margin-left: 6px;
+    margin-right: 6px;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: column;
+    padding-top: 8px;
+    padding-bottom: 6px;
+}
+
+.item-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.item-btn--selected {
+    border-color: rgb(255, 210, 60);
+    background-color: rgba(255, 210, 60, 0.15);
+}
+
+.item-icon {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.item-name {
+    color: rgb(240, 235, 225);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 4px;
+    overflow: hidden;
+    max-width: 90px;
+}
+
+.item-price {
+    color: rgb(255, 210, 60);
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    margin-top: 2px;
+}
+
+/* ─── Done button ──────────────────────── */
+
+.done-btn {
+    background-color: rgb(70, 150, 70);
+    color: white;
+    border-radius: 10px;
+    border-width: 0;
+    height: 44px;
+    margin-top: 10px;
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.done-btn:hover {
+    background-color: rgb(85, 170, 85);
+}

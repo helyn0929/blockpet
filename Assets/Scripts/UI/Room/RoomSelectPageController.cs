@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using BlockPet.Decoration;
 
 /// <summary>
 /// Room selection page shown after login.
@@ -36,6 +37,8 @@ public class RoomSelectPageController : MonoBehaviour
         Wire(joinButton, JoinRoomFromInput);
         Wire(createNewButton, CreateNewRoom);
         Wire(continueButton, ContinueCurrentRoom);
+        FirebaseManager.OnRoomChanged += RefreshUi;
+        FirebaseManager.OnLoginSuccess += OnLoginReady;
         RefreshUi();
     }
 
@@ -45,6 +48,13 @@ public class RoomSelectPageController : MonoBehaviour
         Unwire(joinButton, JoinRoomFromInput);
         Unwire(createNewButton, CreateNewRoom);
         Unwire(continueButton, ContinueCurrentRoom);
+        FirebaseManager.OnRoomChanged -= RefreshUi;
+        FirebaseManager.OnLoginSuccess -= OnLoginReady;
+    }
+
+    void OnLoginReady(bool success)
+    {
+        if (success) RefreshUi();
     }
 
     void Wire(Button b, UnityEngine.Events.UnityAction a)
@@ -81,6 +91,10 @@ public class RoomSelectPageController : MonoBehaviour
 
     void EnterMainGameAndGoHome()
     {
+        string roomId = FirebaseManager.Instance != null ? FirebaseManager.Instance.RoomId : "";
+        if (!string.IsNullOrEmpty(roomId) && DecorationManager.Instance != null)
+            DecorationManager.Instance.StartListening(roomId);
+
         var login = FindObjectOfType<LoginUIHandler>(true);
         if (login != null)
             login.EnterMainGame();

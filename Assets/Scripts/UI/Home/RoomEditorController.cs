@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using BlockPet.Core;
 using BlockPet.Decoration;
@@ -10,12 +9,8 @@ namespace BlockPet.UI.Home
         // ─── Inspector ─────────────────────────────────────────────────
 
         [Header("Edit Mode UI")]
-        [Tooltip("Panel shown while editing (item picker, confirm/cancel buttons, etc.)")]
-        [SerializeField] GameObject editModePanel;
+        [SerializeField] DecorationPickerController picker;
 
-        [Header("Freeze targets")]
-        [Tooltip("Drag in PlayerController and AIController GameObjects here")]
-        [SerializeField] List<MonoBehaviour> freezeTargets;
 
         [Header("Placement preview")]
         [Tooltip("A SpriteRenderer placed at scene root used as a placement ghost")]
@@ -26,6 +21,7 @@ namespace BlockPet.UI.Home
 
         DecorationItem _pendingItem;
         bool _placingItem;
+        bool _placingInputGuard; // skip input for one frame after item is selected
 
         public bool IsEditing { get; private set; }
 
@@ -34,12 +30,12 @@ namespace BlockPet.UI.Home
         void Start()
         {
             if (worldCamera == null) worldCamera = Camera.main;
-            if (editModePanel != null) editModePanel.SetActive(false);
             if (placementPreview != null) placementPreview.enabled = false;
         }
 
         void Update()
         {
+            if (_placingInputGuard) { _placingInputGuard = false; return; }
             if (!IsEditing || !_placingItem) return;
             UpdatePreviewPosition();
             HandlePlacementInput();
@@ -51,6 +47,18 @@ namespace BlockPet.UI.Home
         {
             if (IsEditing) return;
 
+            // 若 Firebase 還沒就緒，嘗試補呼叫 StartListening
+            if (!DecorationManager.Instance.IsListening)
+            {
+                string roomId = FirebaseManager.Instance?.RoomId ?? "";
+                if (string.IsNullOrEmpty(roomId))
+                {
+                    Debug.LogWarning("[RoomEditorController] 尚未加入房間，無法進入編輯模式。");
+                    return;
+                }
+                DecorationManager.Instance.StartListening(roomId);
+            }
+
             DecorationManager.Instance.AcquireEditLock(ok =>
             {
                 if (!ok)
@@ -61,7 +69,7 @@ namespace BlockPet.UI.Home
 
                 IsEditing = true;
                 SetFrozen(true);
-                if (editModePanel != null) editModePanel.SetActive(true);
+                picker?.Show();
                 DecorationManager.Instance.SetAllDecorationsEditMode(true);
             });
         }
@@ -76,7 +84,7 @@ namespace BlockPet.UI.Home
             DecorationManager.Instance.SetAllDecorationsEditMode(false);
             IsEditing = false;
             SetFrozen(false);
-            if (editModePanel != null) editModePanel.SetActive(false);
+            picker?.Hide();
         }
 
         // ─── Item selection ────────────────────────────────────────────
@@ -85,13 +93,24 @@ namespace BlockPet.UI.Home
         public void OnItemSelected(DecorationItem item)
         {
             if (!IsEditing || item == null) return;
-            _pendingItem = item;
-            _placingItem = true;
+            _pendingItem       = item;
+            _placingItem       = true;
+            _placingInputGuard = true;
 
             if (placementPreview != null)
             {
-                placementPreview.sprite  = item.worldSprite;
-                placementPreview.enabled = true;
+                placementPreview.sprite                      = item.worldSprite != null ? item.worldSprite : item.icon;
+                placementPreview.color                       = new Color(1f, 1f, 1f, 0.6f);
+                placementPreview.sortingLayerName            = "Pet";
+                placementPreview.sortingOrder                = 999;
+                placementPreview.transform.localScale        = Vector3.one * item.worldScale;
+                placementPreview.enabled                     = true;
+
+                // 立刻移到螢幕中央，不用等手指移動才出現
+                Vector3 center = worldCamera.ScreenToWorldPoint(
+                    new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 10f));
+                center.z = 0f;
+                placementPreview.transform.position = center;
             }
         }
 
@@ -112,6 +131,14 @@ namespace BlockPet.UI.Home
         }
 
         public void OnPlacementCancelled() => CancelPlacement();
+
+        // ─── Button helpers (no-arg wrappers for UnityEvent) ──────────
+
+        /// <summary>Wired to the Exit/Done button inside editModePanel.</summary>
+        public void OnExitEditModeButton() => ExitEditMode(true);
+
+        /// <summary>Wired to a Cancel button if you want to discard placement.</summary>
+        public void OnCancelEditModeButton() => ExitEditMode(false);
 
         // ─── Input ─────────────────────────────────────────────────────
 
@@ -162,7 +189,7 @@ namespace BlockPet.UI.Home
 
         void SetFrozen(bool frozen)
         {
-            foreach (var mb in freezeTargets)
+            foreach (var mb in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
                 if (mb is IEditModeFreezable f) f.SetEditModeFrozen(frozen);
         }
     }

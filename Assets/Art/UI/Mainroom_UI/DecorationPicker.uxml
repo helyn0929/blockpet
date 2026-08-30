@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="DecorationPicker.uss" />
+    <ui:VisualElement name="overlay" class="overlay" picking-mode="Ignore">
+        <ui:VisualElement name="picker-panel" class="picker-panel">
+            <ui:ScrollView name="item-scroll" class="item-scroll"
+                           horizontal-scrollbar-visibility="Hidden"
+                           vertical-scrollbar-visibility="Hidden"
+                           mode="Horizontal">
+                <ui:VisualElement name="item-container" class="item-container" />
+            </ui:ScrollView>
+            <ui:Button name="done-btn" text="完成" class="done-btn" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

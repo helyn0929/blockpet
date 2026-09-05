@@ -12,3 +12,9 @@
 *.userprefs
 .vs/
 .vscode/
+
+# Unity/Mono crash dumps
+mono_crash.mem.*
+
+# macOS
+.DS_Store

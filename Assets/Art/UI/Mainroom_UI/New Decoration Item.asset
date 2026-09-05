@@ -20,3 +20,4 @@ MonoBehaviour:
   category: 0
   pivotOffset: {x: 0, y: 0}
   defaultSortingOrder: 0
+  worldScale: 0.1

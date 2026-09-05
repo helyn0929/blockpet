@@ -131,12 +131,6 @@ public class MarketPageController : MonoBehaviour
             case MarketCategory.Furnitures:
                 previewPanel.PreviewFurniture(item);
                 break;
-            case MarketCategory.Backgrounds:
-                previewPanel.PreviewBackground(item);
-                break;
-            case MarketCategory.Spaces:
-                previewPanel.PreviewSpace(item);
-                break;
         }
     }
 

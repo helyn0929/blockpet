@@ -1,0 +1,297 @@
+/* =========================================
+   Blockpet Market — Shop (pastel room-decorator style)
+   ========================================= */
+
+.market-root {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgb(255, 244, 240);
+}
+
+/* ---------- STAGE (top: current room + character) ---------- */
+.stage {
+    height: 38%;
+    min-height: 200px;
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(247, 224, 205);
+}
+
+.char-layer {
+    position: absolute;
+    left: 15%;
+    right: 15%;
+    bottom: 4%;
+    top: 10%;
+    background-size: contain;
+    background-position: bottom;
+    background-repeat: no-repeat;
+}
+
+/* ---------- BACK BUTTON ---------- */
+.btn-back {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    border-width: 0;
+    background-color: rgba(255, 255, 255, 0.75);
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.btn-back-label {
+    font-size: 16px;
+    color: rgb(90, 65, 50);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- CURRENCY ---------- */
+.currency-bar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    flex-direction: row;
+}
+
+.currency-pill {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 12px;
+    margin-left: 8px;
+}
+
+.currency-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    margin-right: 6px;
+}
+
+.currency-icon--coin {
+    background-color: rgb(255, 190, 60);
+}
+
+.currency-icon--gem {
+    background-color: rgb(100, 190, 240);
+}
+
+.currency-text {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(90, 65, 50);
+}
+
+/* ---------- FLOATING CONTROL STRIP (below stage) ---------- */
+.control-strip {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(255, 244, 240);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.selected-name {
+    flex-grow: 1;
+    font-size: 12px;
+    color: rgb(150, 120, 100);
+    -unity-text-align: middle-center;
+    overflow: hidden;
+}
+
+.fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    border-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.fab--danger {
+    background-color: rgb(235, 110, 105);
+}
+
+.fab--info {
+    background-color: rgb(95, 175, 230);
+}
+
+.fab-label {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+.fab--save {
+    width: auto;
+    min-width: 84px;
+    border-radius: 22px;
+    background-color: rgb(95, 190, 130);
+    padding-left: 18px;
+    padding-right: 18px;
+}
+
+.fab-save-label {
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+/* ---------- CATEGORY TABS (icon; label shows only when selected) ---------- */
+.category-scroll {
+    flex-shrink: 0;
+    height: 56px;
+    background-color: rgb(255, 244, 240);
+}
+
+.category-list {
+    flex-direction: row;
+    align-items: flex-end;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 6px;
+}
+
+.category-tab {
+    width: 44px;
+    height: 40px;
+    border-radius: 12px;
+    border-width: 0;
+    background-color: rgb(230, 220, 235);
+    color: rgb(120, 105, 130);
+    font-size: 13px;
+    -unity-font-style: bold;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-right: 8px;
+    margin-top: 0;
+    margin-bottom: 0;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.category-tab--selected {
+    width: auto;
+    min-width: 84px;
+    height: 48px;
+    padding-left: 14px;
+    padding-right: 14px;
+    background-color: rgb(255, 255, 255);
+    color: rgb(90, 65, 50);
+    border-width: 2px;
+    border-color: rgb(255, 205, 130);
+}
+
+.category-tab--pets      { background-color: rgb(255, 202, 212); }
+.category-tab--accessories { background-color: rgb(190, 224, 255); }
+.category-tab--furnitures  { background-color: rgb(198, 232, 190); }
+.category-tab--money       { background-color: rgb(255, 224, 168); }
+
+/* ---------- ITEM GRID ---------- */
+.item-scroll {
+    flex-grow: 1;
+    background-color: rgb(255, 244, 240);
+}
+
+.item-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px;
+    align-items: flex-start;
+}
+
+.section-header {
+    width: 100%;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(160, 130, 110);
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.item-card {
+    width: 18%;
+    aspect-ratio: 1;
+    background-color: rgb(214, 235, 204);
+    border-radius: 16px;
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+    margin-right: 2.5%;
+    margin-bottom: 10px;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+}
+
+.item-card:hover {
+    background-color: rgb(224, 242, 216);
+}
+
+.item-card--equipped {
+    border-color: rgb(255, 190, 90);
+}
+
+.item-card--locked {
+    opacity: 0.55;
+}
+
+.item-card-icon {
+    width: 60%;
+    height: 60%;
+    flex-shrink: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.item-card-price {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    font-size: 10px;
+    color: rgb(110, 90, 60);
+    -unity-text-align: middle-center;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.item-card-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background-color: rgb(90, 190, 120);
+    color: rgb(255, 255, 255);
+    font-size: 13px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+
+.item-card-badge--locked {
+    background-color: rgb(150, 140, 145);
+}

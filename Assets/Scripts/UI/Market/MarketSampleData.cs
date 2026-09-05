@@ -39,19 +39,14 @@ public static class MarketSampleData
         Add(list, "fur_table",   "Tea Table",     MarketCategory.Furnitures,  "Everyday Collection", 75,   0,  false, false, false);
         Add(list, "fur_sofa",    "Plush Sofa",    MarketCategory.Furnitures,  "Limited Collection",  110,  0,  false, false, false);
         Add(list, "fur_shelf",   "Toy Shelf",     MarketCategory.Furnitures,  "Limited Collection",  85,   0,  false, false, false);
+        Add(list, "fur_bear",    "Bear",          MarketCategory.Furnitures,  "Everyday Collection", 60,   0,  false, false, false);
+        Add(list, "fur_flower",  "Flower",        MarketCategory.Furnitures,  "Everyday Collection", 45,   0,  false, false, false);
 
-        // ── Backgrounds ───────────────────────────────────────
-        Add(list, "bg_bedroom",  "Bedroom",       MarketCategory.Backgrounds, "Everyday Collection", 0,    0,  true,  true,  false);
-        Add(list, "bg_forest",   "Forest",        MarketCategory.Backgrounds, "Everyday Collection", 70,   0,  false, false, false);
-        Add(list, "bg_beach",    "Beach",         MarketCategory.Backgrounds, "Everyday Collection", 70,   0,  false, false, false);
-        Add(list, "bg_cafe",     "Café",          MarketCategory.Backgrounds, "Limited Collection",  95,   0,  false, false, false);
-        Add(list, "bg_stars",    "Starry Night",  MarketCategory.Backgrounds, "Limited Collection",  100,  0,  false, false, false);
-
-        // ── Spaces ────────────────────────────────────────────
-        Add(list, "sp_small",    "Small Room",    MarketCategory.Spaces,      "Everyday Collection", 0,    0,  true,  true,  false);
-        Add(list, "sp_garden",   "Garden",        MarketCategory.Spaces,      "Everyday Collection", 150,  0,  false, false, false);
-        Add(list, "sp_aqua",     "Aquarium",      MarketCategory.Spaces,      "Limited Collection",  220,  30, false, false, false);
-        Add(list, "sp_roof",     "Rooftop",       MarketCategory.Spaces,      "Limited Collection",  180,  0,  false, false, false);
+        // ── Money (spend coins for gems) ───────────────────────
+        AddMoneyPack(list, "money_pouch", "Gem Pouch", "Everyday Collection", 200,  50);
+        AddMoneyPack(list, "money_pack",  "Gem Pack",  "Everyday Collection", 500,  150);
+        AddMoneyPack(list, "money_chest", "Gem Chest", "Limited Collection",  1000, 350);
+        AddMoneyPack(list, "money_vault", "Gem Vault", "Limited Collection",  2000, 800);
 
         ApplyPersistenceFlags(list);
         return list;
@@ -74,6 +69,20 @@ public static class MarketSampleData
         });
     }
 
+    /// <summary>Money-pack entry: spend <paramref name="coinCost"/> coins to receive <paramref name="grantGems"/> gems.</summary>
+    static void AddMoneyPack(List<ShopItemData> list, string id, string name, string section, int coinCost, int grantGems)
+    {
+        list.Add(new ShopItemData
+        {
+            id         = id,
+            itemName   = name,
+            category   = MarketCategory.Money,
+            section    = section,
+            price      = coinCost,
+            grantGems  = grantGems
+        });
+    }
+
     /// <summary>Merges PlayerPrefs ownership with catalog defaults and recomputes equipped flags.</summary>
     public static void ApplyPersistenceFlags(List<ShopItemData> list)
     {
@@ -86,8 +95,6 @@ public static class MarketSampleData
             switch (item.category)
             {
                 case MarketCategory.Pets:        item.isEquipped = MarketInventoryStore.GetEquippedPetId()        == item.id; break;
-                case MarketCategory.Backgrounds: item.isEquipped = MarketInventoryStore.GetEquippedBackgroundId() == item.id; break;
-                case MarketCategory.Spaces:      item.isEquipped = MarketInventoryStore.GetEquippedSpaceId()      == item.id; break;
                 case MarketCategory.Accessories: item.isEquipped = MarketInventoryStore.IsAccessoryEquipped(item.id); break;
                 case MarketCategory.Furnitures:  item.isEquipped = MarketInventoryStore.GetEquippedFurnitureId()  == item.id; break;
             }

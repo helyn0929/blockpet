@@ -164,12 +164,6 @@ public class PetPreviewPanel : MonoBehaviour
             case MarketCategory.Pets:
                 MarketInventoryStore.SetEquippedPet(item.id);
                 break;
-            case MarketCategory.Backgrounds:
-                MarketInventoryStore.SetEquippedBackground(item.id);
-                break;
-            case MarketCategory.Spaces:
-                MarketInventoryStore.SetEquippedSpace(item.id);
-                break;
             case MarketCategory.Furnitures:
                 MarketInventoryStore.SetEquippedFurniture(item.id);
                 break;

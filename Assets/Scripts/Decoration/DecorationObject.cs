@@ -31,6 +31,12 @@ namespace BlockPet.Decoration
             _sr.sprite            = sprite;
             _sr.sortingLayerName  = "Pet";
             _sr.sortingOrder      = sortingOrder;
+
+            // Collider used for tap-to-delete hit testing (RoomEditorController raycasts against it).
+            var col = GetComponent<BoxCollider2D>();
+            if (col == null) col = gameObject.AddComponent<BoxCollider2D>();
+            col.isTrigger = true;
+            col.size = sprite != null ? sprite.bounds.size : Vector2.one;
         }
 
         // ─── Edit mode ─────────────────────────────────────────────────

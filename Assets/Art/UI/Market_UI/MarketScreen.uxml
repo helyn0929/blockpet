@@ -1,0 +1,57 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="MarketScreen.uss" />
+    <ui:VisualElement name="market-root" class="market-root">
+
+        <!-- ─── Stage: current room + character preview ─────────── -->
+        <ui:VisualElement name="stage" class="stage">
+            <ui:VisualElement name="char-furniture" class="char-layer" />
+            <ui:VisualElement name="char-pet" class="char-layer" />
+            <ui:VisualElement name="char-accessories" class="char-layer" />
+
+            <ui:Button name="btn-back" class="btn-back">
+                <ui:Label text="&#10094;" class="btn-back-label" />
+            </ui:Button>
+
+            <ui:VisualElement name="currency-bar" class="currency-bar">
+                <ui:VisualElement class="currency-pill">
+                    <ui:VisualElement class="currency-icon currency-icon--coin" />
+                    <ui:Label name="coins-text" text="0" class="currency-text" />
+                </ui:VisualElement>
+                <ui:VisualElement class="currency-pill">
+                    <ui:VisualElement class="currency-icon currency-icon--gem" />
+                    <ui:Label name="gems-text" text="0" class="currency-text" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ─── Floating control strip (below stage) ──────────────── -->
+        <ui:VisualElement name="control-strip" class="control-strip">
+            <ui:Button name="btn-removeall" class="fab fab--danger">
+                <ui:Label text="&#10005;" class="fab-label" />
+            </ui:Button>
+            <ui:Label name="selected-name" text="" class="selected-name" />
+            <ui:Button name="btn-tryon" class="fab fab--info">
+                <ui:Label text="&#10227;" class="fab-label" />
+            </ui:Button>
+            <ui:Button name="btn-buyequip" class="fab fab--save">
+                <ui:Label name="buy-equip-label" text="Buy" class="fab-save-label" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <!-- ─── Category tabs (icon; label shows only when selected) ── -->
+        <ui:ScrollView name="category-scroll" class="category-scroll"
+                        horizontal-scrollbar-visibility="Hidden"
+                        vertical-scrollbar-visibility="Hidden"
+                        mode="Horizontal">
+            <ui:VisualElement name="category-list" class="category-list" />
+        </ui:ScrollView>
+
+        <!-- ─── Item grid ──────────────────────────────────────────── -->
+        <ui:ScrollView name="item-scroll" class="item-scroll"
+                        horizontal-scrollbar-visibility="Hidden"
+                        vertical-scrollbar-visibility="Auto">
+            <ui:VisualElement name="item-list" class="item-list" />
+        </ui:ScrollView>
+
+    </ui:VisualElement>
+</ui:UXML>

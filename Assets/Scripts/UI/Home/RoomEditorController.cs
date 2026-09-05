@@ -36,9 +36,17 @@ namespace BlockPet.UI.Home
         void Update()
         {
             if (_placingInputGuard) { _placingInputGuard = false; return; }
-            if (!IsEditing || !_placingItem) return;
-            UpdatePreviewPosition();
-            HandlePlacementInput();
+            if (!IsEditing) return;
+
+            if (_placingItem)
+            {
+                UpdatePreviewPosition();
+                HandlePlacementInput();
+            }
+            else
+            {
+                HandleDeleteInput();
+            }
         }
 
         // ─── Edit mode ─────────────────────────────────────────────────
@@ -157,6 +165,32 @@ namespace BlockPet.UI.Home
                 OnPlacementConfirmed(pos);
             }
 #endif
+        }
+
+        /// <summary>While in edit mode and not placing a new item, tapping an owned decoration deletes it.</summary>
+        void HandleDeleteInput()
+        {
+#if UNITY_EDITOR || UNITY_STANDALONE
+            if (Input.GetMouseButtonDown(0)) TryDeleteAt(Input.mousePosition);
+#else
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                TryDeleteAt(Input.GetTouch(0).position);
+#endif
+        }
+
+        void TryDeleteAt(Vector3 screenPos)
+        {
+            Vector3 worldPos = ScreenToWorld(screenPos);
+            var hits = Physics2D.OverlapPointAll(worldPos);
+            foreach (var hit in hits)
+            {
+                var decor = hit.GetComponent<DecorationObject>();
+                if (decor != null && decor.CanDelete)
+                {
+                    decor.RequestDelete();
+                    break;
+                }
+            }
         }
 
         void UpdatePreviewPosition()

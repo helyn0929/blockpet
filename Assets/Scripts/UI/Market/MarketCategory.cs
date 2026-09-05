@@ -6,7 +6,5 @@ public enum MarketCategory
     Pets,
     Accessories,
     Furnitures,
-    Backgrounds,
-    Spaces,
     Money
 }

@@ -20,7 +20,9 @@ public class MarketWebViewBridge : MonoBehaviour
     [SerializeField] bool updateMarginsEachFrame = true;
 
     WebViewObject _webView;
+#pragma warning disable 0414 // only read on-device, inside #if !UNITY_EDITOR
     bool _pageReady;
+#pragma warning restore 0414
     bool _shouldBeVisible;
     bool _initStarted;
 
@@ -288,8 +290,6 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
         switch (item.category)
         {
             case MarketCategory.Pets:        MarketInventoryStore.SetEquippedPet(item.id);        break;
-            case MarketCategory.Backgrounds: MarketInventoryStore.SetEquippedBackground(item.id); break;
-            case MarketCategory.Spaces:      MarketInventoryStore.SetEquippedSpace(item.id);      break;
             case MarketCategory.Furnitures:  MarketInventoryStore.SetEquippedFurniture(item.id);  break;
             case MarketCategory.Accessories: MarketInventoryStore.AddEquippedAccessory(item.id);  break;
         }

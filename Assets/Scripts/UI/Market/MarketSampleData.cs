@@ -39,8 +39,7 @@ public static class MarketSampleData
         Add(list, "fur_table",   "Tea Table",     MarketCategory.Furnitures,  "Everyday Collection", 75,   0,  false, false, false);
         Add(list, "fur_sofa",    "Plush Sofa",    MarketCategory.Furnitures,  "Limited Collection",  110,  0,  false, false, false);
         Add(list, "fur_shelf",   "Toy Shelf",     MarketCategory.Furnitures,  "Limited Collection",  85,   0,  false, false, false);
-        Add(list, "fur_bear",    "Bear",          MarketCategory.Furnitures,  "Everyday Collection", 60,   0,  false, false, false);
-        Add(list, "fur_flower",  "Flower",        MarketCategory.Furnitures,  "Everyday Collection", 45,   0,  false, false, false);
+        // Real room decorations (bear, flower, …) come from DecorationDatabase — see MarketUIController.MergeDecorationItems.
 
         // ── Money (spend coins for gems) ───────────────────────
         AddMoneyPack(list, "money_pouch", "Gem Pouch", "Everyday Collection", 200,  50);

@@ -1,19 +1,31 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+using BlockPet.Decoration;
 
 /// <summary>
-/// UI Toolkit presentation for the Market page: stage preview (room + character) on top,
-/// category tabs and item grid below. Reuses the existing catalog/economy/inventory logic
-/// (<see cref="ShopItemData"/>, <see cref="MarketCategory"/>, <see cref="MarketSampleData"/>,
-/// <see cref="MarketInventoryStore"/>, <see cref="MarketWallet"/>, <see cref="EconomyManager"/>).
+/// UI Toolkit presentation for the Market page: header with currency, a stage showing the
+/// current room + character, category tabs, an item grid and a bottom buy/equip bar.
+/// Reuses the existing catalog/economy/inventory logic (<see cref="ShopItemData"/>,
+/// <see cref="MarketCategory"/>, <see cref="MarketSampleData"/>, <see cref="MarketInventoryStore"/>,
+/// <see cref="MarketWallet"/>, <see cref="EconomyManager"/>) unchanged.
 /// </summary>
 [RequireComponent(typeof(UIDocument))]
 public class MarketUIController : MonoBehaviour
 {
     [SerializeField] PageManager pageManager;
+
+    [Header("Pet sprites (index matches PetCollectionManager.CurrentPetIndex)")]
+    [Tooltip("Same mapping as HomeTopBar / RoomUIController. Shown on the stage when the equipped shop pet has no sprite.")]
+    [SerializeField] Sprite[] petSprites;
+
+    [Header("Catalog")]
     [Tooltip("If empty at runtime, sample data is generated.")]
     [SerializeField] List<ShopItemData> catalogOverride;
+    [Tooltip("Room decorations (bear, flower, …) are listed under Furniture. If empty, the loaded DecorationDatabase is used.")]
+    [SerializeField] DecorationDatabase decorationDatabase;
+
+    const string DecorationSection = "Room Decorations";
 
     static readonly MarketCategory[] CategoryOrder =
     {
@@ -28,22 +40,13 @@ public class MarketUIController : MonoBehaviour
         { MarketCategory.Money,       "💰 Shop" },
     };
 
-    /// <summary>Collapsed glyph shown on an unselected category tab; the full label only shows once selected.</summary>
-    static readonly Dictionary<MarketCategory, string> CategoryShortLabel = new()
-    {
-        { MarketCategory.Pets,        "🐾" },
-        { MarketCategory.Accessories, "🎀" },
-        { MarketCategory.Furnitures,  "🛋" },
-        { MarketCategory.Money,       "💰" },
-    };
-
     const int MaxAccessoryPreviewLayers = 4;
 
     UIDocument _doc;
     VisualElement _charPet, _charFurniture, _charAccessories;
     VisualElement _categoryList, _itemList;
-    Label _coinsText, _gemsText, _selectedNameLabel, _buyEquipLabel;
-    Button _backBtn, _tryOnBtn, _removeAllBtn, _buyEquipBtn;
+    Label _coinsText, _gemsText, _selectedNameLabel, _selectedPriceLabel, _buyEquipLabel;
+    Button _backBtn, _resetBtn, _buyEquipBtn;
 
     List<ShopItemData> _catalog = new List<ShopItemData>();
     ShopItemData _selected;
@@ -61,44 +64,83 @@ public class MarketUIController : MonoBehaviour
         _catalog = (catalogOverride != null && catalogOverride.Count > 0)
             ? new List<ShopItemData>(catalogOverride)
             : MarketSampleData.CreateSampleCatalog();
+
+        MergeDecorationItems();
+    }
+
+    /// <summary>
+    /// Lists every <see cref="DecorationItem"/> from the room editor under the Furniture tab, ahead of the
+    /// sample furniture, so the same bear/flower assets can be previewed on the stage and bought here.
+    /// </summary>
+    void MergeDecorationItems()
+    {
+        if (decorationDatabase == null)
+        {
+            var loaded = Resources.FindObjectsOfTypeAll<DecorationDatabase>();
+            if (loaded != null && loaded.Length > 0) decorationDatabase = loaded[0];
+        }
+        if (decorationDatabase == null) return;
+
+        int insertAt = _catalog.FindIndex(x => x != null && x.category == MarketCategory.Furnitures);
+        if (insertAt < 0) insertAt = _catalog.Count;
+
+        foreach (DecorationItem deco in decorationDatabase.GetAll())
+        {
+            if (deco == null || string.IsNullOrEmpty(deco.itemId)) continue;
+            if (_catalog.Exists(x => x != null && x.id == deco.itemId)) continue;
+
+            _catalog.Insert(insertAt++, new ShopItemData
+            {
+                id            = deco.itemId,
+                itemName      = string.IsNullOrEmpty(deco.displayName) ? deco.itemId : deco.displayName,
+                category      = MarketCategory.Furnitures,
+                section       = DecorationSection,
+                price         = deco.price,
+                icon          = deco.icon,
+                previewSprite = deco.worldSprite,
+            });
+        }
+
+        MarketSampleData.ApplyPersistenceFlags(_catalog);
     }
 
     void OnEnable()
     {
         VisualElement root = _doc.rootVisualElement;
 
-        _charPet         = root.Q<VisualElement>("char-pet");
-        _charFurniture   = root.Q<VisualElement>("char-furniture");
-        _charAccessories = root.Q<VisualElement>("char-accessories");
-        _categoryList    = root.Q<VisualElement>("category-list");
-        _itemList        = root.Q<VisualElement>("item-list");
-        _coinsText       = root.Q<Label>("coins-text");
-        _gemsText        = root.Q<Label>("gems-text");
-        _selectedNameLabel = root.Q<Label>("selected-name");
-        _buyEquipLabel   = root.Q<Label>("buy-equip-label");
-        _backBtn         = root.Q<Button>("btn-back");
-        _tryOnBtn        = root.Q<Button>("btn-tryon");
-        _removeAllBtn    = root.Q<Button>("btn-removeall");
-        _buyEquipBtn     = root.Q<Button>("btn-buyequip");
+        _charPet            = root.Q<VisualElement>("char-pet");
+        _charFurniture      = root.Q<VisualElement>("char-furniture");
+        _charAccessories    = root.Q<VisualElement>("char-accessories");
+        _categoryList       = root.Q<VisualElement>("category-list");
+        _itemList           = root.Q<VisualElement>("item-list");
+        _coinsText          = root.Q<Label>("coins-text");
+        _gemsText           = root.Q<Label>("gems-text");
+        _selectedNameLabel  = root.Q<Label>("selected-name");
+        _selectedPriceLabel = root.Q<Label>("selected-price");
+        _buyEquipLabel      = root.Q<Label>("buy-equip-label");
+        _backBtn            = root.Q<Button>("btn-back");
+        _resetBtn           = root.Q<Button>("btn-reset");
+        _buyEquipBtn        = root.Q<Button>("btn-buyequip");
 
-        if (_backBtn != null) _backBtn.clicked += OnBackClicked;
-        if (_tryOnBtn != null) _tryOnBtn.clicked += OnTryOnClicked;
-        if (_removeAllBtn != null) _removeAllBtn.clicked += OnRemoveAllClicked;
+        if (_backBtn != null)     _backBtn.clicked     += OnBackClicked;
+        if (_resetBtn != null)    _resetBtn.clicked    += OnResetClicked;
         if (_buyEquipBtn != null) _buyEquipBtn.clicked += OnBuyEquipClicked;
 
+        _selected = null;
         BuildCategoryTabs();
         RestoreEquippedLook();
         SelectCategory(MarketCategory.Pets);
+        UpdateActionBar();
         RefreshCurrency();
     }
 
     void OnDisable()
     {
-        if (_backBtn != null) _backBtn.clicked -= OnBackClicked;
-        if (_tryOnBtn != null) _tryOnBtn.clicked -= OnTryOnClicked;
-        if (_removeAllBtn != null) _removeAllBtn.clicked -= OnRemoveAllClicked;
+        if (_backBtn != null)     _backBtn.clicked     -= OnBackClicked;
+        if (_resetBtn != null)    _resetBtn.clicked    -= OnResetClicked;
         if (_buyEquipBtn != null) _buyEquipBtn.clicked -= OnBuyEquipClicked;
         _categoryButtons.Clear();
+        _accessoryPreviewLayers.Clear();
     }
 
     // ─── Category tabs ─────────────────────────────────────────────
@@ -111,9 +153,8 @@ public class MarketUIController : MonoBehaviour
         foreach (MarketCategory cat in CategoryOrder)
         {
             MarketCategory captured = cat;
-            var btn = new Button(() => SelectCategory(captured)) { text = CategoryShortLabel[cat] };
-            btn.AddToClassList("category-tab");
-            btn.AddToClassList("category-tab--" + cat.ToString().ToLowerInvariant());
+            var btn = new Button(() => SelectCategory(captured)) { text = CategoryLabel[cat] };
+            btn.AddToClassList("mk-tab");
             _categoryList.Add(btn);
             _categoryButtons[cat] = btn;
         }
@@ -123,11 +164,7 @@ public class MarketUIController : MonoBehaviour
     {
         _category = cat;
         foreach (var kvp in _categoryButtons)
-        {
-            bool selected = kvp.Key == cat;
-            kvp.Value.EnableInClassList("category-tab--selected", selected);
-            kvp.Value.text = selected ? CategoryLabel[kvp.Key] : CategoryShortLabel[kvp.Key];
-        }
+            kvp.Value.EnableInClassList("mk-tab--selected", kvp.Key == cat);
 
         RefreshCatalogFlags();
         RebuildItemList();
@@ -152,7 +189,7 @@ public class MarketUIController : MonoBehaviour
             {
                 lastSection = item.section;
                 var header = new Label(item.section);
-                header.AddToClassList("section-header");
+                header.AddToClassList("mk-section-header");
                 _itemList.Add(header);
             }
 
@@ -163,33 +200,43 @@ public class MarketUIController : MonoBehaviour
     VisualElement BuildItemCard(ShopItemData item)
     {
         var card = new Button(() => OnItemClicked(item));
-        card.AddToClassList("item-card");
-        card.EnableInClassList("item-card--locked", item.isLocked);
-        card.EnableInClassList("item-card--equipped", item.isEquipped);
+        card.AddToClassList("mk-card");
+        card.EnableInClassList("mk-card--locked", item.isLocked);
+        card.EnableInClassList("mk-card--equipped", item.isEquipped);
         card.SetEnabled(!item.isLocked);
-        card.tooltip = item.itemName;
 
-        var icon = new VisualElement();
-        icon.AddToClassList("item-card-icon");
+        // Icon tile — falls back to the item's initial when no sprite is assigned.
+        var tile = new VisualElement();
+        tile.AddToClassList("mk-card-tile");
+        tile.AddToClassList("mk-card-tile--" + item.category.ToString().ToLowerInvariant());
         if (item.icon != null)
-            icon.style.backgroundImage = new StyleBackground(item.icon);
-        card.Add(icon);
+        {
+            tile.style.backgroundImage = new StyleBackground(item.icon);
+        }
+        else
+        {
+            var initial = new Label(string.IsNullOrEmpty(item.itemName) ? "?" : item.itemName.Substring(0, 1));
+            initial.AddToClassList("mk-card-initial");
+            tile.Add(initial);
+        }
+        card.Add(tile);
+
+        var name = new Label(item.itemName);
+        name.AddToClassList("mk-card-name");
+        card.Add(name);
 
         var price = new Label(FormatPrice(item));
-        price.AddToClassList("item-card-price");
+        price.AddToClassList("mk-card-price");
+        price.EnableInClassList("mk-card-price--free", item.price == 0 && item.gemPrice == 0 && item.category != MarketCategory.Money);
         card.Add(price);
 
-        if (item.isOwned)
+        string badgeText = item.isLocked ? "Locked" : item.isEquipped ? "Equipped" : item.isOwned ? "Owned" : null;
+        if (badgeText != null)
         {
-            var badge = new Label("✓");
-            badge.AddToClassList("item-card-badge");
-            card.Add(badge);
-        }
-        else if (item.isLocked)
-        {
-            var badge = new Label("×");
-            badge.AddToClassList("item-card-badge");
-            badge.AddToClassList("item-card-badge--locked");
+            var badge = new Label(badgeText);
+            badge.AddToClassList("mk-card-badge");
+            badge.EnableInClassList("mk-card-badge--equipped", item.isEquipped);
+            badge.EnableInClassList("mk-card-badge--locked", item.isLocked);
             card.Add(badge);
         }
 
@@ -200,15 +247,14 @@ public class MarketUIController : MonoBehaviour
     {
         if (item.category == MarketCategory.Money)
             return item.price > 0 ? $"{item.price} 🪙 → {item.grantGems} 💎" : $"Free → {item.grantGems} 💎";
-        if (item.gemPrice > 0 && item.price > 0) return $"{item.price} + {item.gemPrice} gems";
-        if (item.gemPrice > 0) return $"{item.gemPrice} gems";
-        return item.price > 0 ? $"{item.price} coins" : "Free";
+        if (item.gemPrice > 0 && item.price > 0) return $"{item.price} 🪙 + {item.gemPrice} 💎";
+        if (item.gemPrice > 0) return $"{item.gemPrice} 💎";
+        return item.price > 0 ? $"{item.price} 🪙" : "Free";
     }
 
     void OnItemClicked(ShopItemData item)
     {
         _selected = item;
-        RebuildItemList();
         UpdateActionBar();
         if (item.category != MarketCategory.Money)
             ApplyPreview(item);
@@ -217,7 +263,10 @@ public class MarketUIController : MonoBehaviour
     void UpdateActionBar()
     {
         if (_selectedNameLabel != null)
-            _selectedNameLabel.text = _selected != null ? _selected.itemName : "";
+            _selectedNameLabel.text = _selected != null ? _selected.itemName : "Select an item";
+
+        if (_selectedPriceLabel != null)
+            _selectedPriceLabel.text = _selected != null ? FormatPrice(_selected) : "";
 
         if (_buyEquipLabel != null)
         {
@@ -236,7 +285,15 @@ public class MarketUIController : MonoBehaviour
     void RestoreEquippedLook()
     {
         ShopItemData pet = FindCatalogItem(MarketInventoryStore.GetEquippedPetId());
-        if (pet != null) PreviewPet(pet);
+        Sprite sprite = pet?.PreviewOrIcon;
+
+        if (sprite == null && petSprites != null && petSprites.Length > 0)
+        {
+            int petIndex = PetCollectionManager.Instance != null ? PetCollectionManager.Instance.CurrentPetIndex : 0;
+            sprite = petSprites[petIndex % petSprites.Length];
+        }
+
+        SetLayerSprite(_charPet, sprite);
     }
 
     ShopItemData FindCatalogItem(string id) =>
@@ -252,7 +309,12 @@ public class MarketUIController : MonoBehaviour
         }
     }
 
-    void PreviewPet(ShopItemData item) => SetLayerSprite(_charPet, item?.PreviewOrIcon);
+    void PreviewPet(ShopItemData item)
+    {
+        // Only swap the stage character when the shop item actually has art; otherwise keep the current pet.
+        if (item?.PreviewOrIcon != null) SetLayerSprite(_charPet, item.PreviewOrIcon);
+    }
+
     void PreviewFurniture(ShopItemData item) => SetLayerSprite(_charFurniture, item?.PreviewOrIcon);
 
     void PreviewAccessory(ShopItemData item)
@@ -267,7 +329,7 @@ public class MarketUIController : MonoBehaviour
         }
 
         var layer = new VisualElement();
-        layer.AddToClassList("char-layer");
+        layer.AddToClassList("mk-char-layer");
         layer.style.backgroundImage = new StyleBackground(item.PreviewOrIcon);
         _charAccessories.Add(layer);
         _accessoryPreviewLayers.Add(layer);
@@ -279,8 +341,8 @@ public class MarketUIController : MonoBehaviour
             layer.RemoveFromHierarchy();
         _accessoryPreviewLayers.Clear();
 
-        SetLayerSprite(_charPet, null);
         SetLayerSprite(_charFurniture, null);
+        RestoreEquippedLook();
     }
 
     static void SetLayerSprite(VisualElement layer, Sprite sprite)
@@ -297,13 +359,12 @@ public class MarketUIController : MonoBehaviour
         pageManager?.ShowHomePage();
     }
 
-    void OnTryOnClicked()
+    void OnResetClicked()
     {
-        if (_selected == null || _selected.category == MarketCategory.Money) return;
-        ApplyPreview(_selected);
+        _selected = null;
+        ClearPreview();
+        UpdateActionBar();
     }
-
-    void OnRemoveAllClicked() => ClearPreview();
 
     void OnBuyEquipClicked()
     {

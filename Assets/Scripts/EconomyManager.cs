@@ -61,7 +61,7 @@ public class EconomyManager : MonoBehaviour
             if (any != null) transform.SetParent(any.transform, false);
             else if (transform.parent != null) transform.SetParent(null);
         }
-        DontDestroyOnLoad(gameObject);
+        // No DontDestroyOnLoad: single-scene game, and the object must stay under the Canvas to render.
 
         displayedMoney = 0;
         RefreshMoneyUI();

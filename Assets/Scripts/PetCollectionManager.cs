@@ -59,7 +59,8 @@ public class PetCollectionManager : MonoBehaviour
             else if (transform.parent != null)
                 transform.SetParent(null);
         }
-        DontDestroyOnLoad(gameObject);
+        // No DontDestroyOnLoad: the game is a single scene (Feed.unity) and this object must stay
+        // under the Canvas to render, so the call only produced a "root GameObjects" warning.
 
         // Load persisted state first so album progress continues after restart
         LoadFromPlayerPrefs();

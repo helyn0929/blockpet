@@ -10,10 +10,12 @@
     </androidPackage>
   </androidPackages>
 
-  <!-- iOS Cocoapod dependencies can be specified by each iosPod element. -->
+  <!-- iOS: GoogleSignIn pod disabled. This plugin (v1.0.4) only compiles against the legacy
+       GoogleSignIn SDK 5.x, which conflicts with the Firebase 12 SwiftPM packages. The iOS native
+       bridge (Assets/Plugins/iOS/GoogleSignIn) is also excluded and GOOGLE_SIGN_IN is undefined for
+       iPhone, so Google login is unavailable on iOS until the plugin is upgraded.
   <iosPods>
-    <iosPod name="GoogleSignIn" version=">= 4.0.2" bitcodeEnabled="false"
-        minTargetSdk="6.0">
-    </iosPod>
+    <iosPod name="GoogleSignIn" version=">= 4.0.2" bitcodeEnabled="false" minTargetSdk="6.0" />
   </iosPods>
+  -->
 </dependencies>

@@ -31,6 +31,11 @@ namespace BlockPet.Decoration
         public bool IsEditLockHeld => _isEditLockHeld;
         public bool IsListening => _isListening;
 
+        /// <summary>Fired right after a brand-new decoration is instantiated and Init()'d (not on position updates).</summary>
+        public event Action<DecorationObject, DecorationItem> OnDecorationSpawned;
+        /// <summary>Fired right before a decoration's GameObject is destroyed locally (deleted by anyone in the room).</summary>
+        public event Action<string> OnDecorationRemoved;
+
         // ─── Lifecycle ─────────────────────────────────────────────────
 
         void Awake()
@@ -152,6 +157,7 @@ namespace BlockPet.Decoration
                 obj.Init(decorId, itemId, placedBy, item.worldSprite, sortingOrder);
                 obj.OnDeleteRequested += HandleDeleteRequested;
                 _spawned[decorId] = obj;
+                OnDecorationSpawned?.Invoke(obj, item);
             }
         }
 
@@ -159,6 +165,7 @@ namespace BlockPet.Decoration
         {
             if (!_spawned.TryGetValue(decorId, out var obj)) return;
             obj.OnDeleteRequested -= HandleDeleteRequested;
+            OnDecorationRemoved?.Invoke(decorId);
             Destroy(obj.gameObject);
             _spawned.Remove(decorId);
         }

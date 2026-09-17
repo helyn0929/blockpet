@@ -5352,8 +5352,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -30, y: -800}
-  m_SizeDelta: {x: 222.095, y: 27.762}
+  m_AnchoredPosition: {x: -30, y: -783.3606}
+  m_SizeDelta: {x: 222.095, y: 21.1062}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &902684842
 GameObject:
@@ -10943,7 +10943,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pageManager: {fileID: 0}
+  petSprites: []
   catalogOverride: []
+  decorationDatabase: {fileID: 0}
 --- !u!1 &1672779962
 GameObject:
   m_ObjectHideFlags: 0

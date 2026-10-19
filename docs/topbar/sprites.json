@@ -1,0 +1,341 @@
+[
+ {
+  "file": "Sprites/ui_topbar_panel.png",
+  "px": [
+   180,
+   174
+  ],
+  "size_1x": [
+   60,
+   58
+  ],
+  "border_LBRT_px": [
+   87,
+   87,
+   87,
+   87
+  ],
+  "note": "狀態欄底板 370×58、圓角 29。設計稿另有 backdrop-filter: blur(8px)（PNG 無法內含，見 README）"
+ },
+ {
+  "file": "Sprites/ui_topbar_panel_shadow.png",
+  "px": [
+   324,
+   318
+  ],
+  "size_1x": [
+   108,
+   106
+  ],
+  "border_LBRT_px": [
+   159,
+   159,
+   159,
+   159
+  ],
+  "note": "狀態欄陰影：0 6 16 rgba(30,40,20,.18)；放在底板下層，四邊各外擴 24"
+ },
+ {
+  "file": "Sprites/ui_avatar_bg.png",
+  "px": [
+   132,
+   132
+  ],
+  "size_1x": [
+   44,
+   44
+  ],
+  "border_LBRT_px": null,
+  "note": "頭像底 44×44 #FCE7A6；寵物圖 40×34（contain）置中疊上，超出圓的部分用遮罩裁掉"
+ },
+ {
+  "file": "Sprites/ui_avatar_mask.png",
+  "px": [
+   132,
+   132
+  ],
+  "size_1x": [
+   44,
+   44
+  ],
+  "border_LBRT_px": null,
+  "note": "頭像圓形遮罩"
+ },
+ {
+  "file": "Sprites/ui_lv_badge.png",
+  "px": [
+   60,
+   45
+  ],
+  "size_1x": [
+   20,
+   15
+  ],
+  "border_LBRT_px": [
+   18,
+   18,
+   18,
+   18
+  ],
+  "note": "Lv 徽章底，9-slice；寬 = 字寬 + 13；字 9px Black #FFF8EC"
+ },
+ {
+  "file": "Sprites/ui_heart_full.png",
+  "px": [
+   45,
+   42
+  ],
+  "size_1x": [
+   15,
+   14
+  ],
+  "border_LBRT_px": null,
+  "note": "愛心 15×14：滿 #F06B5B"
+ },
+ {
+  "file": "Sprites/ui_heart_empty.png",
+  "px": [
+   45,
+   42
+  ],
+  "size_1x": [
+   15,
+   14
+  ],
+  "border_LBRT_px": null,
+  "note": "愛心 15×14：空 #E6D9C3"
+ },
+ {
+  "file": "Sprites/ui_heart_half.png",
+  "px": [
+   45,
+   42
+  ],
+  "size_1x": [
+   15,
+   14
+  ],
+  "border_LBRT_px": null,
+  "note": "補充：半顆心（設計稿只有滿／空，但規則是以半顆為單位）"
+ },
+ {
+  "file": "Sprites/ui_pill_17.png",
+  "px": [
+   102,
+   51
+  ],
+  "size_1x": [
+   34,
+   17
+  ],
+  "border_LBRT_px": [
+   25,
+   25,
+   25,
+   25
+  ],
+  "note": "「想吃」膠囊，白色 9-slice，用 Image.color 上類別底色；高 17"
+ },
+ {
+  "file": "Sprites/ui_evo_track.png",
+  "px": [
+   72,
+   24
+  ],
+  "size_1x": [
+   24,
+   8
+  ],
+  "border_LBRT_px": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "note": "進化條軌道 高 8，白 55%"
+ },
+ {
+  "file": "Sprites/ui_evo_mask.png",
+  "px": [
+   72,
+   24
+  ],
+  "size_1x": [
+   24,
+   8
+  ],
+  "border_LBRT_px": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "note": "進化條遮罩（Mask），色段放在裡面"
+ },
+ {
+  "file": "Sprites/ui_evo_segment.png",
+  "px": [
+   12,
+   12
+  ],
+  "size_1x": [
+   4,
+   4
+  ],
+  "border_LBRT_px": null,
+  "note": "色段，白色；Image.color 上類別色"
+ },
+ {
+  "file": "Sprites/ui_evo_ready_glow.png",
+  "px": [
+   156,
+   108
+  ],
+  "size_1x": [
+   52,
+   36
+  ],
+  "border_LBRT_px": [
+   54,
+   54,
+   54,
+   54
+  ],
+  "note": "補充：滿條光框（設計稿的金色 #F6C945 發光樣式），四邊外擴 14，呼吸 1.8s"
+ },
+ {
+  "file": "Sprites/ui_coin_pill.png",
+  "px": [
+   120,
+   90
+  ],
+  "size_1x": [
+   40,
+   30
+  ],
+  "border_LBRT_px": [
+   45,
+   45,
+   45,
+   45
+  ],
+  "note": "金幣按鈕底 高 30，9-slice"
+ },
+ {
+  "file": "Sprites/ui_coin_dot.png",
+  "px": [
+   42,
+   42
+  ],
+  "size_1x": [
+   14,
+   14
+  ],
+  "border_LBRT_px": null,
+  "note": "金幣圖示 14×14"
+ },
+ {
+  "file": "Sprites/ui_coin_plus.png",
+  "px": [
+   66,
+   72
+  ],
+  "size_1x": [
+   22,
+   24
+  ],
+  "border_LBRT_px": null,
+  "note": "金幣右側＋按鈕 22×22（下緣含 2px 立體陰影，所以圖高 24）"
+ },
+ {
+  "file": "Sprites/ui_menu_btn_closed.png",
+  "px": [
+   210,
+   168
+  ],
+  "size_1x": [
+   70,
+   56
+  ],
+  "border_LBRT_px": null,
+  "note": "右上選單按鈕底（收合）46×32，含陰影，四邊外擴 12"
+ },
+ {
+  "file": "Sprites/ui_menu_btn_open.png",
+  "px": [
+   210,
+   168
+  ],
+  "size_1x": [
+   70,
+   56
+  ],
+  "border_LBRT_px": null,
+  "note": "右上選單按鈕底（展開）46×32，含陰影，四邊外擴 12"
+ },
+ {
+  "file": "Sprites/ui_icon_chevron.png",
+  "px": [
+   48,
+   48
+  ],
+  "size_1x": [
+   16,
+   16
+  ],
+  "border_LBRT_px": null,
+  "note": "選單箭頭 16×16；展開時旋轉 180°（0.25s）"
+ },
+ {
+  "file": "Sprites/ui_menu_tile.png",
+  "px": [
+   210,
+   210
+  ],
+  "size_1x": [
+   70,
+   70
+  ],
+  "border_LBRT_px": null,
+  "note": "選單項目方塊 46×46，含陰影，四邊外擴 12"
+ },
+ {
+  "file": "Sprites/ui_icon_travel.png",
+  "px": [
+   66,
+   66
+  ],
+  "size_1x": [
+   22,
+   22
+  ],
+  "border_LBRT_px": null,
+  "note": "旅行圖示 22×22"
+ },
+ {
+  "file": "Sprites/ui_icon_dex.png",
+  "px": [
+   66,
+   66
+  ],
+  "size_1x": [
+   22,
+   22
+  ],
+  "border_LBRT_px": null,
+  "note": "圖鑑圖示 22×22"
+ },
+ {
+  "file": "Sprites/ui_icon_settings.png",
+  "px": [
+   66,
+   66
+  ],
+  "size_1x": [
+   22,
+   22
+  ],
+  "border_LBRT_px": null,
+  "note": "設定圖示 22×22"
+ }
+]

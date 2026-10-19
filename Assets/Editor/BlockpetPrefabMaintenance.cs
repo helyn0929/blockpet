@@ -9,7 +9,7 @@ public static class BlockpetPrefabMaintenance
 {
     const string MessageRowPrefab = "Assets/Prefabs/MessageRow.prefab";
 
-    [MenuItem("Blockpet/Force Reimport MessageRow Prefab")]
+    [MenuItem("BlockPet/Force Reimport MessageRow Prefab")]
     public static void ReimportMessageRow()
     {
         AssetDatabase.ImportAsset(MessageRowPrefab, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);

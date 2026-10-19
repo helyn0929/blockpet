@@ -135,35 +135,20 @@ public class CameraController : MonoBehaviour
         rt.localScale = _previewBaseScale;
     }
 
-    // 整合後的冷卻檢查邏輯
+    // 冷卻檢查（與手牌共用，見 PhotoCooldown）
     void UpdateCooldownDisplay()
     {
         if (buttonText == null || mainButton == null) return;
 
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null ||
-            string.IsNullOrEmpty(SaveManager.Instance.data.lastCaptureTime))
+        if (PhotoCooldown.IsActive)
         {
-            buttonText.text = "Camera";
-            mainButton.interactable = true;
-            return;
+            mainButton.interactable = false;
+            buttonText.text = PhotoCooldown.RemainingText;
         }
-
-        if (DateTime.TryParse(SaveManager.Instance.data.lastCaptureTime, out DateTime lastTime))
+        else
         {
-            TimeSpan elapsed = DateTime.Now - lastTime;
-            double remainingSeconds = 30 - elapsed.TotalSeconds; // 5 分鐘冷卻
-
-            if (remainingSeconds > 0)
-            {
-                mainButton.interactable = false;
-                TimeSpan t = TimeSpan.FromSeconds(remainingSeconds);
-                buttonText.text = string.Format("{0:D2}:{1:D2}", t.Minutes, t.Seconds);
-            }
-            else
-            {
-                mainButton.interactable = true;
-                buttonText.text = "Camera";
-            }
+            mainButton.interactable = true;
+            buttonText.text = "Camera";
         }
     }
 
@@ -267,11 +252,7 @@ public class CameraController : MonoBehaviour
         if (feedController != null)
             feedController.FeedWithPhoto(capturedPhoto);
 
-        if (SaveManager.Instance != null && SaveManager.Instance.data != null)
-        {
-            SaveManager.Instance.data.lastCaptureTime = DateTime.Now.ToString();
-            SaveManager.Instance.Save();
-        }
+        PhotoCooldown.Start();
 
         if (healthManager != null) healthManager.AddHealth();
         else FindObjectOfType<PetHealthManager>()?.AddHealth();

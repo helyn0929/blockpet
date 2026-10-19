@@ -7,7 +7,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
     public enum State { Idle, Walking }
 
     /// <summary>There is exactly one shared room pet — convenience accessor for systems that need
-    /// to summon it (e.g. FermentationJarManager sending it to eat a digested photo).</summary>
+    /// to summon it (e.g. sending it to walk to a point).</summary>
     public static AIController Instance { get; private set; }
 
     [Header("Wander")]
@@ -32,8 +32,8 @@ public class AIController : MonoBehaviour, IEditModeFreezable
     float _speed;
     bool _frozen;
 
-    /// <summary>True while the pet is running a directed action (e.g. walking to a fermentation
-    /// jar to eat) and should not be re-summoned until it finishes and calls ReleaseBusy().</summary>
+    /// <summary>True while the pet is running a directed action (e.g. walking over to react to
+    /// something) and should not be re-summoned until it finishes and calls ReleaseBusy().</summary>
     public bool IsBusy { get; private set; }
 
     static readonly float[] IdleMin  = { 3f, 2.5f, 2f,  1f,  0.5f };
@@ -78,8 +78,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
 
     // ================================================================
     //  Directed action — interrupts wandering to walk to a specific
-    //  point and hand control back via a callback (e.g. eat a photo
-    //  that finished digesting in a fermentation jar).
+    //  point and hand control back via a callback.
     // ================================================================
 
     /// <summary>

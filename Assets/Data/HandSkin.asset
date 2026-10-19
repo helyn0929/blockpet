@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c73fd19b918d4b4c83b3060b2a79d09, type: 3}
+  m_Name: HandSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  labelShadowMaterial: {fileID: 2100000, guid: 3f4d03bc3ba33406e85ba1eb65acf446, type: 2}
+  card: {fileID: 21300000, guid: b681bc80c7c7842fb88914843f97e638, type: 3}
+  cardShadow: {fileID: 21300000, guid: e01ffc785d2c54194a3dd86e4a069dbd, type: 3}
+  cardCamera: {fileID: 21300000, guid: 50396f7ce18a24243891a5ce07c4d66f, type: 3}
+  iconCamera: {fileID: 21300000, guid: 72fb3a99e03264e95a0a2a52e465fe9e, type: 3}
+  maskR6: {fileID: 21300000, guid: 6b261ff511d234a038905c478badf2ff, type: 3}
+  maskR10: {fileID: 21300000, guid: ef1d51f8ec8384c6e92a0a5500f5590e, type: 3}
+  maskR3: {fileID: 21300000, guid: fc3654f7573ff45fdae88deb510b87ee, type: 3}
+  popup: {fileID: 21300000, guid: cfa9ffa4a4dfc4a269b491bbfd12f0a9, type: 3}
+  popupShadow: {fileID: 21300000, guid: 10861b4ccdaeb4f779387cb2fc611317, type: 3}
+  buttonBeige: {fileID: 21300000, guid: 13900e522ad3045ac81c64f158fd0c80, type: 3}
+  buttonYellow: {fileID: 21300000, guid: 0709409db319b46d9974d7bd29ed907b, type: 3}
+  dockTile: {fileID: 21300000, guid: 4a7caaf912c474d879299ee8ae2de771, type: 3}
+  dockCamera: {fileID: 21300000, guid: 34304928d2205450a9c7746c37b5d4a3, type: 3}
+  iconChat: {fileID: 21300000, guid: 4a79fd3279f4e4a498f48d86926ab7a5, type: 3}
+  albumMinis: {fileID: 21300000, guid: 6ac62de4d82bc4408bff7b99e07a7486, type: 3}
+  latestCard: {fileID: 21300000, guid: c4ef470b80d894f609be19e2723c6032, type: 3}
+  latestBackShadow: {fileID: 21300000, guid: ff73f1c72c1644f36b4dcffb459e7281, type: 3}
+  latestGlowLo: {fileID: 21300000, guid: de9fac248a26847f5b80d9ecd01dc58b, type: 3}
+  latestGlowHi: {fileID: 21300000, guid: e43b3964f50004f8f99f123e10cdd768, type: 3}
+  badgeNew: {fileID: 21300000, guid: b2e45c4d642194116afbe9e922399e17, type: 3}
+  iconEye: {fileID: 21300000, guid: b82d51c016c3849898024e80fe2820cc, type: 3}
+  circle: {fileID: 21300000, guid: f55e5faac29c94cacb70ee9bfeec6168, type: 3}
+  glassPill: {fileID: 21300000, guid: 3d5a6f46be126431ea18e881770489b4, type: 3}
+  pillYellow: {fileID: 21300000, guid: c302293efeafa4e2e835a27b835013a6, type: 3}

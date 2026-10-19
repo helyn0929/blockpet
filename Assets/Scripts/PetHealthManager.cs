@@ -8,6 +8,16 @@ public class PetHealthManager : MonoBehaviour
     public float maxHealth = 86400f; 
     public float healAmount = 10800f; 
 
+    /// <summary>目前愛心值（秒，0～maxHealth），與血條顯示的值相同。</summary>
+    public float CurrentHealth
+    {
+        get
+        {
+            if (IsSharedRoomPetActive()) return FirebaseManager.Instance.GetRoomHealthNow(maxHealth);
+            return SaveManager.Instance?.data != null ? Mathf.Clamp(SaveManager.Instance.data.currentHealth, 0f, maxHealth) : maxHealth;
+        }
+    }
+
     void Start()
     {
         // Local mode only: shared room pet state is derived from Firebase timestamps.

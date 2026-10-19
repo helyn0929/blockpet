@@ -7,9 +7,6 @@ public class SaveData
 {
     public List<PhotoMeta> photos = new List<PhotoMeta>();
 
-    /// <summary>Photos currently digesting inside a placed fermentation jar (one per decorId).</summary>
-    public List<FermentationJarState> fermentationJars = new List<FermentationJarState>();
-
     public float currentHealth = 86400f;
     public string lastUpdateTime;
     public string lastCaptureTime;

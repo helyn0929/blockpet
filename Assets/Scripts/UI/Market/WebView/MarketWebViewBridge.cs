@@ -256,13 +256,13 @@ if (!window.Unity || typeof window.Unity.call !== 'function') {
         // Deduct currency.
         if (item.price > 0)
         {
-            if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(item.price)) return;
+            if (EconomyManager.Instance == null || !EconomyManager.Instance.TrySpend(item.price, "market:" + item.id)) return;
         }
         if (item.gemPrice > 0)
         {
             if (!MarketWallet.TrySpendGems(item.gemPrice))
             {
-                if (item.price > 0) EconomyManager.Instance?.AddCoins(item.price);
+                if (item.price > 0) EconomyManager.Instance?.AddCoins(item.price, "refund:" + item.id);
                 return;
             }
         }

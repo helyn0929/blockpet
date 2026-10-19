@@ -1,0 +1,161 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79f2ce5f7cd1a4fd08d823db56cf657d, type: 3}
+  m_Name: TopBarConfig
+  m_EditorClassIdentifier: 
+  referenceResolution: {x: 390, y: 772}
+  matchWidthOrHeight: 0.5
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  labelShadowMaterial: {fileID: 2100000, guid: 3f4d03bc3ba33406e85ba1eb65acf446, type: 2}
+  textColor: {r: 0.22745098, g: 0.18039216, b: 0.13333334, a: 1}
+  nameSize: 13
+  lvSize: 9
+  wantSize: 11
+  evoTextSize: 11
+  coinSize: 13
+  menuLabelSize: 11
+  panelScreenPos: {x: 10, y: 10}
+  panelSize: {x: 370, y: 58}
+  panelGap: 8
+  panelShadowOutset: 24
+  avatar:
+    serializedVersion: 2
+    x: 7
+    y: 7
+    width: 44
+    height: 44
+  avatarImage:
+    serializedVersion: 2
+    x: 2
+    y: 5
+    width: 40
+    height: 34
+  lvBadgeHeight: 15
+  lvBadgeExtraWidth: 13
+  lvBadgeBelowAvatar: 5
+  lvTextColor: {r: 1, g: 0.972549, b: 0.9254902, a: 1}
+  rowX: 59
+  row1Y: 9.5
+  row1Height: 17
+  row2Y: 32.5
+  row2Height: 16
+  rowGap: 6
+  heartSize: {x: 15, y: 14}
+  heartGap: 1
+  maxHearts: 5
+  lowHeartsThreshold: 1
+  lowHeartsPulseScale: 1.18
+  lowHeartsPulsePeriod: 1.8
+  wantHeight: 17
+  wantPaddingX: 8
+  wantPrefix: "\u60F3\u5403 "
+  wantColors:
+  - category: "\u7F8E\u98DF"
+    bg: {r: 1, g: 0.8901961, b: 0.78039217, a: 1}
+    fg: {r: 0.6431373, g: 0.31764707, b: 0.105882354, a: 1}
+  - category: "\u751F\u6D3B\u4EBA\u7269"
+    bg: {r: 0.9647059, g: 0.8862745, b: 0.95686275, a: 1}
+    fg: {r: 0.5411765, g: 0.24705882, b: 0.5176471, a: 1}
+  - category: "\u81EA\u7136"
+    bg: {r: 0.8901961, g: 0.93333334, b: 0.8509804, a: 1}
+    fg: {r: 0.2901961, g: 0.47843137, b: 0.24705882, a: 1}
+  - category: "\u57CE\u5E02"
+    bg: {r: 0.8862745, g: 0.9098039, b: 0.972549, a: 1}
+    fg: {r: 0.24705882, g: 0.35686275, b: 0.65882355, a: 1}
+  - category: "\u904B\u52D5\u6236\u5916"
+    bg: {r: 0.9843137, g: 0.9411765, b: 0.78431374, a: 1}
+    fg: {r: 0.5568628, g: 0.43137255, b: 0.047058824, a: 1}
+  evoHeight: 8
+  evoSegmentGap: 1
+  evoTransitionSec: 0.6
+  segments:
+  - category: "\u7F8E\u98DF"
+    color: {r: 0.9490196, g: 0.6039216, b: 0.22745098, a: 1}
+  - category: "\u81EA\u7136"
+    color: {r: 0.43529412, g: 0.6431373, b: 0.37254903, a: 1}
+  - category: "\u57CE\u5E02"
+    color: {r: 0.43529412, g: 0.56078434, b: 0.8784314, a: 1}
+  - category: "\u751F\u6D3B\u4EBA\u7269"
+    color: {r: 0.84313726, g: 0.5411765, b: 0.8156863, a: 1}
+  - category: "\u904B\u52D5\u6236\u5916"
+    color: {r: 0.9098039, g: 0.7647059, b: 0.22745098, a: 1}
+  evoTextFormat: "\u9032\u5316 {energy}%"
+  readyText: "\u53EF\u9032\u5316\uFF01"
+  readyTextColor: {r: 0.7607843, g: 0.38431373, b: 0.101960786, a: 1}
+  readyGlowOutset: 14
+  coinRight: 9
+  coinY: 14
+  coinHeight: 30
+  coinDot:
+    serializedVersion: 2
+    x: 7
+    y: 8
+    width: 14
+    height: 14
+  coinNumber: {x: 25, y: 5.5, z: 19}
+  coinNumberToPlus: 4
+  coinPlusSize: {x: 22, y: 24}
+  coinPlusRight: 4
+  coinPlusTop: 4
+  deadSegmentColor: {r: 0.7882353, g: 0.7490196, b: 0.6862745, a: 1}
+  deadChipText: "\u9EDE\u6211\u5FA9\u6D3B"
+  deadChipBg: {r: 0.9098039, g: 0.41960785, b: 0.30980393, a: 1}
+  deadChipFg: {r: 1, g: 1, b: 1, a: 1}
+  deadAvatarGray: 0.7
+  menuRightMargin: 10
+  menuY: 80
+  menuSize: {x: 46, y: 32}
+  menuSpriteOutset: 12
+  chevronSize: 16
+  chevronRotateSec: 0.25
+  menuTile: 46
+  menuGap: 8
+  menuIconSize: 22
+  menuItemWidth: 52
+  menuLabelGap: 2
+  menuPopSec: 0.22
+  menuOrder:
+  - "\u4F48\u7F6E"
+  - "\u65C5\u884C"
+  - "\u5716\u9451"
+  - "\u8A2D\u5B9A"
+  homeLeftMargin: 10
+  homeY: 80
+  homeSize: {x: 46, y: 32}
+  homeIconSize: 20
+  todayThemeStartY: 124
+  decorMode: {fileID: 11400000, guid: ce1247aebc430470193a75aa8d3ada24, type: 2}
+  panel: {fileID: 21300000, guid: 22ab9644836f149a2aa704aa31573829, type: 3}
+  panelShadow: {fileID: 21300000, guid: 76fcd7600d77e48c4aabe730bd180693, type: 3}
+  avatarBg: {fileID: 21300000, guid: 43541e3e8e47e4a6da18abb6a3b48bf8, type: 3}
+  avatarMask: {fileID: 21300000, guid: 1531b3a358d99458aa51b1d012df351d, type: 3}
+  lvBadge: {fileID: 21300000, guid: eab65e8d1968e4b8a9669c32daf15c2e, type: 3}
+  heartFull: {fileID: 21300000, guid: bc2108e5f13ed470982112d47ab42ae4, type: 3}
+  heartHalf: {fileID: 21300000, guid: 4512b54f3090b40ffa5e8210a0812634, type: 3}
+  heartEmpty: {fileID: 21300000, guid: acf50a1aed2234ee2a4a2036d5d97462, type: 3}
+  pill17: {fileID: 21300000, guid: 8be124218945343d79294fc125cf73ad, type: 3}
+  evoTrack: {fileID: 21300000, guid: 727c30e97dece4071828b75b534bd18d, type: 3}
+  evoMask: {fileID: 21300000, guid: 86a48a9374bad46c483b65486fcda476, type: 3}
+  evoSegment: {fileID: 21300000, guid: 700eb2367db6b42128fc12dc8ba0c8d9, type: 3}
+  evoReadyGlow: {fileID: 21300000, guid: 57bf69cf1e52144a8b9341e6da48863d, type: 3}
+  coinPill: {fileID: 21300000, guid: 93ada55141187407f95c5bb4a0258ea7, type: 3}
+  coinDotSprite: {fileID: 21300000, guid: f22da66c084964c9784e0c2d03cb2625, type: 3}
+  coinPlus: {fileID: 21300000, guid: e8aa77d1f2ac54d94af30a5e3434964a, type: 3}
+  menuClosed: {fileID: 21300000, guid: e5ae9d295083b4d4db4c31f8b85ec63a, type: 3}
+  menuOpen: {fileID: 21300000, guid: 582bf044d18b744e79bfb3d36fedbb22, type: 3}
+  chevron: {fileID: 21300000, guid: c988ee1cb12f44517985ecfd41714f05, type: 3}
+  menuTileSprite: {fileID: 21300000, guid: 249f2c0f50e6a444baaa4299f7c887a7, type: 3}
+  iconTravel: {fileID: 21300000, guid: 873289a9f3d9242a5b767070f8cddba2, type: 3}
+  iconDex: {fileID: 21300000, guid: 5b9ecd0d6dae64d4bba685e24fb875da, type: 3}
+  iconSettings: {fileID: 21300000, guid: 338eecbb6f0e144768063a2b888d9f46, type: 3}
+  iconDecor: {fileID: 21300000, guid: 6d3d5645936944f3dbbddf28c99106b4, type: 3}
+  iconHome: {fileID: 21300000, guid: 2cbb083c85af04e47a394ace023e357e, type: 3}

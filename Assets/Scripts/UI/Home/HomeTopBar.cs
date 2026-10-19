@@ -44,6 +44,13 @@ public class HomeTopBar : MonoBehaviour
         AvatarManager.OnAvatarChanged -= RefreshAvatar;
     }
 
+    /// <summary>寵物圖（與舊頭像同樣的對應方式），給新版頂部狀態欄用。</summary>
+    public Sprite GetPetSprite(int petIndex)
+    {
+        if (petSprites == null || petSprites.Length == 0) return null;
+        return petSprites[Mathf.Abs(petIndex) % petSprites.Length];
+    }
+
     void RefreshAvatar()
     {
         int petIndex = PetCollectionManager.Instance != null

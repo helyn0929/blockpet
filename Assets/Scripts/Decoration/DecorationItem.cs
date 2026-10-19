@@ -17,11 +17,5 @@ namespace BlockPet.Decoration
         public int defaultSortingOrder;
         [Tooltip("世界裡的縮放比例，調到跟角色比例相符")]
         public float worldScale = 1f;
-
-        [Header("Interactive-only (e.g. fermentation jar)")]
-        [Tooltip("Sprite shown while a photo is digesting inside. Leave empty to just tint worldSprite instead.")]
-        public Sprite digestingSprite;
-        [Tooltip("Sprite shown once digestion is done and the pet is on its way to eat. Leave empty to reuse digestingSprite/worldSprite.")]
-        public Sprite readySprite;
     }
 }

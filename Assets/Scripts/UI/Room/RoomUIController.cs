@@ -270,12 +270,13 @@ public class RoomUIController : MonoBehaviour
     void OnClickCreate()
     {
         string code = GenerateCode(6);
-        FirebaseManager.Instance?.SetRoomId(code);
         GUIUtility.systemCopyBuffer = code;
         string defaultPetName = PetNameAt(0);
+        // 先寫好 meta／petState／members 再切換，避免監聽器先建出沒有 meta 的半成品房間。
         FirebaseManager.Instance?.CreateRoom(code, defaultPetName, (ok, err) =>
         {
-            if (!ok) Debug.LogWarning("[RoomUIController] CreateRoom failed: " + err);
+            if (!ok) { Debug.LogWarning("[RoomUIController] CreateRoom failed: " + err); return; }
+            FirebaseManager.Instance?.SetRoomId(code);
         });
         if (_generatedCodeLabel != null) _generatedCodeLabel.text = code;
         _codeOverlay?.AddToClassList("code-overlay--visible");
@@ -305,15 +306,21 @@ public class RoomUIController : MonoBehaviour
     {
         string code = (_joinInput?.value ?? string.Empty).Trim().ToUpper();
         if (string.IsNullOrEmpty(code)) return;
-        FirebaseManager.Instance?.SetRoomId(code);
+        // JoinRoom 會先確認房間存在；房間碼打錯時不切換，避免 SetRoomId 自動建出空房間。
         FirebaseManager.Instance?.JoinRoom(code, (ok, err) =>
         {
-            if (!ok) Debug.LogWarning("[RoomUIController] JoinRoom failed: " + err);
+            if (!ok)
+            {
+                Debug.LogWarning("[RoomUIController] JoinRoom failed: " + err);
+                _joinInput?.Focus();
+                return;
+            }
+            FirebaseManager.Instance?.SetRoomId(code);
+            if (_joinInput != null) _joinInput.value = string.Empty;
+            _joinPanel?.RemoveFromClassList("join-panel--visible");
+            _joinPanelOpen = false;
+            EnterGameAndGoHome();
         });
-        if (_joinInput != null) _joinInput.value = string.Empty;
-        _joinPanel?.RemoveFromClassList("join-panel--visible");
-        _joinPanelOpen = false;
-        EnterGameAndGoHome();
     }
 
     void EnterRoom(string roomId)

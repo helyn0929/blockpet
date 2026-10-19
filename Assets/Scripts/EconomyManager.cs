@@ -26,13 +26,18 @@ public class EconomyManager : MonoBehaviour
 
     public int CurrentMoney => currentMoney;
 
-    /// <summary>Spend coins from the shared wallet. Returns false if insufficient balance.</summary>
-    public bool TrySpend(int amount)
+    /// <summary>Spend coins from the shared wallet. Returns false if insufficient balance.
+    /// 本地先樂觀扣款讓 UI 立即反應；實際扣款由 Firebase transaction 決定，
+    /// 若被其他成員搶先花掉導致失敗，餘額會由監聽器改回伺服器的值。</summary>
+    public bool TrySpend(int amount, string reason = "")
     {
         if (amount <= 0) return true;
         if (currentMoney < amount) return false;
         currentMoney -= amount;
-        FirebaseManager.Instance?.WriteRoomCoins(currentMoney);
+        FirebaseManager.Instance?.SpendRoomCoins(amount, reason, ok =>
+        {
+            if (!ok) Debug.LogWarning($"[EconomyManager] 房間扣款 -{amount} 失敗（{reason}）");
+        });
         if (countUpRoutine != null) StopCoroutine(countUpRoutine);
         displayedMoney = currentMoney;
         RefreshMoneyUI();
@@ -40,10 +45,10 @@ public class EconomyManager : MonoBehaviour
     }
 
     /// <summary>Add coins to the shared wallet (e.g. refund).</summary>
-    public void AddCoins(int amount)
+    public void AddCoins(int amount, string reason = "")
     {
         if (amount <= 0) return;
-        FirebaseManager.Instance?.AddRoomCoins(amount);
+        FirebaseManager.Instance?.AddRoomCoins(amount, reason);
         // UI updates via Firebase listener (SetRoomBalance).
     }
 
@@ -114,7 +119,7 @@ public class EconomyManager : MonoBehaviour
     {
         Debug.Log($"[EconomyManager] AddMoneyFromPhoto: +{moneyPerPhoto} coins, firebase={FirebaseManager.Instance != null}");
         if (FirebaseManager.Instance != null)
-            FirebaseManager.Instance.AddRoomCoins(moneyPerPhoto);
+            FirebaseManager.Instance.AddRoomCoins(moneyPerPhoto, "photo");
     }
 
     IEnumerator CountUpMoneyRoutine(int from, int to)

@@ -793,6 +793,8 @@ public class FirebaseManager : MonoBehaviour
             return;
         }
 
+        string currentRoom = _roomId;
+        RoomPetState cachedPet = _petState;
         userRooms.GetValueAsync().ContinueWith(t =>
         {
             if (t.IsFaulted || t.IsCanceled || t.Result == null || !t.Result.Exists)
@@ -814,65 +816,82 @@ public class FirebaseManager : MonoBehaviour
                 return;
             }
 
-            // Fetch each room meta + petState (small count expected).
+            // 每個房間只讀 meta 與 petState（不讀整個房間：聊天、照片 base64 很大；
+            // 而且讀目前房間的上層節點會讓 desktop SDK 重新監聽子路徑，觸發 persistent_connection 斷言）。
+            // 目前房間的 petState 已在監聽，直接用快取，不再讀一次。
             var results = new List<RoomSummary>();
             int remaining = ids.Count;
             for (int i = 0; i < ids.Count; i++)
             {
-                string id = ids[i];
-                dbRef.Child("Rooms").Child(id).GetValueAsync().ContinueWith(tRoom =>
+                FetchRoomSummary(ids[i], currentRoom, cachedPet, sum =>
                 {
-                    try
+                    if (sum != null) lock (results) results.Add(sum);
+                    if (System.Threading.Interlocked.Decrement(ref remaining) != 0) return;
+                    // Stable order: lastActive desc, then roomId.
+                    results.Sort((x, y) =>
                     {
-                        if (tRoom.IsCompleted && !tRoom.IsFaulted && !tRoom.IsCanceled && tRoom.Result != null && tRoom.Result.Exists)
-                        {
-                            var snap = tRoom.Result;
-                            var metaSnap = snap.Child("meta");
-                            RoomMeta meta = null;
-                            if (metaSnap != null && metaSnap.Exists)
-                            {
-                                string mj = metaSnap.GetRawJsonValue();
-                                meta = !string.IsNullOrEmpty(mj) ? JsonUtility.FromJson<RoomMeta>(mj) : null;
-                            }
-
-                            var petSnap = snap.Child("petState");
-                            RoomPetState pet = null;
-                            if (petSnap != null && petSnap.Exists)
-                            {
-                                string pj = petSnap.GetRawJsonValue();
-                                pet = !string.IsNullOrEmpty(pj) ? JsonUtility.FromJson<RoomPetState>(pj) : null;
-                            }
-
-                            var sum = new RoomSummary
-                            {
-                                roomId = id,
-                                name = meta != null ? meta.name : ("Room " + id),
-                                lastActiveAt = meta != null ? meta.lastActiveAt : null,
-                                petIndex = pet != null ? pet.petIndex : 0,
-                                currentHealth = pet != null ? pet.currentHealth : 0f,
-                                lastUpdateTime = pet != null ? pet.lastUpdateTime : null
-                            };
-
-                            lock (results) results.Add(sum);
-                        }
-                    }
-                    catch { }
-                    finally
-                    {
-                        if (System.Threading.Interlocked.Decrement(ref remaining) == 0)
-                        {
-                            // Stable order: lastActive desc, then roomId.
-                            results.Sort((a, b) =>
-                            {
-                                int tcmp = string.CompareOrdinal(b.lastActiveAt ?? "", a.lastActiveAt ?? "");
-                                if (tcmp != 0) return tcmp;
-                                return string.CompareOrdinal(a.roomId ?? "", b.roomId ?? "");
-                            });
-                            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(results));
-                        }
-                    }
+                        int tcmp = string.CompareOrdinal(y.lastActiveAt ?? "", x.lastActiveAt ?? "");
+                        if (tcmp != 0) return tcmp;
+                        return string.CompareOrdinal(x.roomId ?? "", y.roomId ?? "");
+                    });
+                    lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(results));
                 });
             }
+        });
+    }
+
+    /// <summary>讀單一房間的 meta＋petState 組成摘要；房間不存在時回傳 null。callback 在背景執行緒。</summary>
+    void FetchRoomSummary(string id, string currentRoom, RoomPetState cachedPet, Action<RoomSummary> done)
+    {
+        var room = dbRef.Child("Rooms").Child(id);
+        room.Child("meta").GetValueAsync().ContinueWith(tMeta =>
+        {
+            RoomMeta meta = null;
+            bool exists = false;
+            try
+            {
+                if (tMeta.IsCompleted && !tMeta.IsFaulted && !tMeta.IsCanceled && tMeta.Result != null && tMeta.Result.Exists)
+                {
+                    exists = true;
+                    string mj = tMeta.Result.GetRawJsonValue();
+                    meta = !string.IsNullOrEmpty(mj) ? JsonUtility.FromJson<RoomMeta>(mj) : null;
+                }
+            }
+            catch { }
+
+            Action<RoomPetState> finish = pet =>
+            {
+                if (!exists && pet == null) { done(null); return; }
+                done(new RoomSummary
+                {
+                    roomId = id,
+                    name = meta != null ? meta.name : ("Room " + id),
+                    lastActiveAt = meta != null ? meta.lastActiveAt : null,
+                    petIndex = pet != null ? pet.petIndex : 0,
+                    currentHealth = pet != null ? pet.currentHealth : 0f,
+                    lastUpdateTime = pet != null ? pet.lastUpdateTime : null
+                });
+            };
+
+            if (id == currentRoom)
+            {
+                finish(cachedPet);
+                return;
+            }
+            room.Child("petState").GetValueAsync().ContinueWith(tPet =>
+            {
+                RoomPetState pet = null;
+                try
+                {
+                    if (tPet.IsCompleted && !tPet.IsFaulted && !tPet.IsCanceled && tPet.Result != null && tPet.Result.Exists)
+                    {
+                        string pj = tPet.Result.GetRawJsonValue();
+                        pet = !string.IsNullOrEmpty(pj) ? JsonUtility.FromJson<RoomPetState>(pj) : null;
+                    }
+                }
+                catch { }
+                finish(pet);
+            });
         });
     }
 
@@ -1188,6 +1207,21 @@ public class FirebaseManager : MonoBehaviour
     {
         string normalized = roomId?.Trim() ?? "";
         if (normalized.Length > 32) normalized = normalized.Substring(0, 32);
+
+        // 同一個房間（例如從房間列表點回目前的房間）：不要停掉再重開監聽。
+        // 同一路徑立刻 unlisten + listen 會觸發 Firebase desktop SDK 的
+        // persistent_connection.cc listens_.find(query_spec) 斷言，也是多餘的重新下載。
+        if (normalized == _roomId && !string.IsNullOrEmpty(normalized))
+        {
+            TryStartListeningForMessages();
+            TryStartListeningForPhotos();
+            TryStartListeningForPetState();
+            TryStartListeningForRoomEquipState();
+            TryStartListeningForRoomCoins();
+            OnRoomChanged?.Invoke();
+            return;
+        }
+
         _roomId = normalized;
         PlayerPrefs.SetString(PrefsRoomId, _roomId);
         PlayerPrefs.Save();
@@ -1261,25 +1295,27 @@ public class FirebaseManager : MonoBehaviour
         if (auth.CurrentUser == null) return;
 
         _petListening = true;
+        _petInitRequested = false;
         _petRef = RoomRoot().Child("petState");
+        // 節點不存在時由 HandlePetStateChanged 建立預設值。不要在同一路徑另外 GetValueAsync：
+        // desktop SDK 對已監聽的路徑再讀一次會觸發 persistent_connection.cc listens_.find 斷言。
         _petRef.ValueChanged += HandlePetStateChanged;
+    }
 
-        // Ensure node exists (create default on first join).
-        _petRef.GetValueAsync().ContinueWith(t =>
+    bool _petInitRequested;
+
+    void CreateDefaultPetState(DatabaseReference petRef)
+    {
+        if (_petInitRequested || petRef == null) return;
+        _petInitRequested = true;
+        var init = new RoomPetState
         {
-            if (t.IsFaulted || t.IsCanceled) return;
-            if (t.Result == null || !t.Result.Exists)
-            {
-                var init = new RoomPetState
-                {
-                    currentHealth = 86400f,
-                    lastUpdateTime = DateTime.Now.ToString(),
-                    petIndex = 0,
-                    startingPhotoCount = 0
-                };
-                _petRef.SetRawJsonValueAsync(JsonUtility.ToJson(init));
-            }
-        });
+            currentHealth = 86400f,
+            lastUpdateTime = DateTime.Now.ToString(),
+            petIndex = 0,
+            startingPhotoCount = 0
+        };
+        petRef.SetRawJsonValueAsync(JsonUtility.ToJson(init));
     }
 
     void StopPetListening()
@@ -1390,8 +1426,9 @@ public class FirebaseManager : MonoBehaviour
         }
     }
 
-    /// <summary>Atomically adds coins to the shared room wallet (safe for concurrent calls).</summary>
-    public void AddRoomCoins(int amount)
+    /// <summary>Atomically adds coins to the shared room wallet (safe for concurrent calls).
+    /// 成功後寫一筆帳本 Rooms/{roomId}/economy/ledger，記錄是誰賺的。</summary>
+    public void AddRoomCoins(int amount, string reason = "")
     {
         if (amount <= 0) return;
         if (_coinsRef == null || !_coinsListening)
@@ -1399,6 +1436,7 @@ public class FirebaseManager : MonoBehaviour
             Debug.LogWarning($"[FirebaseManager] AddRoomCoins skipped — ref={_coinsRef != null}, listening={_coinsListening}");
             return;
         }
+        string roomSnap = _roomId;
         _coinsRef.RunTransaction(mutable =>
         {
             long cur = 0;
@@ -1409,16 +1447,72 @@ public class FirebaseManager : MonoBehaviour
         }).ContinueWith(t =>
         {
             if (t.IsFaulted || t.IsCanceled)
+            {
                 Debug.LogError("[FirebaseManager] AddRoomCoins transaction failed: " + t.Exception?.GetBaseException()?.Message);
-            else
-                Debug.Log($"[FirebaseManager] AddRoomCoins +{amount} committed");
+                return;
+            }
+            Debug.Log($"[FirebaseManager] AddRoomCoins +{amount} committed");
+            WriteCoinLedger(roomSnap, amount, reason, ToLong(t.Result?.Value));
         });
     }
 
-    /// <summary>Writes the new balance after a local spend. Not a transaction — acceptable for small groups.</summary>
-    public void WriteRoomCoins(int newBalance)
+    /// <summary>
+    /// 從房間帳戶扣款（transaction，餘額不足時中止，不會扣成負數）。
+    /// 成功後寫帳本記錄是誰花的。done(ok) 在主執行緒呼叫。
+    /// </summary>
+    public void SpendRoomCoins(int amount, string reason, Action<bool> done = null)
     {
-        _coinsRef?.SetValueAsync((long)Mathf.Max(0, newBalance));
+        if (amount <= 0) { done?.Invoke(true); return; }
+        if (_coinsRef == null || !_coinsListening)
+        {
+            Debug.LogWarning("[FirebaseManager] SpendRoomCoins skipped — not listening to room coins");
+            done?.Invoke(false);
+            return;
+        }
+        string roomSnap = _roomId;
+        // handler 可能因衝突重跑多次，以最後一次的判斷為準。
+        bool aborted = false;
+        _coinsRef.RunTransaction(mutable =>
+        {
+            long cur = ToLong(mutable.Value);
+            aborted = cur < amount;
+            if (aborted) return TransactionResult.Abort();
+            mutable.Value = cur - amount;
+            return TransactionResult.Success(mutable);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && !aborted;
+            if (ok)
+                WriteCoinLedger(roomSnap, -amount, reason, ToLong(t.Result.Value));
+            else
+                Debug.LogWarning($"[FirebaseManager] SpendRoomCoins -{amount} 未成功（餘額不足或連線失敗）");
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    void WriteCoinLedger(string roomId, int amount, string reason, long balanceAfter)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(roomId)) return;
+        var entry = new Dictionary<string, object>
+        {
+            ["uid"] = GetUserId() ?? "",
+            ["displayName"] = GetDisplayName(),
+            ["amount"] = amount,
+            ["reason"] = reason ?? "",
+            ["balanceAfter"] = balanceAfter,
+            ["timestamp"] = ServerValue.Timestamp,
+        };
+        dbRef.Child("Rooms").Child(roomId).Child("economy").Child("ledger").Push().SetValueAsync(entry).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.LogWarning("[FirebaseManager] Write coin ledger failed: " + t.Exception?.GetBaseException()?.Message);
+        });
+    }
+
+    static long ToLong(object v)
+    {
+        if (v == null) return 0;
+        try { return Convert.ToInt64(v); } catch { return 0; }
     }
 
     // ─── Avatar cloud backup ──────────────────────────────────────────
@@ -1465,6 +1559,11 @@ public class FirebaseManager : MonoBehaviour
         if (args.DatabaseError != null)
         {
             Debug.LogError("[FirebaseManager] petState listener error: " + args.DatabaseError.Message);
+            return;
+        }
+        if (args.Snapshot != null && !args.Snapshot.Exists)
+        {
+            CreateDefaultPetState(_petRef); // 第一次進房：建立預設寵物狀態
             return;
         }
         string json = args.Snapshot?.GetRawJsonValue();

@@ -1,0 +1,394 @@
+[
+ {
+  "file": "Sprites/ui_hand_card.png",
+  "px": [
+   90,
+   90
+  ],
+  "size_1x": [
+   30,
+   30
+  ],
+  "border_LBRT_px": [
+   30,
+   30,
+   30,
+   30
+  ],
+  "note": "手牌卡底 #FFFCF4 圓角 10"
+ },
+ {
+  "file": "Sprites/ui_hand_card_shadow.png",
+  "px": [
+   324,
+   324
+  ],
+  "size_1x": [
+   108,
+   108
+  ],
+  "border_LBRT_px": [
+   102,
+   102,
+   102,
+   102
+  ],
+  "note": "手牌卡陰影 0 6 14 rgba(30,30,20,.35)；Unity 放在形狀下層，四邊各外擴 24"
+ },
+ {
+  "file": "Sprites/ui_hand_card_camera.png",
+  "px": [
+   276,
+   372
+  ],
+  "size_1x": [
+   92,
+   124
+  ],
+  "border_LBRT_px": null,
+  "note": "拍照牌（固定尺寸 92×124）：#E86B4F、內距 5 的白色虛線框"
+ },
+ {
+  "file": "Sprites/ui_icon_camera.png",
+  "px": [
+   120,
+   120
+  ],
+  "size_1x": [
+   40,
+   40
+  ],
+  "border_LBRT_px": null,
+  "note": "相機圖示（拍照牌 30×30、相機鈕內 38×38）"
+ },
+ {
+  "file": "Sprites/ui_mask_r6.png",
+  "px": [
+   66,
+   66
+  ],
+  "size_1x": [
+   22,
+   22
+  ],
+  "border_LBRT_px": [
+   18,
+   18,
+   18,
+   18
+  ],
+  "note": "照片遮罩 圓角 6（手牌照片 82×82）"
+ },
+ {
+  "file": "Sprites/ui_mask_r10.png",
+  "px": [
+   90,
+   90
+  ],
+  "size_1x": [
+   30,
+   30
+  ],
+  "border_LBRT_px": [
+   30,
+   30,
+   30,
+   30
+  ],
+  "note": "照片遮罩 圓角 10（舉起照片 210×140）"
+ },
+ {
+  "file": "Sprites/ui_mask_r3.png",
+  "px": [
+   60,
+   60
+  ],
+  "size_1x": [
+   20,
+   20
+  ],
+  "border_LBRT_px": [
+   9,
+   9,
+   9,
+   9
+  ],
+  "note": "照片遮罩 圓角 3（相簿鈕小縮圖 24×24）"
+ },
+ {
+  "file": "Sprites/ui_popup.png",
+  "px": [
+   126,
+   126
+  ],
+  "size_1x": [
+   42,
+   42
+  ],
+  "border_LBRT_px": [
+   48,
+   48,
+   48,
+   48
+  ],
+  "note": "舉起照片卡底 圓角 16"
+ },
+ {
+  "file": "Sprites/ui_popup_shadow.png",
+  "px": [
+   468,
+   468
+  ],
+  "size_1x": [
+   156,
+   156
+  ],
+  "border_LBRT_px": [
+   192,
+   192,
+   192,
+   192
+  ],
+  "note": "舉起照片卡陰影 0 16 30 rgba(0,0,0,.35)；Unity 放在形狀下層，四邊各外擴 48"
+ },
+ {
+  "file": "Sprites/ui_btn_beige.png",
+  "px": [
+   108,
+   108
+  ],
+  "size_1x": [
+   36,
+   36
+  ],
+  "border_LBRT_px": [
+   39,
+   39,
+   39,
+   39
+  ],
+  "note": "「放回」鈕 #F2E9D8 圓角 13"
+ },
+ {
+  "file": "Sprites/ui_btn_yellow.png",
+  "px": [
+   90,
+   99
+  ],
+  "size_1x": [
+   30,
+   33
+  ],
+  "border_LBRT_px": [
+   39,
+   48,
+   39,
+   39
+  ],
+  "note": "「餵給寵物」鈕 #F6C945 圓角 13＋下緣 3 立體 #D9A92C；Unity 高 = 按鈕高 + 3"
+ },
+ {
+  "file": "Sprites/ui_dock_tile.png",
+  "px": [
+   276,
+   276
+  ],
+  "size_1x": [
+   92,
+   92
+  ],
+  "border_LBRT_px": null,
+  "note": "相簿／聊天方塊 60×60（含陰影外擴 16 → 92×92）。設計稿另有 backdrop-filter blur(8px)"
+ },
+ {
+  "file": "Sprites/ui_dock_camera.png",
+  "px": [
+   396,
+   396
+  ],
+  "size_1x": [
+   132,
+   132
+  ],
+  "border_LBRT_px": null,
+  "note": "大拍照鈕 84×84（含陰影外擴 24 → 132×132），內含相機圖示"
+ },
+ {
+  "file": "Sprites/ui_icon_chat.png",
+  "px": [
+   84,
+   84
+  ],
+  "size_1x": [
+   28,
+   28
+  ],
+  "border_LBRT_px": null,
+  "note": "聊天圖示 28×28"
+ },
+ {
+  "file": "Sprites/ui_album_minis.png",
+  "px": [
+   228,
+   228
+  ],
+  "size_1x": [
+   76,
+   76
+  ],
+  "border_LBRT_px": null,
+  "note": "相簿鈕裡兩張疊起來的小照片（60×60 區域，外擴 8 → 76×76）；上面那張的縮圖在 Unity 疊上（24×24、轉 6°）"
+ },
+ {
+  "file": "Sprites/ui_latest_card.png",
+  "px": [
+   102,
+   102
+  ],
+  "size_1x": [
+   34,
+   34
+  ],
+  "border_LBRT_px": [
+   36,
+   36,
+   36,
+   36
+  ],
+  "note": "最新照片卡底 圓角 12"
+ },
+ {
+  "file": "Sprites/ui_latest_back_shadow.png",
+  "px": [
+   324,
+   324
+  ],
+  "size_1x": [
+   108,
+   108
+  ],
+  "border_LBRT_px": [
+   108,
+   108,
+   108,
+   108
+  ],
+  "note": "後面疊的兩張卡的陰影；Unity 放在形狀下層，四邊各外擴 24"
+ },
+ {
+  "file": "Sprites/ui_latest_glow_lo.png",
+  "px": [
+   372,
+   372
+  ],
+  "size_1x": [
+   124,
+   124
+  ],
+  "border_LBRT_px": [
+   132,
+   132,
+   132,
+   132
+  ],
+  "note": "最新照片卡金框發光（c5Glow 0%）；Unity 放在形狀下層，四邊各外擴 32"
+ },
+ {
+  "file": "Sprites/ui_latest_glow_hi.png",
+  "px": [
+   372,
+   372
+  ],
+  "size_1x": [
+   124,
+   124
+  ],
+  "border_LBRT_px": [
+   132,
+   132,
+   132,
+   132
+  ],
+  "note": "最新照片卡金框發光（c5Glow 50%），與 lo 交替淡入淡出 1.8 秒；Unity 放在形狀下層，四邊各外擴 32"
+ },
+ {
+  "file": "Sprites/ui_badge_new.png",
+  "px": [
+   90,
+   57
+  ],
+  "size_1x": [
+   30,
+   19
+  ],
+  "border_LBRT_px": [
+   24,
+   30,
+   24,
+   24
+  ],
+  "note": "「新」標籤 #E86B4F 圓角 8＋下緣 2 #B44A33；字 11 Black 白"
+ },
+ {
+  "file": "Sprites/ui_icon_eye.png",
+  "px": [
+   36,
+   30
+  ],
+  "size_1x": [
+   12,
+   10
+  ],
+  "border_LBRT_px": null,
+  "note": "眼睛圖示 12×10 #8A7A66"
+ },
+ {
+  "file": "Sprites/ui_circle.png",
+  "px": [
+   60,
+   60
+  ],
+  "size_1x": [
+   20,
+   20
+  ],
+  "border_LBRT_px": null,
+  "note": "發布者頭像圓（白色，用 Image.color 上色）"
+ },
+ {
+  "file": "Sprites/ui_glass_pill.png",
+  "px": [
+   126,
+   126
+  ],
+  "size_1x": [
+   42,
+   42
+  ],
+  "border_LBRT_px": [
+   48,
+   48,
+   48,
+   48
+  ],
+  "note": "空狀態底 rgba(255,248,236,.72) 圓角 16"
+ },
+ {
+  "file": "Sprites/ui_pill_yellow.png",
+  "px": [
+   120,
+   120
+  ],
+  "size_1x": [
+   40,
+   40
+  ],
+  "border_LBRT_px": [
+   45,
+   45,
+   45,
+   45
+  ],
+  "note": "「開啟設定」鈕 #F6C945 圓角 15"
+ }
+]

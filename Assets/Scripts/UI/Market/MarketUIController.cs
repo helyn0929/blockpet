@@ -419,10 +419,10 @@ public class MarketUIController : MonoBehaviour
         if (item.price > 0 && EconomyManager.Instance.CurrentMoney < item.price) return false;
         if (item.gemPrice > 0 && MarketWallet.Gems < item.gemPrice) return false;
 
-        if (item.price > 0 && !EconomyManager.Instance.TrySpend(item.price)) return false;
+        if (item.price > 0 && !EconomyManager.Instance.TrySpend(item.price, "market:" + item.id)) return false;
         if (item.gemPrice > 0 && !MarketWallet.TrySpendGems(item.gemPrice))
         {
-            if (item.price > 0) EconomyManager.Instance.AddCoins(item.price);
+            if (item.price > 0) EconomyManager.Instance.AddCoins(item.price, "refund:" + item.id);
             return false;
         }
 
@@ -433,9 +433,9 @@ public class MarketUIController : MonoBehaviour
     {
         if (EconomyManager.Instance == null) return;
         if (item.price > 0 && EconomyManager.Instance.CurrentMoney < item.price) return;
-        if (!EconomyManager.Instance.TrySpend(item.price)) return;
+        if (!EconomyManager.Instance.TrySpend(item.price, "market:" + item.id)) return;
 
-        EconomyManager.Instance.AddCoins(item.grantCoins);
+        EconomyManager.Instance.AddCoins(item.grantCoins, "pack:" + item.id);
         MarketWallet.AddGems(item.grantGems);
         RefreshCurrency();
     }

@@ -31,6 +31,9 @@ public class PetCollectionManager : MonoBehaviour
     public int CurrentPetIndex => currentPetIndex;
     public int StartingPhotoCount => startingPhotoCount;
 
+    /// <summary>目前寵物的收集進度（0～100），給新版頂部狀態欄的進化條用。</summary>
+    public float ProgressPercent => TargetAmount > 0 ? Mathf.Clamp(100f * CurrentProgress / TargetAmount, 0f, 100f) : 0f;
+
     int CurrentPhotoCount => SaveManager.Instance != null && SaveManager.Instance.data?.photos != null
         ? SaveManager.Instance.data.photos.Count
         : 0;

@@ -1,0 +1,261 @@
+{
+  "_note": "BlockPet 首頁頂部狀態欄。版面、顏色、字級全部照設計稿 artifact「Blockpet 簡化版遊戲畫面」首頁 v8（Camp8）量出；標「補充」的是設計稿沒畫、依設計文件規則補的。",
+  "source": "https://claude.ai/artifact/BhqLuHp9n1MniNXyypAYim  → 頁面「首頁 v8 照片分割」→ Camp8",
+  "referenceResolution": [
+    390,
+    772
+  ],
+  "font": {
+    "family": "Noto Sans TC",
+    "weight": "Black (900)",
+    "textColor": "#3A2E22"
+  },
+  "layout_1x_relativeToPanel": {
+    "panel": {
+      "screenX": 10,
+      "screenY": 10,
+      "w": 370,
+      "h": 58,
+      "radius": 29,
+      "paddingL": 6,
+      "paddingR": 8,
+      "gap": 8,
+      "fill": "rgba(255,248,236,0.62)",
+      "border": "1.5 rgba(255,255,255,0.65)",
+      "shadow": "0 6 16 rgba(30,40,20,0.18)",
+      "backdropBlur": 8
+    },
+    "avatar": [
+      7,
+      7,
+      44,
+      44
+    ],
+    "avatarImage": [
+      9,
+      12,
+      40,
+      34
+    ],
+    "lvBadge": [
+      12.38,
+      41,
+      33.23,
+      15
+    ],
+    "name": [
+      59,
+      9.5,
+      57.67,
+      17
+    ],
+    "hearts": [
+      122.67,
+      11,
+      79,
+      14
+    ],
+    "wantChip": [
+      207.67,
+      9.5,
+      62.53,
+      17
+    ],
+    "evoBar": [
+      59,
+      36.5,
+      160.47,
+      8
+    ],
+    "evoText": [
+      225.47,
+      32.5,
+      48.77,
+      16
+    ],
+    "coinButton": [
+      282.23,
+      14,
+      78.77,
+      30
+    ],
+    "coinDot": [
+      289.23,
+      22,
+      14,
+      14
+    ],
+    "coinNumber": [
+      307.23,
+      19.5,
+      23.77,
+      19
+    ],
+    "coinPlus": [
+      335,
+      18,
+      22,
+      22
+    ],
+    "_flow": "名字、愛心、想吃膠囊由左往右排，間距 6；進化條寬 = 中欄寬 − 6 − 文字寬；中欄寬 = 370 − 6 − 44 − 8 − 8 − 金幣按鈕寬 − 8；金幣按鈕寬隨數字長度變"
+  },
+  "menuButton": {
+    "screenRightMargin": 10,
+    "screenY": 80,
+    "w": 46,
+    "h": 32,
+    "radius": 16,
+    "closedFill": "rgba(255,248,236,0.62)",
+    "openFill": "rgba(246,201,69,0.9)",
+    "chevronRotateSec": 0.25,
+    "items": {
+      "tile": 46,
+      "radius": 15,
+      "gap": 8,
+      "labelFont": "11 Black 白字＋陰影",
+      "order": [
+        "佈置",
+        "旅行",
+        "圖鑑",
+        "設定"
+      ],
+      "icons": {
+        "佈置": "Icons/icon_bed@3x.png（22×22）",
+        "旅行": "ui_icon_travel",
+        "圖鑑": "ui_icon_dex",
+        "設定": "ui_icon_settings"
+      }
+    }
+  },
+  "homeButton": {
+    "_note": "設計文件 5.7（2026-10-18）：取代預設 Back 鈕，點了回選擇寵物空間；樣式同選單鈕",
+    "screenLeftMargin": 10,
+    "screenY": 80,
+    "w": 46,
+    "h": 32,
+    "radius": 16,
+    "fill": "rgba(255,248,236,0.62)",
+    "icon": "Icons/icon_home@3x.png",
+    "iconSize": 20
+  },
+  "todayTheme": {
+    "_note": "今日題目直排格子起始 y（避開 Home 鍵）；第 9 步實作時使用",
+    "startY": 124
+  },
+  "fontSizes": {
+    "name": 13,
+    "lv": 9,
+    "want": 11,
+    "evoText": 11,
+    "coin": 13
+  },
+  "hearts": {
+    "size": [
+      15,
+      14
+    ],
+    "gap": 1,
+    "full": "#F06B5B",
+    "empty": "#E6D9C3",
+    "half": "補充：左半 #F06B5B"
+  },
+  "evoBar": {
+    "height": 8,
+    "track": "rgba(255,255,255,0.55)",
+    "segmentGap": 1,
+    "widthTransitionSec": 0.6,
+    "widthTransitionEase": "ease",
+    "segmentOrder": [
+      "美食",
+      "自然",
+      "城市",
+      "生活人物",
+      "運動戶外"
+    ],
+    "segmentColors": {
+      "美食": "#F29A3A",
+      "自然": "#6FA45F",
+      "城市": "#6F8FE0",
+      "生活人物": "#D78AD0",
+      "運動戶外": "#E8C33A"
+    },
+    "scale": "每段寬 = 該類能量 % × 條寬（滿條 = 100 能量）",
+    "text": "進化 {energy}%"
+  },
+  "wantChip": {
+    "height": 17,
+    "paddingX": 8,
+    "colors": {
+      "美食": {
+        "bg": "#FFE3C7",
+        "fg": "#A4511B"
+      },
+      "生活人物": {
+        "bg": "#F6E2F4",
+        "fg": "#8A3F84"
+      },
+      "自然": {
+        "bg": "#E3EED9",
+        "fg": "#4A7A3F",
+        "_": "補充"
+      },
+      "城市": {
+        "bg": "#E2E8F8",
+        "fg": "#3F5BA8",
+        "_": "補充"
+      },
+      "運動戶外": {
+        "bg": "#FBF0C8",
+        "fg": "#8E6E0C",
+        "_": "補充"
+      }
+    }
+  },
+  "coin": {
+    "buttonFill": "rgba(255,255,255,0.75)",
+    "buttonBorder": "1.5 rgba(255,255,255,0.9)",
+    "dot": "#FFD54F inset -2,-2 #E0A21E",
+    "plus": "#F6C945 shadow 0 2 0 #D9A92C",
+    "tap": "打開商城"
+  },
+  "feedResult_fromArtifact": {
+    "hit": {
+      "energy": 12,
+      "energyTo": "今天想吃的類別",
+      "coins": "5 × 愛心乘數（4 心時 +6）",
+      "toast": [
+        "好好吃！",
+        "命中喜好・進化 +12"
+      ],
+      "toastColor": "#E0662E"
+    },
+    "miss": {
+      "energy": 3,
+      "energyTo": "照片自己的類別",
+      "coins": 1,
+      "toast": [
+        "嗯…？",
+        "想吃美食・進化 +3"
+      ],
+      "toastColor": "#6A55A8"
+    },
+    "hearts": "設計稿：命中 +1 顆；設計文件 10-15 定案：每餵一張 +0.5 顆 → 以設計文件為準，待確認"
+  },
+  "supplementary": {
+    "ready": {
+      "when": "能量 100",
+      "bar": "外框 0 0 0 2 #F6C945＋0 0 10 rgba(246,201,69,0.8)",
+      "text": "可進化！ #C2621A",
+      "trigger": "點進化條或寵物"
+    },
+    "lowHearts": {
+      "when": "≤ 1",
+      "anim": "愛心 scale 1→1.18→1，1.8s 循環（設計稿 c5Pulse）"
+    },
+    "dead": {
+      "avatar": "灰階 70%",
+      "segments": "#C9BFAF",
+      "wantChip": "改「點我復活」底 #E86B4F 白字"
+    }
+  }
+}

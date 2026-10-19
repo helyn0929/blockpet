@@ -22,6 +22,7 @@ namespace BlockPet.Decoration
         DatabaseReference _decorRef;
         DatabaseReference _editingByRef;
         string _localUserId;
+        string _roomId = "";
 
         readonly Dictionary<string, DecorationObject> _spawned = new Dictionary<string, DecorationObject>();
         readonly Queue<Action> _mainQueue = new Queue<Action>();
@@ -48,6 +49,8 @@ namespace BlockPet.Decoration
         {
             // Firebase 初始化是非同步的，訂閱登入成功事件確保 roomId 拿到後再開始監聽
             FirebaseManager.OnLoginSuccess += OnFirebaseReady;
+            // 切換房間時跟著換監聽，並清掉上一個房間的家具
+            FirebaseManager.OnRoomChanged += OnRoomChanged;
 
             // 若已登入（重新進主頁）直接啟動
             string roomId = FirebaseManager.Instance?.RoomId ?? "";
@@ -63,6 +66,20 @@ namespace BlockPet.Decoration
                 StartListening(roomId);
         }
 
+        void OnRoomChanged()
+        {
+            string roomId = FirebaseManager.Instance?.RoomId ?? "";
+            if (string.IsNullOrEmpty(roomId))
+            {
+                ReleaseEditLock();
+                StopListening();
+                ClearSpawned();
+                _roomId = "";
+                return;
+            }
+            StartListening(roomId);
+        }
+
         void Update()
         {
             lock (_mainQueue)
@@ -72,6 +89,7 @@ namespace BlockPet.Decoration
         void OnDestroy()
         {
             FirebaseManager.OnLoginSuccess -= OnFirebaseReady;
+            FirebaseManager.OnRoomChanged -= OnRoomChanged;
             StopListening();
             if (Instance == this) Instance = null;
         }
@@ -80,7 +98,16 @@ namespace BlockPet.Decoration
 
         public void StartListening(string roomId)
         {
+            // 已在監聽同一個房間：不要重開（同路徑立刻 unlisten + listen 會觸發 Firebase desktop 斷言）
+            if (_isListening && roomId == _roomId) return;
             if (_isListening) StopListening();
+
+            if (roomId != _roomId)
+            {
+                ReleaseEditLock();   // 用舊房間的 editingBy ref 釋放
+                ClearSpawned();
+            }
+            _roomId = roomId;
 
             _localUserId = FirebaseManager.Instance?.GetUserId() ?? "";
 
@@ -109,21 +136,40 @@ namespace BlockPet.Decoration
         {
             if (e.DatabaseError != null) { Debug.LogWarning($"[DecorationManager] ChildAdded error: {e.DatabaseError}"); return; }
             var snap = e.Snapshot;
-            lock (_mainQueue) _mainQueue.Enqueue(() => SpawnOrUpdate(snap));
+            lock (_mainQueue) _mainQueue.Enqueue(() => { if (IsCurrentRoom(snap)) SpawnOrUpdate(snap); });
         }
 
         void OnChildChanged(object sender, ChildChangedEventArgs e)
         {
             if (e.DatabaseError != null) { Debug.LogWarning($"[DecorationManager] ChildChanged error: {e.DatabaseError}"); return; }
             var snap = e.Snapshot;
-            lock (_mainQueue) _mainQueue.Enqueue(() => SpawnOrUpdate(snap));
+            lock (_mainQueue) _mainQueue.Enqueue(() => { if (IsCurrentRoom(snap)) SpawnOrUpdate(snap); });
         }
 
         void OnChildRemoved(object sender, ChildChangedEventArgs e)
         {
             if (e.DatabaseError != null) { Debug.LogWarning($"[DecorationManager] ChildRemoved error: {e.DatabaseError}"); return; }
-            string key = e.Snapshot.Key;
-            lock (_mainQueue) _mainQueue.Enqueue(() => RemoveLocal(key));
+            var snap = e.Snapshot;
+            lock (_mainQueue) _mainQueue.Enqueue(() => { if (IsCurrentRoom(snap)) RemoveLocal(snap.Key); });
+        }
+
+        /// <summary>丟掉切換房間前就排進佇列的舊房間事件（路徑為 Rooms/{roomId}/decorations/{decorId}）。</summary>
+        bool IsCurrentRoom(DataSnapshot snap)
+        {
+            string room = snap?.Reference?.Parent?.Parent?.Key;
+            return _isListening && room == _roomId;
+        }
+
+        void ClearSpawned()
+        {
+            foreach (var kvp in _spawned)
+            {
+                if (kvp.Value == null) continue;
+                kvp.Value.OnDeleteRequested -= HandleDeleteRequested;
+                OnDecorationRemoved?.Invoke(kvp.Key);
+                Destroy(kvp.Value.gameObject);
+            }
+            _spawned.Clear();
         }
 
         void SpawnOrUpdate(DataSnapshot snap)

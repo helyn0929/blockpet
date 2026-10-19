@@ -25,8 +25,8 @@ namespace BlockPet.UI.Home
 
         public bool IsEditing { get; private set; }
 
-        /// <summary>True while any RoomEditorController is in edit mode. Lets world objects (e.g. the
-        /// fermentation jar) ignore taps that are meant for edit-mode placement/deletion instead.</summary>
+        /// <summary>True while any RoomEditorController is in edit mode. Lets interactive world objects
+        /// ignore taps that are meant for edit-mode placement/deletion instead.</summary>
         public static bool AnyEditModeActive { get; private set; }
 
         // ─── Lifecycle ─────────────────────────────────────────────────

@@ -30,6 +30,9 @@ public class PageManager : MonoBehaviour
 
     bool _albumOpenedFromChat;
 
+    /// <summary>首頁目前是否顯示中（手牌只在首頁出現）。</summary>
+    public bool IsHomePageActive => homePage != null && homePage.activeInHierarchy;
+
     void Awake()
     {
         ResolveHudManagers();

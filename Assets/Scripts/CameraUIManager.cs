@@ -65,6 +65,49 @@ public class CameraUIManager : MonoBehaviour
     UIMode mode = UIMode.Home;
     public UIMode CurrentMode => mode;
 
+    /// <summary>Home 狀態且不在冷卻中時為 true（給手牌的「拍照」牌用）。</summary>
+    public bool IsCameraReady => mode == UIMode.Home && (cameraButton == null || cameraButton.interactable);
+
+    /// <summary>冷卻倒數文字（例如 "00:12"），沒有冷卻時為空字串。</summary>
+    public string CooldownText => !IsCameraReady && cameraButtonText != null ? cameraButtonText.text : "";
+
+    /// <summary>
+    /// 有手牌時（首頁 v8），Home 狀態下底部的相機／聊天／相簿三顆鈕由手牌與出牌後的
+    /// 「相簿／拍照／聊天」列取代，先藏起來。進入相機模式後仍會顯示（拍照、切換鏡頭、返回要用）。
+    /// </summary>
+    public bool hideHomeButtons;
+
+    void LateUpdate()
+    {
+        bool visible = !(hideHomeButtons && mode == UIMode.Home);
+        SetVisible(cameraButton, visible);
+        SetVisible(chatButton, visible);
+        SetVisible(albumButton, visible);
+    }
+
+    static void SetVisible(Button b, bool visible)
+    {
+        if (b != null && b.gameObject.activeSelf != visible) b.gameObject.SetActive(visible);
+    }
+
+    /// <summary>出牌後的「相簿」鈕呼叫：打開遊戲裡的相簿頁。</summary>
+    public void OpenAlbumFromHand()
+    {
+        if (mode == UIMode.Home) ToggleAlbumPanel();
+    }
+
+    /// <summary>出牌後的「聊天」鈕呼叫。</summary>
+    public void OpenChatFromHand()
+    {
+        if (mode == UIMode.Home) ToggleChatPanel();
+    }
+
+    /// <summary>手牌最左邊的「拍照」牌呼叫；冷卻中或不在 Home 狀態時不動作。</summary>
+    public void OpenCameraFromHand()
+    {
+        if (IsCameraReady) EnterCameraMode();
+    }
+
     void Awake()
     {
         if (pageManager == null)
@@ -304,33 +347,17 @@ public class CameraUIManager : MonoBehaviour
     {
         if (cameraButtonText == null || cameraButton == null) return;
 
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null ||
-            string.IsNullOrEmpty(SaveManager.Instance.data.lastCaptureTime))
+        if (PhotoCooldown.IsActive)
         {
-            cameraButtonText.text = "";
-            SetButtonSprite(cameraButton, iconCamera);
-            cameraButton.interactable = true;
-            return;
+            cameraButton.interactable = false;
+            SetButtonSprite(cameraButton, iconCooldown);
+            cameraButtonText.text = PhotoCooldown.RemainingText;
         }
-
-        if (DateTime.TryParse(SaveManager.Instance.data.lastCaptureTime, out DateTime lastTime))
+        else
         {
-            TimeSpan elapsed = DateTime.Now - lastTime;
-            double remaining = 30 - elapsed.TotalSeconds;
-
-            if (remaining > 0)
-            {
-                cameraButton.interactable = false;
-                SetButtonSprite(cameraButton, iconCooldown);
-                TimeSpan t = TimeSpan.FromSeconds(remaining);
-                cameraButtonText.text = string.Format("{0:D2}:{1:D2}", t.Minutes, t.Seconds);
-            }
-            else
-            {
-                cameraButton.interactable = true;
-                SetButtonSprite(cameraButton, iconCamera);
-                cameraButtonText.text = "";
-            }
+            cameraButton.interactable = true;
+            SetButtonSprite(cameraButton, iconCamera);
+            cameraButtonText.text = "";
         }
     }
 

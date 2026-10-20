@@ -24,10 +24,19 @@ public class iOSPostBuildSigning
 
         foreach (string t in new[] { mainTarget, frameworkTarget })
         {
-            proj.SetTeamId(t, teamId);
+            // Append 模式下 Xcode 專案已經有 TargetAttributes，SetTeamId 會丟 duplicate key；
+            // DEVELOPMENT_TEAM build setting 本身就足夠，所以這裡失敗直接略過。
+            try { proj.SetTeamId(t, teamId); }
+            catch (System.ArgumentException) { }
             proj.SetBuildProperty(t, "CODE_SIGN_STYLE", "Automatic");
             proj.SetBuildProperty(t, "DEVELOPMENT_TEAM", teamId);
         }
+
+        // ── Xcode 15+ User Script Sandboxing ─────────────────────────
+        // 預設 YES 會擋住 Unity 的 IL2CPP 建置腳本（Sandbox: il2cpp deny file-read-data），一律關掉。
+        proj.SetBuildProperty(proj.ProjectGuid(), "ENABLE_USER_SCRIPT_SANDBOXING", "NO");
+        foreach (string t in new[] { mainTarget, frameworkTarget })
+            proj.SetBuildProperty(t, "ENABLE_USER_SCRIPT_SANDBOXING", "NO");
 
         proj.WriteToFile(pbxPath);
 

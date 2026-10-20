@@ -297,6 +297,13 @@ public class FirebaseManager : MonoBehaviour
 #if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
     void OnGoogleSignInFinished(Task<GoogleSignInUser> task)
     {
+        if ((task.IsCanceled || task.IsFaulted) && _googleLinkDone != null)
+        {
+            var linkDone = _googleLinkDone;
+            _googleLinkDone = null;
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => linkDone(false, "Google 登入沒有完成")); }
+            return;
+        }
         if (task.IsCanceled)
         {
             Debug.Log("Google Sign-In was canceled.");
@@ -318,6 +325,13 @@ public class FirebaseManager : MonoBehaviour
             return;
         }
         Credential credential = GoogleAuthProvider.GetCredential(idToken, null);
+        if (_googleLinkDone != null)
+        {
+            var linkDone = _googleLinkDone;
+            _googleLinkDone = null;
+            LinkCredential(credential, linkDone);
+            return;
+        }
         auth.SignInWithCredentialAsync(credential).ContinueWith(firebaseTask =>
         {
             lock (_mainThreadQueue)
@@ -339,10 +353,31 @@ public class FirebaseManager : MonoBehaviour
 
     public void SignInWithApple()
     {
+        RequestAppleCredential(
+            firebaseCredential =>
+            {
+                auth.SignInWithCredentialAsync(firebaseCredential).ContinueWith(task =>
+                {
+                    lock (_mainThreadQueue)
+                    {
+                        _mainThreadQueue.Enqueue(() =>
+                        {
+                            bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+                            OnLoginSuccess?.Invoke(success);
+                        });
+                    }
+                });
+            },
+            () => { lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); } });
+    }
+
+    /// <summary>跑一次「用 Apple 登入」取得 Firebase 憑證（登入與訪客綁定共用）。失敗時 onFail 在背景執行緒。</summary>
+    void RequestAppleCredential(Action<Credential> onCredential, Action onFail)
+    {
 #if UNITY_IOS
-        if (_appleAuthManager == null)
+        if (_appleAuthManager == null || auth == null)
         {
-            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+            onFail();
             return;
         }
 
@@ -358,33 +393,21 @@ public class FirebaseManager : MonoBehaviour
                 var appleCredential = credential as IAppleIDCredential;
                 if (appleCredential == null)
                 {
-                    lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+                    onFail();
                     return;
                 }
 
                 string identityToken = System.Text.Encoding.UTF8.GetString(appleCredential.IdentityToken);
-                var firebaseCredential = OAuthProvider.GetCredential("apple.com", identityToken, rawNonce, null);
-
-                auth.SignInWithCredentialAsync(firebaseCredential).ContinueWith(task =>
-                {
-                    lock (_mainThreadQueue)
-                    {
-                        _mainThreadQueue.Enqueue(() =>
-                        {
-                            bool success = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
-                            OnLoginSuccess?.Invoke(success);
-                        });
-                    }
-                });
+                onCredential(OAuthProvider.GetCredential("apple.com", identityToken, rawNonce, null));
             },
             error =>
             {
                 Debug.LogError("Apple Sign-In failed: " + error.GetAuthorizationErrorCode() + " " + error);
-                lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+                onFail();
             });
 #else
         Debug.LogWarning("Apple Sign-In is only supported on iOS.");
-        lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => OnLoginSuccess?.Invoke(false)); }
+        onFail();
 #endif
     }
 
@@ -452,6 +475,115 @@ public class FirebaseManager : MonoBehaviour
             }
         });
     }
+
+    // ── 帳號種類與訪客綁定 ───────────────────────────────────────
+
+    /// <summary>目前是訪客（匿名登入）。</summary>
+    public bool IsGuest => auth?.CurrentUser != null && auth.CurrentUser.IsAnonymous;
+
+    public string GetEmail() => auth?.CurrentUser?.Email;
+
+    /// <summary>登入方式："password"（Email）、"apple.com"、"google.com"；訪客回傳 "anonymous"；未登入回傳 null。</summary>
+    public string GetSignInProvider()
+    {
+        var user = auth?.CurrentUser;
+        if (user == null) return null;
+        if (user.IsAnonymous) return "anonymous";
+        foreach (var info in user.ProviderData)
+        {
+            string id = info?.ProviderId;
+            if (id == "password" || id == "apple.com" || id == "google.com") return id;
+        }
+        return "password";
+    }
+
+    /// <summary>訪客綁定 Email 帳號（保留同一個 uid，寵物與空間都不會不見）。callback 在主執行緒。</summary>
+    public void LinkWithEmail(string email, string password, Action<bool, string> done)
+    {
+        if (auth == null) { done?.Invoke(false, "系統還沒準備好"); return; }
+        LinkCredential(EmailAuthProvider.GetCredential(email.Trim(), password), done);
+    }
+
+    /// <summary>訪客綁定 Apple 帳號。callback 在主執行緒。</summary>
+    public void LinkWithApple(Action<bool, string> done)
+    {
+        RequestAppleCredential(
+            cred => LinkCredential(cred, done),
+            () => { lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => done?.Invoke(false, "Apple 登入沒有完成")); } });
+    }
+
+    /// <summary>訪客綁定 Google 帳號（這個版本沒有 Google 登入時直接回傳失敗）。callback 在主執行緒。</summary>
+    public void LinkWithGoogle(Action<bool, string> done)
+    {
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
+        if (auth == null) { done?.Invoke(false, "系統還沒準備好"); return; }
+        _googleLinkDone = done;
+        GoogleSignIn.Configuration = new GoogleSignInConfiguration { WebClientId = GoogleWebClientId, RequestIdToken = true };
+        GoogleSignIn.DefaultInstance.SignIn().ContinueWith(OnGoogleSignInFinished);
+#else
+        done?.Invoke(false, "這個版本還不能用 Google 登入");
+#endif
+    }
+
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
+    Action<bool, string> _googleLinkDone;
+#endif
+
+    void LinkCredential(Credential credential, Action<bool, string> done)
+    {
+        var user = auth?.CurrentUser;
+        if (user == null)
+        {
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => done?.Invoke(false, "未登入")); }
+            return;
+        }
+        user.LinkWithCredentialAsync(credential).ContinueWith(task =>
+        {
+            bool ok = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+            string err = ok ? null : (task.Exception?.GetBaseException()?.Message ?? "綁定失敗");
+            lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => done?.Invoke(ok, err)); }
+        });
+    }
+
+    /// <summary>最近一次登入是否在 window 之內（Firebase 刪除帳號、改密碼需要最近登入過）。</summary>
+    public bool SignedInWithin(TimeSpan window)
+    {
+        var meta = auth?.CurrentUser?.Metadata;
+        if (meta == null) return false;
+        var last = DateTimeOffset.FromUnixTimeMilliseconds((long)meta.LastSignInTimestamp);
+        return DateTimeOffset.UtcNow - last <= window;
+    }
+
+    /// <summary>刪除 Users/{uid}（暱稱、頭像、空間清單）。要在刪除 Auth 帳號之前呼叫。callback 在主執行緒。</summary>
+    public void DeleteUserData(Action<bool> done)
+    {
+        string uid = GetUserId();
+        if (dbRef == null || string.IsNullOrEmpty(uid)) { done?.Invoke(false); return; }
+        dbRef.Child(UsersNode).Child(uid).RemoveValueAsync().ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    /// <summary>寄送重設密碼信。callback 在主執行緒。</summary>
+    public void SendPasswordReset(string email, Action<bool> done)
+    {
+        if (auth == null || string.IsNullOrWhiteSpace(email)) { done?.Invoke(false); return; }
+        auth.SendPasswordResetEmailAsync(email.Trim()).ContinueWith(task =>
+        {
+            bool ok = task.IsCompleted && !task.IsFaulted && !task.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    /// <summary>這個版本有沒有 Google 登入（iOS 目前因與 Firebase 12 衝突而關閉，見 GOOGLE_SIGN_IN）。</summary>
+    public static bool GoogleSignInAvailable =>
+#if (UNITY_ANDROID || UNITY_IOS) && GOOGLE_SIGN_IN
+        true;
+#else
+        false;
+#endif
 
     public void UpdatePassword(string newPassword, Action<bool, string> callback)
     {

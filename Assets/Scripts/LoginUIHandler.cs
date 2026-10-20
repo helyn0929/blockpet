@@ -42,10 +42,27 @@ public class LoginUIHandler : MonoBehaviour
             mainRoomBackground.SetActive(false);
 
         // Ensure the login screen is always visible on startup regardless of saved scene state.
+        ShowLoginScreen();
+    }
+
+    /// <summary>打開登入頁：新版 AuthScreenController（設計稿「帳號登入／註冊」），沒有的話用舊的 UI Toolkit 登入頁。</summary>
+    void ShowLoginScreen()
+    {
+        var auth = FindObjectOfType<BlockPet.UI.Auth.AuthScreenController>(true);
+        if (auth != null && auth.enabled)
+        {
+            auth.gameObject.SetActive(true);
+            return;
+        }
         var loginController = FindObjectOfType<LoginScreenController>(true);
         if (loginController != null)
             loginController.gameObject.SetActive(true);
     }
+
+    /// <summary>登入頁會自己處理暱稱並呼叫 StartGameFlow；兩種登入頁都沒有時才由這裡直接進遊戲。</summary>
+    static bool HasLoginScreen =>
+        FindObjectOfType<BlockPet.UI.Auth.AuthScreenController>(true) != null
+        || FindObjectOfType<LoginScreenController>(true) != null;
 
     void Start()
     {
@@ -183,9 +200,8 @@ public class LoginUIHandler : MonoBehaviour
         // loginPanel was deactivated after login — re-enable it so its child LoginUIDocument can show.
         if (loginPanel != null) loginPanel.gameObject.SetActive(true);
 
-        // Re-enable the UIToolkit login screen.
-        var loginController = FindObjectOfType<LoginScreenController>(true);
-        if (loginController != null) loginController.gameObject.SetActive(true);
+        // Re-enable the login screen.
+        ShowLoginScreen();
     }
 
     // Invoked on Main Thread by FirebaseManager (thread-safe for UI updates)
@@ -198,9 +214,9 @@ public class LoginUIHandler : MonoBehaviour
         if (AvatarManager.Instance != null)
             AvatarManager.Instance.LoadAvatarFromSave();
 
-        // LoginScreenController handles the nickname overlay and calls StartGameFlow()
-        // once the login UI is fully dismissed. Only bypass if the controller is absent.
-        if (FindObjectOfType<LoginScreenController>(true) == null)
+        // The login screen handles the nickname step and calls StartGameFlow()
+        // once the login UI is fully dismissed. Only bypass if there is no login screen.
+        if (!HasLoginScreen)
             StartCoroutine(FadeOutAndStartGame());
     }
 

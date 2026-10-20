@@ -70,3 +70,42 @@ extern "C" void _BlockPet_FetchRecentPhotos(const char* gameObjectName, int limi
         });
     });
 }
+
+// ── 相簿讀取權限 ─────────────────────────────────────────────────
+// NativeGallery 在 iOS 11+ 的 PermissionFreeMode 下不會真的要求讀取權限（它用 PHPicker 不需要），
+// 但手牌直接用 PHAsset 讀圖庫，必須自己要求 ReadWrite 權限。「選取的照片」（Limited）也算可讀。
+
+// 1 = 可讀（全部或部分照片）、0 = 拒絕／受限、2 = 尚未詢問
+extern "C" int _BlockPet_PhotoAuthStatus()
+{
+    PHAuthorizationStatus status;
+    if (@available(iOS 14.0, *))
+    {
+        status = [PHPhotoLibrary authorizationStatusForAccessLevel:PHAccessLevelReadWrite];
+        if (status == PHAuthorizationStatusLimited) return 1;
+    }
+    else
+    {
+        status = [PHPhotoLibrary authorizationStatus];
+    }
+    if (status == PHAuthorizationStatusAuthorized) return 1;
+    if (status == PHAuthorizationStatusNotDetermined) return 2;
+    return 0;
+}
+
+// 跳出系統的相簿權限詢問，結果用 UnitySendMessage(gameObjectName, "OnNativePermission", "1"/"0") 傳回
+extern "C" void _BlockPet_RequestPhotoAuth(const char* gameObjectName)
+{
+    NSString* goName = [NSString stringWithUTF8String:gameObjectName ?: ""];
+    void (^reply)(PHAuthorizationStatus) = ^(PHAuthorizationStatus status) {
+        BOOL ok = status == PHAuthorizationStatusAuthorized;
+        if (@available(iOS 14.0, *)) ok = ok || status == PHAuthorizationStatusLimited;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UnitySendMessage([goName UTF8String], "OnNativePermission", ok ? "1" : "0");
+        });
+    };
+    if (@available(iOS 14.0, *))
+        [PHPhotoLibrary requestAuthorizationForAccessLevel:PHAccessLevelReadWrite handler:reply];
+    else
+        [PHPhotoLibrary requestAuthorization:reply];
+}

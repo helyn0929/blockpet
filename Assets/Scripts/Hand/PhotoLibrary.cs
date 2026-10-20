@@ -24,7 +24,8 @@ namespace BlockPet.Hand
     /// - iOS：Assets/Plugins/iOS/BlockPetPhotoLibrary.mm（Photos framework）
     /// - Android：Assets/Plugins/Android/BlockPetPhotoLibrary.java（MediaStore，只取 DCIM）
     /// - Editor：讀取專案根目錄的 EditorHandPhotos/ 資料夾，方便不用手機測試
-    /// 權限詢問交給 NativeGallery。原生端在背景執行緒取檔，完成後用 UnitySendMessage 回到這個物件。
+    /// 權限：Android 用 NativeGallery；iOS 由自己的原生程式要求（NativeGallery 在 iOS 的 PermissionFreeMode
+    /// 不會真的要求讀取權限，但手牌要直接讀圖庫）。原生端在背景執行緒取檔，完成後用 UnitySendMessage 回到這個物件。
     /// </summary>
     public class PhotoLibrary : MonoBehaviour
     {
@@ -56,7 +57,15 @@ namespace BlockPet.Hand
 #if UNITY_IOS && !UNITY_EDITOR
         [DllImport("__Internal")]
         static extern void _BlockPet_FetchRecentPhotos(string gameObjectName, int limit, double sinceUnixSeconds, int maxEdge);
+        [DllImport("__Internal")]
+        static extern int _BlockPet_PhotoAuthStatus();
+        [DllImport("__Internal")]
+        static extern void _BlockPet_RequestPhotoAuth(string gameObjectName);
 #endif
+
+        // 等權限回覆時記住這次要抓幾張、幾天內
+        int _requestCount;
+        int _requestDays;
 
         void Awake()
         {
@@ -75,8 +84,11 @@ namespace BlockPet.Hand
         {
 #if UNITY_EDITOR
             return true;
+#elif UNITY_IOS
+            return _BlockPet_PhotoAuthStatus() == 1;
 #else
-            return NativeGallery.CheckPermission(NativeGallery.PermissionType.Read, NativeGallery.MediaType.Image) == NativeGallery.Permission.Granted;
+            // 這個版本的 NativeGallery.CheckPermission 回傳 bool
+            return NativeGallery.CheckPermission(NativeGallery.PermissionType.Read, NativeGallery.MediaType.Image);
 #endif
         }
 
@@ -91,9 +103,16 @@ namespace BlockPet.Hand
             _pending.Add(done);
             if (_fetching) return;
             _fetching = true;
+            _requestCount = count;
+            _requestDays = recentDays;
 
 #if UNITY_EDITOR
             Finish(PhotoAccess.Granted, ReadEditorFolder(count));
+#elif UNITY_IOS
+            int status = _BlockPet_PhotoAuthStatus();
+            if (status == 1) StartNativeFetch(count, recentDays);
+            else if (status == 0) Finish(PhotoAccess.Denied, new List<HandPhoto>());
+            else _BlockPet_RequestPhotoAuth(GameObjectName); // 結果回到 OnNativePermission
 #else
             NativeGallery.RequestPermissionAsync(permission =>
             {
@@ -130,6 +149,13 @@ namespace BlockPet.Hand
 #else
             Finish(PhotoAccess.Granted, new List<HandPhoto>());
 #endif
+        }
+
+        /// <summary>iOS 相簿權限詢問結果（UnitySendMessage 回呼）："1" 可讀、"0" 拒絕。</summary>
+        void OnNativePermission(string granted)
+        {
+            if (granted == "1") StartNativeFetch(_requestCount, _requestDays);
+            else Finish(PhotoAccess.Denied, new List<HandPhoto>());
         }
 
         /// <summary>原生端 UnitySendMessage 回呼。</summary>

@@ -9,8 +9,10 @@ namespace BlockPet.Hand
 {
     /// <summary>
     /// 首頁手牌，依設計檔「首頁 v8」：
-    /// - 底部扇形手牌：最左是「拍照」牌，後面是相簿最新 5 張相機照片（出過的不再出現）。
+    /// - 底部扇形手牌：最左是「拍照」牌，後面是相簿最新 5 張相機照片（出過的不再出現），越新越右邊。
+    /// - 往左滑收起手牌（底部換成相簿／拍照／聊天，左側留「手牌 ›」小標籤），往右滑或點標籤展開。
     /// - 點照片 → 照片浮起成小卡（放回／餵給寵物），寵物走到下方等待。
+    /// - 餵給寵物 → 照片縮小飛向寵物後消失、寵物吃掉；照片存進相簿（同相機餵食，也會自動分享到營地）。
     /// - 出牌（或相機拍照餵食）後進入共用冷卻（<see cref="PhotoCooldown"/>），手牌收起，
     ///   底部變成「相簿／拍照／聊天」；相簿打開遊戲裡的相簿頁，拍照在冷卻中顯示倒數不能按，
     ///   冷卻結束後手牌自動展開。
@@ -23,6 +25,10 @@ namespace BlockPet.Hand
         const float DesignH = 772f;
         const string PrefsPlayedIds = "BlockPet.Hand.PlayedIds";
         const int MaxPlayedIds = 100;
+        const float CollapseShift = 320f;   // 收起時手牌往左移多少（移出畫面）
+        const float SwipeThreshold = 50f;   // 滑多遠才算收起／展開
+        const float FlightTime = 0.6f;      // 照片飛向寵物的時間
+        const int AlbumPhotoMaxSize = 1280; // 存進相簿的照片最長邊
 
         static readonly Color Ink = Hex(0x3A2E22);
         static readonly Color Cream = Hex(0xFFFCF4);
@@ -53,6 +59,8 @@ namespace BlockPet.Hand
         [SerializeField] Transform petWaitPoint;
         [Tooltip("佈置模式要不要隱藏手牌（Build TopBar 會自動接上 Assets/Data/DecorModeSettings）")]
         [SerializeField] DecorModeSettings decorMode;
+        [Tooltip("寵物吃東西的動畫（Eat trigger）沿用 FeedController 的 petAnimator；可留空")]
+        [SerializeField] FeedController feedController;
 
         /// <summary>
         /// 按下「餵給寵物」時觸發，參數為照片與縮圖貼圖。第 3 步接上辨識與結算。
@@ -125,7 +133,28 @@ namespace BlockPet.Hand
         TMP_Text _emptyText;
         GameObject _emptySettingsButton;
 
+        // 左右滑收起／展開
+        bool _collapsed;
+        float _swipeOffset;
+        RectTransform _handTab;
+        TMP_Text _handTabLabel;
+        Image _swipeZone;
+
+        // 飛向寵物的照片
+        class Flight
+        {
+            public RectTransform rt;
+            public CanvasGroup group;
+            public HandPhoto photo;
+            public Texture2D texture;
+            public Vector3 from;
+            public float time;
+        }
+        readonly List<Flight> _flights = new List<Flight>();
+
         bool _dockMode;
+        /// <summary>底部顯示相簿／拍照／聊天：出牌後的冷卻中，或手牌被滑動收起時。</summary>
+        bool DockVisible => _dockMode || _collapsed;
         bool _wasCooling;
         bool _loading;
         bool _loadedOnce;
@@ -138,12 +167,14 @@ namespace BlockPet.Hand
         {
             if (cameraUI == null) cameraUI = FindObjectOfType<CameraUIManager>(true);
             if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
+            if (feedController == null) feedController = FindObjectOfType<FeedController>(true);
             LoadPlayedIds();
 
             BuildOverlay();
             BuildCountLabel();
             BuildEmptyState();
             _cardsRoot = Stretch(_design, "Cards");
+            BuildSwipe();
             BuildCameraCard();
             BuildLatest();
             BuildDock();
@@ -170,6 +201,8 @@ namespace BlockPet.Hand
             foreach (var c in _photoCards)
                 if (c.texture != null) Destroy(c.texture);
             if (_latestTexture != null) Destroy(_latestTexture);
+            foreach (var f in _flights) if (f.texture != null) Destroy(f.texture);
+            _flights.Clear();
             if (_overlay != null) Destroy(_overlay.gameObject);
         }
 
@@ -206,6 +239,7 @@ namespace BlockPet.Hand
                 _cameraCardLabel.text = cooling ? PhotoCooldown.RemainingText : "拍照";
 
             AnimateCards();
+            AnimateFlights();
             AnimatePopup();
             AnimateDock();
             PollLatest();
@@ -237,6 +271,8 @@ namespace BlockPet.Hand
                     hand.Add(p);
                     if (hand.Count >= handSize) break;
                 }
+                // 相簿是新到舊；手牌由左到右是舊到新，最新的在最右邊（緊鄰營地最新照片）
+                hand.Reverse();
                 if (!SamePhotos(hand)) RebuildPhotoCards(hand);
                 UpdateEmptyState();
             });
@@ -316,19 +352,23 @@ namespace BlockPet.Hand
             float center = 156f;
             float sp = n > 1 ? Mathf.Min(46f, 220f / (n - 1)) : 0f;
 
+            // 收起：整排往左移出畫面；拖曳中跟著手指
+            float shift = (_collapsed ? -CollapseShift : 0f) + _swipeOffset;
+            float visible = Mathf.Clamp01(1f + shift / CollapseShift);
+
             for (int i = 0; i < n; i++)
             {
                 var c = items[i];
                 float off = i - (n - 1) / 2f;
                 float left = Mathf.Round(center + off * sp - 46f);
                 float top = Mathf.Round(620f + Mathf.Abs(off) * 9f) + (_dockMode ? 200f : 0f);
-                c.targetPos = new Vector2(left + 46f, -(top + 124f));
+                c.targetPos = new Vector2(left + 46f + shift, -(top + 124f));
                 c.targetRot = -off * 6f;
-                c.targetAlpha = _dockMode || c == _selected ? 0f : 1f;
-                bool interactable = !_dockMode && c != _selected;
+                c.targetAlpha = _dockMode || c == _selected ? 0f : visible;
+                bool interactable = !_dockMode && c != _selected && !_collapsed;
                 c.group.blocksRaycasts = interactable;
                 c.group.interactable = interactable;
-                c.rt.SetSiblingIndex(i);
+                c.rt.SetSiblingIndex(i + 1); // 0 是滑動區，要在卡片後面
 
                 if (snap)
                 {
@@ -341,7 +381,13 @@ namespace BlockPet.Hand
             if (_countLabel != null)
             {
                 _countLabel.text = $"我的手牌 {_photoCards.Count} 張";
-                _countLabel.gameObject.SetActive(!_dockMode && _photoCards.Count > 0);
+                _countLabel.gameObject.SetActive(!_dockMode && !_collapsed && _photoCards.Count > 0);
+            }
+            if (_swipeZone != null) _swipeZone.raycastTarget = !_dockMode; // 出牌後不擋住點營地
+            if (_handTab != null)
+            {
+                _handTab.gameObject.SetActive(_collapsed && !_dockMode);
+                _handTabLabel.text = $"手牌 {_photoCards.Count} ›";
             }
             UpdateEmptyState();
         }
@@ -375,17 +421,17 @@ namespace BlockPet.Hand
 
         void AnimateDock()
         {
-            float target = _dockMode ? 1f : 0f;
+            float target = DockVisible ? 1f : 0f;
             _dockGroup.alpha = Mathf.MoveTowards(_dockGroup.alpha, target, Time.unscaledDeltaTime / 0.35f);
-            _dockGroup.blocksRaycasts = _dockMode;
-            bool show = _dockMode || _dockGroup.alpha > 0.01f;
+            _dockGroup.blocksRaycasts = DockVisible;
+            bool show = DockVisible || _dockGroup.alpha > 0.01f;
             if (_dock.gameObject.activeSelf != show) _dock.gameObject.SetActive(show);
         }
 
         void UpdateEmptyState()
         {
             if (_empty == null) return;
-            bool show = !_dockMode && _photoCards.Count == 0;
+            bool show = !_dockMode && !_collapsed && _photoCards.Count == 0;
             _empty.gameObject.SetActive(show);
             if (!show) return;
 
@@ -447,28 +493,144 @@ namespace BlockPet.Hand
             var card = _selected;
             if (card == null) return;
 
+            // 照片從浮起的位置縮小飛向寵物（寵物先留在原地等，吃完才放開）
+            var photoRt = _popupPhoto.rectTransform;
+            Vector3 from = _design.InverseTransformPoint(photoRt.TransformPoint(photoRt.rect.center));
+            StartFlight(card.photo, card.texture, from);
+
             _selected = null;
             _popup.gameObject.SetActive(false);
-            ReleasePet();
 
             MarkPlayed(card.photo.id);
             _photoCards.Remove(card);
-            var tex = card.texture;
             card.texture = null;
             Destroy(card.rt.gameObject);
             RefreshAlbumThumb();
 
-            if (OnFeedRequested != null)
-                OnFeedRequested.Invoke(card.photo, tex);
-            else
-            {
-                Debug.Log($"[HandController] 餵給寵物：{card.photo.id}（辨識與結算在第 3 步接上）");
-                Destroy(tex);
-            }
-
             PhotoCooldown.Start();
             _wasCooling = true;
             EnterDock();
+        }
+
+        // ─── 出牌：照片飛向寵物、吃掉、存進相簿 ─────────────────────────
+
+        void StartFlight(HandPhoto photo, Texture2D tex, Vector3 from)
+        {
+            var rt = Place(_design, "FeedFlight", 0, 0, 222, 152);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.localPosition = from;
+            var group = rt.gameObject.AddComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+            Fill(Stretch(rt, "Bg"), Skin(s => s.popup), true, Cream, 12);
+            MaskedPhoto(rt, 6, 6, 210, 140, Skin(s => s.maskR10), 10, tex);
+            rt.SetAsLastSibling();
+            _flights.Add(new Flight { rt = rt, group = group, photo = photo, texture = tex, from = from });
+        }
+
+        void AnimateFlights()
+        {
+            for (int i = _flights.Count - 1; i >= 0; i--)
+            {
+                var f = _flights[i];
+                f.time += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(f.time / FlightTime);
+
+                // 目標每幀重算（寵物可能還在走）；找不到寵物就往畫面中央下方縮小
+                Vector3 to = PetPointInDesign() ?? new Vector3(0f, 300f, 0f);
+                Vector3 control = (f.from + to) / 2f + new Vector3(0f, 90f, 0f); // 往上拋一點的弧線
+                float u = t * t * (3f - 2f * t);
+                Vector3 p = Vector3.Lerp(Vector3.Lerp(f.from, control, u), Vector3.Lerp(control, to, u), u);
+                f.rt.localPosition = p;
+                f.rt.localScale = Vector3.one * Mathf.Lerp(1f, 0.12f, t * t);
+                f.rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(0f, -25f, t));
+                f.group.alpha = t < 0.8f ? 1f : Mathf.Lerp(1f, 0f, (t - 0.8f) / 0.2f);
+
+                if (t >= 1f)
+                {
+                    _flights.RemoveAt(i);
+                    Destroy(f.rt.gameObject);
+                    CompleteFeed(f.photo, f.texture);
+                }
+            }
+        }
+
+        /// <summary>寵物身體中心在設計座標（_design 本地座標）的位置。</summary>
+        Vector3? PetPointInDesign()
+        {
+            var pet = AIController.Instance;
+            var cam = Camera.main;
+            if (pet == null || cam == null) return null;
+            Vector3 world = pet.transform.position;
+            var r = pet.GetComponentInChildren<Renderer>();
+            if (r != null) world = r.bounds.center;
+            Vector3 screen = cam.WorldToScreenPoint(world);
+            if (screen.z < 0f) return null;
+            var canvas = _design.GetComponentInParent<Canvas>().rootCanvas;
+            var uiCam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_design, screen, uiCam, out var local)) return null;
+            return new Vector3(local.x, local.y, 0f);
+        }
+
+        void CompleteFeed(HandPhoto photo, Texture2D thumb)
+        {
+            // 寵物吃掉（同相機餵食的 Eat 動畫）
+            if (feedController != null && feedController.petAnimator != null)
+                feedController.petAnimator.SetTrigger("Eat");
+            ReleasePet();
+
+            // 存進相簿：用較大的原圖（縮圖只有 thumbnailMaxSize）；SavePhoto 也會自動分享到營地
+            Texture2D full = null;
+            try { full = NativeGallery.LoadImageAtPath(photo.path, AlbumPhotoMaxSize, false, false); }
+            catch (Exception e) { Debug.LogWarning("[HandController] 讀取原圖失敗，改存縮圖: " + e.Message); }
+            if (SaveManager.Instance != null) SaveManager.Instance.SavePhoto(full != null ? full : thumb);
+            if (full != null) Destroy(full);
+
+            if (OnFeedRequested != null)
+                OnFeedRequested.Invoke(photo, thumb);
+            else if (thumb != null)
+                Destroy(thumb);
+        }
+
+        // ─── 左右滑收起／展開 ──────────────────────────────────────────
+
+        void BuildSwipe()
+        {
+            // 滑動區：手牌那一帶（不含右邊的營地最新照片），放在卡片後面
+            var zone = Place(_cardsRoot, "SwipeZone", 0, 560, 252, DesignH - 560f);
+            _swipeZone = zone.gameObject.AddComponent<Image>();
+            _swipeZone.color = new Color(1f, 1f, 1f, 0f);
+            zone.SetAsFirstSibling();
+
+            var swipe = _cardsRoot.gameObject.AddComponent<HandSwipe>();
+            swipe.space = _design;
+            swipe.canSwipe = () => !_dockMode && _selected == null;
+            swipe.onDrag = dx =>
+            {
+                // 展開時只能往左拉、收起時只能往右拉（反方向留一點彈性）
+                _swipeOffset = _collapsed ? Mathf.Clamp(dx, -20f, CollapseShift) : Mathf.Clamp(dx, -CollapseShift, 20f);
+                LayoutCards();
+            };
+            swipe.onEnd = dx =>
+            {
+                if (!_collapsed && dx <= -SwipeThreshold) _collapsed = true;
+                else if (_collapsed && dx >= SwipeThreshold) _collapsed = false;
+                _swipeOffset = 0f;
+                LayoutCards();
+            };
+
+            // 收起後左邊的小標籤（底部同時出現相簿／拍照／聊天）：點一下或往右滑展開
+            // 放在相簿／拍照／聊天上方，不擋住相簿鈕
+            _handTab = Place(_design, "HandTab", -16, 580, 96, 40);
+            var tabImg = Fill(_handTab, Skin(s => s.glassPill), true, Glass, 20);
+            _handTabLabel = Label(_handTab, 16, 0, 80, 40, "手牌 ›", 13, Ink, TextAlignmentOptions.Center);
+            var tb = _handTab.gameObject.AddComponent<Button>();
+            tb.targetGraphic = tabImg;
+            tb.onClick.AddListener(() => { _collapsed = false; LayoutCards(); });
+            var tabSwipe = _handTab.gameObject.AddComponent<HandSwipe>();
+            tabSwipe.space = _design;
+            tabSwipe.onEnd = dx => { if (dx >= SwipeThreshold) { _collapsed = false; LayoutCards(); } };
+            _handTab.gameObject.SetActive(false);
         }
 
         void EnterDock()
@@ -556,9 +718,9 @@ namespace BlockPet.Hand
         {
             if (_latest == null || !_latest.gameObject.activeSelf) return;
             // 手牌展開時才出現（設計稿 handOpen）
-            float target = _dockMode ? 0f : 1f;
+            float target = DockVisible ? 0f : 1f;
             _latestGroup.alpha = Mathf.MoveTowards(_latestGroup.alpha, target, Time.unscaledDeltaTime / 0.3f);
-            _latestGroup.blocksRaycasts = !_dockMode;
+            _latestGroup.blocksRaycasts = !DockVisible;
 
             // 金框發光 c5Glow、「新」c5Pulse：1.8 秒一次
             _latestTime += Time.unscaledDeltaTime;
@@ -570,7 +732,7 @@ namespace BlockPet.Hand
 
         void UpdateDockState(bool cooling)
         {
-            if (!_dockMode) return;
+            if (!DockVisible) return;
             _dockHint.text = cooling ? $"{PhotoCooldown.RemainingText} 後手牌回來・可以再出一張" : "";
             _dockCameraLabel.text = cooling ? PhotoCooldown.RemainingText : "拍照";
             _dockCameraGroup.alpha = cooling ? 0.5f : 1f;
@@ -586,7 +748,7 @@ namespace BlockPet.Hand
         void RefreshAlbumThumb()
         {
             if (_albumThumb == null) return;
-            var tex = _photoCards.Count > 0 ? _photoCards[0].texture : null;
+            var tex = _photoCards.Count > 0 ? _photoCards[_photoCards.Count - 1].texture : null; // 最新一張
             _albumThumb.texture = tex;
             _albumThumb.enabled = tex != null;
             if (tex != null) _albumThumb.uvRect = AspectFillUv(tex.width, tex.height, 1f, 1f);

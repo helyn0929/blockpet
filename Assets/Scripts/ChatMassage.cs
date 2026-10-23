@@ -23,6 +23,11 @@ public class ChatMessage
     public string replyToDisplayName;
     public string replyToMessagePreview;
 
+    // 新版聊天室（設計稿「聊天室與相簿」）
+    /// <summary>""／"text"：一般文字；"post"：餵食照片（照片在 SharedPhotos／本機相簿，用 photoFileName 對應）。</summary>
+    public string kind;
+    public string photoFileName;
+
     // Firebase 必須要有一個無參數的建構子
     public ChatMessage() { }
 

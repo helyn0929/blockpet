@@ -6,7 +6,7 @@ using UnityEngine;
 namespace BlockPet.EditorTools.TopBar
 {
     /// <summary>
-    /// 自動設定 Assets/Art/UI/TopBar/Sprites、TopBar/Icons 與 Hand/Sprites 的匯入（README「匯入設定」）：
+    /// 自動設定 Assets/Art/UI/TopBar/Sprites、TopBar/Icons、Hand/Sprites 與 Market/Sprites 的匯入（README「匯入設定」）：
     /// Sprite (2D and UI)、Pixels Per Unit 300（素材 @3x）、Full Rect、Bilinear、不壓縮、無 Mip Maps，
     /// 9-slice 邊界照 README 表格（單位 px，順序 L,B,R,T）。
     /// </summary>
@@ -16,6 +16,10 @@ namespace BlockPet.EditorTools.TopBar
         public const string HandFolder = "Assets/Art/UI/Hand/Sprites/";
         /// <summary>Home 鍵、選單「佈置」圖示（設計文件 5.7；來源 專案根目錄 Icons/*@3x.png）</summary>
         public const string IconsFolder = "Assets/Art/UI/TopBar/Icons/";
+        /// <summary>商店的家具／裝飾／擴建／寵物蛋圖（docs/market/Tools/make_market_sprites.py 產生）</summary>
+        public const string MarketFolder = "Assets/Art/UI/Market/Sprites/";
+        /// <summary>聊天室 emoji（docs/chat/Tools/make_emoji_sprites.py 產生）</summary>
+        public const string ChatFolder = "Assets/Art/UI/Chat/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -48,12 +52,13 @@ namespace BlockPet.EditorTools.TopBar
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 3;
+        public override uint GetVersion() => 5;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
-            if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder)) || !path.EndsWith(".png")) return;
+            if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder))
+                || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;

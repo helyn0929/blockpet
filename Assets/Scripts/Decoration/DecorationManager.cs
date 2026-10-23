@@ -31,6 +31,8 @@ namespace BlockPet.Decoration
         bool _isEditLockHeld;
         public bool IsEditLockHeld => _isEditLockHeld;
         public bool IsListening => _isListening;
+        /// <summary>目前空間擺了幾件裝飾（商店顯示「營地空位」用）。</summary>
+        public int PlacedCount => _spawned.Count;
 
         /// <summary>Fired right after a brand-new decoration is instantiated and Init()'d (not on position updates).</summary>
         public event Action<DecorationObject, DecorationItem> OnDecorationSpawned;

@@ -20,6 +20,7 @@ namespace BlockPet.UI.Home
         // ─── State ─────────────────────────────────────────────────────
 
         DecorationItem _pendingItem;
+        DecorationItem _queuedItem; // 從商店「去擺放」：拿到編輯鎖後直接開始擺這件
         bool _placingItem;
         bool _placingInputGuard; // skip input for one frame after item is selected
 
@@ -84,7 +85,21 @@ namespace BlockPet.UI.Home
                 SetFrozen(true);
                 picker?.Show();
                 DecorationManager.Instance.SetAllDecorationsEditMode(true);
+                if (_queuedItem != null)
+                {
+                    var queued = _queuedItem;
+                    _queuedItem = null;
+                    OnItemSelected(queued);
+                }
             });
+        }
+
+        /// <summary>進入佈置模式並直接開始擺放這件家具（商店的「去擺放」）。</summary>
+        public void EnterEditModeAndPlace(DecorationItem item)
+        {
+            if (IsEditing) { OnItemSelected(item); return; }
+            _queuedItem = item;
+            EnterEditMode();
         }
 
         /// <param name="save">Pass false to discard pending placement without saving.</param>

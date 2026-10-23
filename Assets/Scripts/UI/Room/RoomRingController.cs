@@ -12,7 +12,8 @@ namespace BlockPet.UI.Room
     /// <summary>
     /// 選擇寵物空間（設計稿「選擇寵物空間」E 角落轉盤，RoomsRing*.dc.html）：
     /// - 右下四分之一環：每格一個空間（最近照片當底圖），點格子或拖曳轉動，選中的格子轉到中間的金框。
-    /// - 左側：選中空間的名稱、愛心、進化條與寵物；肚子餓（愛心 ≤ TopBarConfig.lowHeartsThreshold）顯示紅色提醒。
+    /// - 左上：選中空間的名稱＋幾天大、愛心、進化條與寵物；肚子餓（愛心 ≤ TopBarConfig.lowHeartsThreshold）顯示紅色提醒。
+    /// - 寵物右邊：這個空間最新幾則聊天，像彈幕一樣由右往左飄過。
     /// - 右下大圓鈕：「進去」進入空間；轉到「＋ 新增」或空位時變「新增」，打開新增空間面板（建立新空間／邀請碼加入）。
     /// - 輸入邀請碼後先在轉盤上預覽朋友的空間（藍色「邀請」），按「加入」才真的加入。
     /// 介面在執行時以 390×772 設計座標建立：上半（標題、資訊、寵物）貼齊安全區頂端，轉盤與按鈕貼齊畫面底部，依螢幕寬度等比縮放。
@@ -76,6 +77,7 @@ namespace BlockPet.UI.Room
             public int petIndex;
             public float hearts = -1f;   // < 0：不知道
             public float evo = -1f;      // < 0：不顯示進化條（目前只有正在使用的空間有進度）
+            public string createdAt;     // 空間建立時間（算「幾天大」）
             public Texture2D photo;
             public bool Hungry => kind == Kind.Room && hearts >= 0f && hearts <= LowHearts;
             public static float LowHearts = 1f;
@@ -122,6 +124,8 @@ namespace BlockPet.UI.Room
         Image _infoBadgeBg, _infoBadgeEdge;
         TMP_Text _infoBadgeText;
         TMP_Text _name;
+        RectTransform _ageChip;
+        TMP_Text _ageText;
         RectTransform _heartsRow;
         readonly Image[] _hearts = new Image[5];
         RectTransform _evoRow;
@@ -134,6 +138,20 @@ namespace BlockPet.UI.Room
         // 寵物
         RectTransform _pet;
         Image _petImage;
+
+        // 留言彈幕
+        class DanPill
+        {
+            public RectTransform rt;
+            public float width, lane, duration, delay;
+        }
+        RectTransform _dan;
+        readonly List<DanPill> _danPills = new List<DanPill>();
+        readonly Dictionary<string, List<ChatMessage>> _chatCache = new Dictionary<string, List<ChatMessage>>();
+        string _danRoomId;
+        const float DanW = 190f, DanH = 188f;
+        static readonly float[] DanLanes = { 0f, 40f, 80f, 120f, 160f };
+        static readonly Color[] DanColors = { Hex(0xE88AA8), Hex(0x6F8FE0), Hex(0x6FA45F), Hex(0xD78AD0), Hex(0xF29A3A) };
 
         TMP_Text _hint;
         string _toast;
@@ -228,9 +246,10 @@ namespace BlockPet.UI.Room
             float k = Mathf.Clamp01(_infoTime / 0.3f);
             k = 1f - (1f - k) * (1f - k);
             _infoGroup.alpha = k;
-            _info.anchoredPosition = new Vector2(18f, -86f - 8f * (1f - k));
+            _info.anchoredPosition = new Vector2(18f, -22f - 8f * (1f - k));
 
             AnimatePet();
+            AnimateDan();
             AnimateSheet(dt);
 
             if (_toast != null && Time.unscaledTime > _toastUntil) { _toast = null; UpdateHint(); }
@@ -261,6 +280,8 @@ namespace BlockPet.UI.Room
 
         void Reload()
         {
+            _chatCache.Clear();
+            _danRoomId = null;
             var fb = FirebaseManager.Instance;
             if (fb == null) { ApplyRooms(new List<FirebaseManager.RoomSummary>()); return; }
             fb.GetMyRoomSummaries(list =>
@@ -310,6 +331,7 @@ namespace BlockPet.UI.Room
                     hearts = hp / maxHealth * maxHearts,
                     evo = isCurrent && PetCollectionManager.Instance != null ? PetCollectionManager.Instance.ProgressPercent : -1f,
                     photo = PhotoFor(r.roomId),
+                    createdAt = r.createdAt,
                 };
                 used.Add(r.roomId);
                 _items.Add(item);
@@ -481,6 +503,19 @@ namespace BlockPet.UI.Room
                 SetSize(_infoBadge, bw, 18f, pw + 8f, 0f);
             }
             _name.text = isNew ? "新增空間" : item.name;
+            string age = isNew ? null : AgeText(item.createdAt);
+            _ageChip.gameObject.SetActive(age != null);
+            if (age != null)
+            {
+                _ageText.text = age;
+                float nw = Mathf.Min(_name.GetPreferredValues(_name.text).x, 200f);
+                float aw = _ageText.GetPreferredValues(age).x + 15f;
+                _name.rectTransform.sizeDelta = new Vector2(nw + 2f, 42f);
+                // 名字右邊、對齊基線（設計稿 translateY(-4)）
+                SetSize(_ageChip, aw, 22f, nw + 8f, 24f + 12f);
+            }
+            else _name.rectTransform.sizeDelta = new Vector2(290f, 42f);
+            ShowComments(isNew ? null : item.roomId);
 
             _heartsRow.gameObject.SetActive(!isNew);
             if (!isNew) SetHearts(item.hearts < 0f ? (config != null ? config.maxHearts : 5) : item.hearts);
@@ -558,6 +593,99 @@ namespace BlockPet.UI.Room
             bool bob = item.kind == Kind.Room && !item.Hungry || item.kind == Kind.Join;
             float y = bob ? -8f * (0.5f - 0.5f * Mathf.Cos(Time.unscaledTime / 2.4f * Mathf.PI * 2f)) : 0f;
             _pet.anchoredPosition = new Vector2(6f, -y);
+        }
+
+        /// <summary>「42 天大」；建立當天是「第 1 天」；沒有建立時間就不顯示。</summary>
+        static string AgeText(string createdAt)
+        {
+            if (string.IsNullOrEmpty(createdAt) || !DateTime.TryParse(createdAt, out var created)) return null;
+            int days = (int)(DateTime.Now - created.ToLocalTime()).TotalDays;
+            if (days < 0) days = 0;
+            return days == 0 ? "第 1 天" : days + " 天大";
+        }
+
+        // ─── 留言彈幕 ──────────────────────────────────────────────────
+
+        void BuildDan()
+        {
+            // 寵物右邊 190×188，左邊 28px 淡出；最多 5 條軌道
+            _dan = Place(_top, "Comments", 200, 212, DanW, DanH);
+            var mask = _dan.gameObject.AddComponent<RectMask2D>();
+            mask.softness = new Vector2Int(28, 0);
+        }
+
+        void ShowComments(string roomId)
+        {
+            if (roomId == _danRoomId) return;
+            _danRoomId = roomId;
+            ClearDan();
+            if (string.IsNullOrEmpty(roomId)) return;
+
+            if (_chatCache.TryGetValue(roomId, out var cached)) { BuildDanPills(cached); return; }
+            var fb = FirebaseManager.Instance;
+            if (fb == null) return;
+            fb.GetRecentChat(roomId, 5, list =>
+            {
+                if (this == null) return;
+                _chatCache[roomId] = list;
+                if (_danRoomId == roomId) BuildDanPills(list);
+            });
+        }
+
+        void ClearDan()
+        {
+            foreach (var p in _danPills) if (p.rt != null) Destroy(p.rt.gameObject);
+            _danPills.Clear();
+        }
+
+        void BuildDanPills(List<ChatMessage> messages)
+        {
+            ClearDan();
+            if (messages == null || messages.Count == 0) return;
+            string me = FirebaseManager.Instance != null ? FirebaseManager.Instance.GetUserId() : null;
+            int n = messages.Count;
+            for (int i = 0; i < n; i++)
+            {
+                var m = messages[i];
+                bool mine = !string.IsNullOrEmpty(me) && m.senderId == me;
+                string who = !string.IsNullOrEmpty(m.displayName) ? m.displayName : m.userName;
+                string ini = mine ? "我" : (string.IsNullOrEmpty(who) ? "?" : who.Substring(0, 1));
+                Color bg = mine ? Orange : DanColors[Mathf.Abs((who ?? "").GetHashCode()) % DanColors.Length];
+                string text = m.message.Replace("\n", " ").Replace("\r", "");
+                if (text.Length > 14) text = text.Substring(0, 14) + "…";
+
+                var rt = Place(_dan, "Pill", DanW, 0, 60, 30);
+                UIShapes.AddShadow(rt, new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.2f), 15, 8, 3);
+                UIShapes.AddRounded(Place(rt, "Fill", 0, 0, 0, 0).gameObject, new Color(1f, 0.988f, 0.957f, 0.88f), 15).raycastTarget = false;
+                StretchIn((RectTransform)rt.GetChild(1));
+                UIShapes.AddRounded(Place(rt, "Avatar", 3, 3, 24, 24).gameObject, bg, 12).raycastTarget = false;
+                var iniText = Label(rt, 3, 3, 24, 24, ini, 11, Color.white, TextAlignmentOptions.Center);
+                iniText.enableWordWrapping = false;
+                var t = Label(rt, 33, 0, 200, 30, text, 12, Ink, TextAlignmentOptions.Left);
+                t.enableWordWrapping = false;
+                float w = 33f + t.GetPreferredValues(text).x + 11f;
+                rt.sizeDelta = new Vector2(w, 30f);
+
+                // 設計稿：每則 9／10.5／12 秒飄過，錯開起點，軌道 0～160
+                float dur = 9f + (i % 3) * 1.5f;
+                _danPills.Add(new DanPill
+                {
+                    rt = rt, width = w, lane = DanLanes[i % DanLanes.Length], duration = dur,
+                    delay = -(i * dur / Mathf.Max(n, 1)) - (i % 2) * 1.3f,
+                });
+            }
+            AnimateDan();
+        }
+
+        void AnimateDan()
+        {
+            float now = Time.unscaledTime;
+            foreach (var p in _danPills)
+            {
+                float f = Mathf.Repeat((now - p.delay) / p.duration, 1f);
+                float x = DanW - (DanW + p.width) * f;
+                p.rt.anchoredPosition = new Vector2(x, -p.lane);
+            }
         }
 
         // ─── 操作 ──────────────────────────────────────────────────────
@@ -706,6 +834,7 @@ namespace BlockPet.UI.Room
                     kind = Kind.Join,
                     roomId = code,
                     name = string.IsNullOrEmpty(meta.name) ? code : meta.name,
+                    createdAt = meta.createdAt,
                 };
                 _codeInput.text = "";
                 CloseSheet();
@@ -819,6 +948,7 @@ namespace BlockPet.UI.Room
 
             BuildRing();
             BuildPet();
+            BuildDan();
             BuildHeader();
             BuildInfo();
             BuildHint();
@@ -951,9 +1081,6 @@ namespace BlockPet.UI.Room
 
         void BuildHeader()
         {
-            var title = Label(_top, 18, 26, 240, 32, "我的寵物們", 22, Color.white, TextAlignmentOptions.Left, onScene: true);
-            title.enableWordWrapping = false;
-
             var btn = Place(_top, "Me", DesignW - 14 - 44, 20, 44, 44);
             UIShapes.AddShadow(btn, new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.3f), 22, 10, 4);
             var ring = UIShapes.AddRounded(Place(btn, "Border", 0, 0, 44, 44).gameObject, Paper, 22);
@@ -967,7 +1094,7 @@ namespace BlockPet.UI.Room
 
         void BuildInfo()
         {
-            _info = Place(_top, "Info", 18, 86, 300, 120);
+            _info = Place(_top, "Info", 18, 22, 290, 120);
             _infoGroup = _info.gameObject.AddComponent<CanvasGroup>();
             _infoGroup.blocksRaycasts = false;
 
@@ -982,9 +1109,19 @@ namespace BlockPet.UI.Room
             StretchIn(_infoBadgeText.rectTransform);
             _infoBadge.gameObject.AddComponent<PulseScale>();
 
-            _name = Label(_info, 0, 24, 300, 42, "", 38, Color.white, TextAlignmentOptions.Left, onScene: true);
+            _name = Label(_info, 0, 24, 290, 42, "", 38, Color.white, TextAlignmentOptions.Left, onScene: true);
             _name.enableWordWrapping = false;
             _name.overflowMode = TextOverflowModes.Ellipsis;
+
+            // 幾天大：半透明米白膠囊、白框（設計稿用營火小圖示，這裡先只放字）
+            _ageChip = Place(_info, "Age", 0, 36, 60, 22);
+            UIShapes.AddRounded(_ageChip.gameObject, new Color(1f, 1f, 1f, 0.6f), 11).raycastTarget = false;
+            var ageFill = UIShapes.AddRounded(Place(_ageChip, "Fill", 0, 0, 0, 0).gameObject, new Color(1f, 0.973f, 0.925f, 0.28f), 10);
+            ageFill.raycastTarget = false;
+            StretchIn(ageFill.rectTransform, 1, 1, 1, 1);
+            _ageText = Label(_ageChip, 0, 0, 0, 0, "", 12, Color.white, TextAlignmentOptions.Center, onScene: true);
+            StretchIn(_ageText.rectTransform);
+            _ageText.enableWordWrapping = false;
 
             _heartsRow = Place(_info, "Hearts", 0, 72, 95, 16);
             for (int i = 0; i < _hearts.Length; i++)

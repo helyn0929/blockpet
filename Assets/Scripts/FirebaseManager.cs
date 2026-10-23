@@ -31,6 +31,8 @@ public class FirebaseManager : MonoBehaviour
     Query _chatQuery;
     bool _chatInitialLoaded;
     EventHandler<ChildChangedEventArgs> _chatChildAddedHandler;
+    EventHandler<ChildChangedEventArgs> _chatChildChangedHandler;
+    EventHandler<ChildChangedEventArgs> _chatChildRemovedHandler;
     bool _photoListening;
     Query _photoQuery;
     readonly HashSet<string> _seenPhotoFileNames = new HashSet<string>();
@@ -664,6 +666,7 @@ public class FirebaseManager : MonoBehaviour
         public string roomId;
         public string name;
         public string lastActiveAt;
+        public string createdAt;
         public int petIndex;
         public float currentHealth;
         public string lastUpdateTime;
@@ -999,6 +1002,7 @@ public class FirebaseManager : MonoBehaviour
                     roomId = id,
                     name = meta != null ? meta.name : ("Room " + id),
                     lastActiveAt = meta != null ? meta.lastActiveAt : null,
+                    createdAt = meta != null ? meta.createdAt : null,
                     petIndex = pet != null ? pet.petIndex : 0,
                     currentHealth = pet != null ? pet.currentHealth : 0f,
                     lastUpdateTime = pet != null ? pet.lastUpdateTime : null
@@ -1025,6 +1029,80 @@ public class FirebaseManager : MonoBehaviour
                 finish(pet);
             });
         });
+    }
+
+    // ── 空間商店（買過的家具／擴建／寵物蛋，房間成員共用）──────────────
+    // Rooms/{roomId}/shop/{itemId} = 數量
+
+    /// <summary>讀目前空間買過的商品與數量。callback 在主執行緒。</summary>
+    public void GetRoomShop(Action<Dictionary<string, int>> done)
+    {
+        var result = new Dictionary<string, int>();
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId)) { done?.Invoke(result); return; }
+        RoomRoot().Child("shop").GetValueAsync().ContinueWith(t =>
+        {
+            if (t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null)
+            {
+                foreach (var c in t.Result.Children)
+                {
+                    int n = 0;
+                    try { n = Convert.ToInt32(c.Value); } catch { }
+                    if (n > 0) result[c.Key] = n;
+                }
+            }
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(result));
+        });
+    }
+
+    /// <summary>目前空間的某個商品數量 +count（交易，避免兩個成員同時買時互相覆蓋）。callback 在主執行緒。</summary>
+    public void AddRoomShopItem(string itemId, int count, Action<bool> done)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId) || string.IsNullOrEmpty(itemId))
+        {
+            done?.Invoke(false);
+            return;
+        }
+        RoomRoot().Child("shop").Child(itemId).RunTransaction(data =>
+        {
+            long cur = 0;
+            try { if (data.Value != null) cur = Convert.ToInt64(data.Value); } catch { }
+            data.Value = cur + count;
+            return TransactionResult.Success(data);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    /// <summary>讀某個空間最新的幾則聊天（舊到新），給選擇空間頁的留言彈幕用。callback 在主執行緒。</summary>
+    public void GetRecentChat(string roomId, int count, Action<List<ChatMessage>> done)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(roomId))
+        {
+            done?.Invoke(new List<ChatMessage>());
+            return;
+        }
+        dbRef.Child("Rooms").Child(roomId).Child("Chat").OrderByChild("timestamp").LimitToLast(count)
+            .GetValueAsync().ContinueWith(t =>
+            {
+                var list = new List<ChatMessage>();
+                if (t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null)
+                {
+                    foreach (var child in t.Result.Children)
+                    {
+                        try
+                        {
+                            string json = child.GetRawJsonValue();
+                            var msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
+                            if (msg != null && !string.IsNullOrEmpty(msg.message)) list.Add(msg);
+                        }
+                        catch { }
+                    }
+                }
+                list.Sort((a, b) => a.timestamp.CompareTo(b.timestamp));
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(list));
+            });
     }
 
     // ── Room members ─────────────────────────────────────────────────────────
@@ -1195,6 +1273,7 @@ public class FirebaseManager : MonoBehaviour
                             ChatMessage msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
                             if (msg != null && ChatUIHandler.Instance != null)
                                 ChatUIHandler.Instance.DisplayMessage(msg);
+                            UpsertChatEntry(ParseChatEntry(child));
                         }
                     }
 
@@ -1208,6 +1287,11 @@ public class FirebaseManager : MonoBehaviour
                     var qForHandler = capturedQuery;
                     _chatChildAddedHandler = (sender2, args2) => HandleChildAddedForQuery(args2, qForHandler);
                     _chatQuery.ChildAdded += _chatChildAddedHandler;
+                    // 按 emoji（reactions 變了）與收回訊息
+                    _chatChildChangedHandler = (s3, a3) => HandleChatChildChanged(a3, qForHandler);
+                    _chatChildRemovedHandler = (s4, a4) => HandleChatChildRemoved(a4, qForHandler);
+                    _chatQuery.ChildChanged += _chatChildChangedHandler;
+                    _chatQuery.ChildRemoved += _chatChildRemovedHandler;
                 });
             }
         });
@@ -1253,6 +1337,11 @@ public class FirebaseManager : MonoBehaviour
             return;
 
         // Load bytes from disk via SaveManager, then compress for RTDB.
+        // 記下是誰拍的（相簿「誰拍的」篩選）
+        meta.takerUserId = auth.CurrentUser.UserId;
+        meta.takerName = GetDisplayName();
+        SaveManager.Instance?.Save();
+
         Texture2D tex = SaveManager.Instance != null ? SaveManager.Instance.LoadPhoto(meta) : null;
         if (tex == null) return;
 
@@ -1275,6 +1364,14 @@ public class FirebaseManager : MonoBehaviour
         {
             if (t.IsFaulted)
                 Debug.LogError("[FirebaseManager] Upload photo failed: " + (t.Exception?.Flatten().InnerException?.Message ?? t.Exception?.ToString()));
+        });
+
+        // 聊天室也出現一則「餵了 寵物 一張照片」，大家可以按 emoji、回覆
+        SendChatMessage(new ChatMessage(GetDisplayName(), meta.caption ?? "")
+        {
+            kind = "post",
+            photoFileName = meta.fileName,
+            senderId = auth.CurrentUser.UserId,
         });
     }
 
@@ -1316,6 +1413,8 @@ public class FirebaseManager : MonoBehaviour
                 var meta = new PhotoMeta(rec.fileName, rec.takerAvatarFileName);
                 if (!string.IsNullOrEmpty(rec.timestamp))
                     meta.timestamp = rec.timestamp;
+                meta.takerUserId = rec.userId;
+                meta.takerName = rec.displayName;
                 SaveManager.Instance.ImportPhotoFromCloud(meta, bytes);
             });
         }
@@ -1860,6 +1959,106 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>Unsubscribes from live chat updates (e.g. user left chat page intentionally). Call <see cref="EnsureChatListening"/> when opening chat again.</summary>
+    // ── 聊天快取（新版聊天室與相簿用：保留 Firebase key、emoji、收回）──────────
+
+    /// <summary>目前空間的聊天（舊到新，最多 200 則），含每則的 key 與 emoji。</summary>
+    public IReadOnlyList<ChatEntry> ChatEntries => _chatEntries;
+    readonly List<ChatEntry> _chatEntries = new List<ChatEntry>();
+    public static event Action<ChatEntry> OnChatEntryAdded;
+    public static event Action<ChatEntry> OnChatEntryChanged;
+    public static event Action<string> OnChatEntryRemoved;
+    /// <summary>換空間或停止監聽，快取清空。</summary>
+    public static event Action OnChatEntriesReset;
+
+    static ChatEntry ParseChatEntry(DataSnapshot snap)
+    {
+        if (snap == null || !snap.Exists) return null;
+        ChatMessage msg = null;
+        try
+        {
+            string json = snap.GetRawJsonValue();
+            msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
+        }
+        catch { }
+        if (msg == null) return null;
+        var entry = new ChatEntry { key = snap.Key, msg = msg };
+        var re = snap.Child("reactions");
+        if (re.Exists)
+        {
+            foreach (var emoji in re.Children)
+            {
+                var uids = new List<string>();
+                foreach (var u in emoji.Children) uids.Add(u.Key);
+                if (uids.Count > 0) entry.reactions[emoji.Key] = uids;
+            }
+        }
+        return entry;
+    }
+
+    void UpsertChatEntry(ChatEntry entry)
+    {
+        if (entry == null || string.IsNullOrEmpty(entry.key)) return;
+        int i = _chatEntries.FindIndex(e => e.key == entry.key);
+        if (i >= 0)
+        {
+            _chatEntries[i] = entry;
+            OnChatEntryChanged?.Invoke(entry);
+            return;
+        }
+        // 依時間插入（Firebase key 也是時間順序，時間相同時照 key）
+        int at = _chatEntries.Count;
+        while (at > 0 && (_chatEntries[at - 1].msg.timestamp > entry.msg.timestamp
+               || (_chatEntries[at - 1].msg.timestamp == entry.msg.timestamp && string.CompareOrdinal(_chatEntries[at - 1].key, entry.key) > 0)))
+            at--;
+        _chatEntries.Insert(at, entry);
+        OnChatEntryAdded?.Invoke(entry);
+    }
+
+    void HandleChatChildChanged(ChildChangedEventArgs args, Query capturedQuery)
+    {
+        if (args.DatabaseError != null) return;
+        var entry = ParseChatEntry(args.Snapshot);
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery)) return;
+            UpsertChatEntry(entry);
+        });
+    }
+
+    void HandleChatChildRemoved(ChildChangedEventArgs args, Query capturedQuery)
+    {
+        if (args.DatabaseError != null || args.Snapshot == null) return;
+        string key = args.Snapshot.Key;
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery)) return;
+            if (_chatEntries.RemoveAll(e => e.key == key) > 0) OnChatEntryRemoved?.Invoke(key);
+        });
+    }
+
+    /// <summary>按／取消某則訊息的 emoji（Rooms/{roomId}/Chat/{key}/reactions/{emoji}/{uid}）。</summary>
+    public void ToggleChatReaction(string key, string emoji)
+    {
+        string uid = GetUserId();
+        if (dbRef == null || string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(key) || string.IsNullOrEmpty(emoji)) return;
+        var entry = _chatEntries.Find(e => e.key == key);
+        bool mine = entry != null && entry.reactions.TryGetValue(emoji, out var uids) && uids.Contains(uid);
+        var r = RoomRoot().Child("Chat").Child(key).Child("reactions").Child(emoji).Child(uid);
+        if (mine) r.RemoveValueAsync();
+        else r.SetValueAsync(true);
+    }
+
+    /// <summary>收回自己的訊息（直接刪掉）。callback 在主執行緒。</summary>
+    public void RecallChatMessage(string key, Action<bool> done = null)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(key)) { done?.Invoke(false); return; }
+        RoomRoot().Child("Chat").Child(key).RemoveValueAsync().ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
     public void StopChatListening()
     {
         ResetChatListenState();
@@ -1875,7 +2074,18 @@ public class FirebaseManager : MonoBehaviour
     {
         if (_chatQuery != null && _chatChildAddedHandler != null)
             _chatQuery.ChildAdded -= _chatChildAddedHandler;
+        if (_chatQuery != null && _chatChildChangedHandler != null)
+            _chatQuery.ChildChanged -= _chatChildChangedHandler;
+        if (_chatQuery != null && _chatChildRemovedHandler != null)
+            _chatQuery.ChildRemoved -= _chatChildRemovedHandler;
         _chatChildAddedHandler = null;
+        _chatChildChangedHandler = null;
+        _chatChildRemovedHandler = null;
+        if (_chatEntries.Count > 0)
+        {
+            _chatEntries.Clear();
+            OnChatEntriesReset?.Invoke();
+        }
         _chatQuery = null;
         _chatListening = false;
         _chatInitialLoaded = false;
@@ -1892,13 +2102,16 @@ public class FirebaseManager : MonoBehaviour
         string json = args.Snapshot.GetRawJsonValue();
         ChatMessage msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
         if (msg == null) return;
+        var entry = ParseChatEntry(args.Snapshot);
 
         lock (_mainThreadQueue) {
             _mainThreadQueue.Enqueue(() => {
                 // Discard if the room has switched since this event was queued.
-                if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery) || ChatUIHandler.Instance == null)
+                if (!_chatListening || !ReferenceEquals(_chatQuery, capturedQuery))
                     return;
-                ChatUIHandler.Instance.DisplayMessage(msg);
+                UpsertChatEntry(entry);
+                if (ChatUIHandler.Instance != null)
+                    ChatUIHandler.Instance.DisplayMessage(msg);
             });
         }
     }

@@ -141,7 +141,10 @@ public class SaveManager : MonoBehaviour
 
     // ─── Photo ───────────────────────────────────────────────────────
 
-    public void SavePhoto(Texture2D photo)
+    public void SavePhoto(Texture2D photo) => SavePhoto(photo, null, 0f);
+
+    /// <summary>存照片並記下辨識類別（要在通知 OnPhotoSavedMeta 前寫好，雲端同步與聊天貼文才會帶到類別）。</summary>
+    public void SavePhoto(Texture2D photo, string category, float confidence)
     {
         if (photo == null) { Debug.LogWarning("[SaveManager] SavePhoto called with null photo"); return; }
         try
@@ -152,6 +155,8 @@ public class SaveManager : MonoBehaviour
             File.WriteAllBytes(fullPath, photo.EncodeToPNG());
 
             PhotoMeta meta = new PhotoMeta(fileName, _globalData.avatarFileName);
+            meta.category = category;
+            meta.categoryConfidence = confidence;
             data.photos.Add(meta);
             LastSavedPhotoMeta = meta;
             Save();

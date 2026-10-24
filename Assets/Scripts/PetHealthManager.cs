@@ -1,95 +1,64 @@
 using UnityEngine;
 using UnityEngine.UI;
-using System;
+using BlockPet.Feed;
 
+/// <summary>
+/// 寵物愛心（開發順序第 6 步）：0～5 顆、半顆為單位，每 5 小時沒人餵掉半顆，以伺服器時間計算（規則見 <see cref="PetHearts"/>）。
+/// 資料存在房間（FirebaseManager 的 petState.hearts／heartsAt），這裡只負責讀出現在的愛心、回心、復活，
+/// 並把愛心星等即時套用到寵物的待機行為（AIController）。
+/// 還沒進房間時（沒有房間寵物）一律當 5 顆滿。
+/// </summary>
 public class PetHealthManager : MonoBehaviour
 {
+    [Tooltip("舊版血條（可留空）；值為 0～maxHealth")]
     public Slider healthSlider;
-    public float maxHealth = 86400f; 
-    public float healAmount = 10800f; 
+    [Tooltip("舊版血條的最大值。愛心換算：CurrentHealth = 愛心 / 5 × maxHealth")]
+    public float maxHealth = 86400f;
 
-    /// <summary>目前愛心值（秒，0～maxHealth），與血條顯示的值相同。</summary>
-    public float CurrentHealth
+    /// <summary>目前愛心（0～5，半顆）。</summary>
+    public float Hearts
     {
         get
         {
-            if (IsSharedRoomPetActive()) return FirebaseManager.Instance.GetRoomHealthNow(maxHealth);
-            return SaveManager.Instance?.data != null ? Mathf.Clamp(SaveManager.Instance.data.currentHealth, 0f, maxHealth) : maxHealth;
+            float h = FirebaseManager.Instance != null ? FirebaseManager.Instance.GetRoomHeartsNow() : -1f;
+            return h < 0f ? PetHearts.Max : h;
         }
     }
 
-    void Start()
-    {
-        // Local mode only: shared room pet state is derived from Firebase timestamps.
-        if (!IsSharedRoomPetActive())
-            CalculateOfflineDecay();
-    }
+    /// <summary>愛心 0 顆：寵物死亡，要用房間金幣復活。</summary>
+    public bool IsDead => Hearts <= 0f;
+
+    /// <summary>舊介面相容：愛心換算成 0～maxHealth（頂部狀態欄、轉盤、分割畫面用 CurrentHealth / maxHealth × 5）。</summary>
+    public float CurrentHealth => Hearts / PetHearts.Max * maxHealth;
+
+    int _appliedStars;
 
     void Update()
     {
-        if (healthSlider == null) return;
+        float hearts = Hearts;
+        if (healthSlider != null) healthSlider.value = hearts / PetHearts.Max * maxHealth;
 
-        // Shared room pet: UI derives from room state; do not write local decay every frame.
-        if (IsSharedRoomPetActive())
+        // 愛心星等即時影響寵物待機行為（★越高越活潑）
+        int stars = PetHearts.Stars(hearts);
+        var pet = AIController.Instance;
+        if (pet != null && stars != _appliedStars)
         {
-            healthSlider.value = FirebaseManager.Instance.GetRoomHealthNow(maxHealth);
-            return;
+            _appliedStars = stars;
+            pet.SetHeartLevel(stars);
         }
-
-        // Local mode: decay health over time and persist lastUpdateTime.
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        if (SaveManager.Instance.data.currentHealth <= 0) return;
-
-        SaveManager.Instance.data.currentHealth -= Time.deltaTime;
-        SaveManager.Instance.data.lastUpdateTime = DateTime.Now.ToString();
-        UpdateUI();
     }
 
-    void CalculateOfflineDecay()
+    /// <summary>回半顆心（每餵一張照片，FeedSettlement 呼叫）。寵物死亡時不回心。</summary>
+    public void AddHalfHeart()
     {
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        if (string.IsNullOrEmpty(SaveManager.Instance.data.lastUpdateTime)) return;
-
-        // 這裡必須解析文字欄位 (lastUpdateTime)
-        if (DateTime.TryParse(SaveManager.Instance.data.lastUpdateTime, out DateTime lastTime))
-        {
-            TimeSpan span = DateTime.Now - lastTime;
-            float secondsPassed = (float)span.TotalSeconds;
-            
-            // 數字減數字
-            SaveManager.Instance.data.currentHealth -= secondsPassed;
-            
-            if (SaveManager.Instance.data.currentHealth < 0) 
-                SaveManager.Instance.data.currentHealth = 0;
-        }
-            
-        UpdateUI();
+        FirebaseManager.Instance?.AddRoomHearts(PetHearts.Step);
     }
 
-    public void AddHealth()
+    /// <summary>復活（房間金幣 <see cref="PetHearts.ReviveCost"/>）。done(ok, 原因：coins／alive／error) 在主執行緒呼叫。</summary>
+    public void Revive(System.Action<bool, string> done)
     {
-        if (IsSharedRoomPetActive())
-        {
-            FirebaseManager.Instance.AddRoomHealth(healAmount, maxHealth);
-            // UI will update from listener / GetRoomHealthNow.
-            return;
-        }
-
-        if (SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        SaveManager.Instance.data.currentHealth += healAmount;
-        if (SaveManager.Instance.data.currentHealth > maxHealth)
-            SaveManager.Instance.data.currentHealth = maxHealth;
-        UpdateUI();
-    }
-
-    void UpdateUI()
-    {
-        if (healthSlider == null || SaveManager.Instance == null || SaveManager.Instance.data == null) return;
-        healthSlider.value = SaveManager.Instance.data.currentHealth;
-    }
-
-    static bool IsSharedRoomPetActive()
-    {
-        return FirebaseManager.Instance != null && FirebaseManager.Instance.HasRoomPetState;
+        var fb = FirebaseManager.Instance;
+        if (fb == null) { done?.Invoke(false, "error"); return; }
+        fb.ReviveRoomPet(done);
     }
 }

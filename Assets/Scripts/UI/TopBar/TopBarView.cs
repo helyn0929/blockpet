@@ -30,7 +30,7 @@ namespace BlockPet.UI.TopBar
         [SerializeField] TopBarConfig config;
 
         [Header("Live data")]
-        [Tooltip("開啟時：金幣讀 EconomyManager、愛心讀 PetHealthManager、名字／圖／進度讀 PetCollectionManager。想吃與 Lv 目前沒有資料來源，仍用下方假資料。")]
+        [Tooltip("開啟時：金幣讀 EconomyManager、愛心讀 PetHealthManager、名字／圖／進度讀 PetCollectionManager。想吃讀 TodayWant、進化條依照片類別分段。Lv 目前沒有資料來源，仍用下方假資料。")]
         [SerializeField] bool useLiveData = true;
 
         [Header("Fake data")]
@@ -80,6 +80,8 @@ namespace BlockPet.UI.TopBar
         int _liveCoins = int.MinValue;
         float _liveHearts = -1f;
         float _liveProgress = -1f;
+        int _livePhotoCount = -1;
+        string _liveWant;
         int _livePetIndex = int.MinValue;
         string _livePetName;
 
@@ -96,8 +98,9 @@ namespace BlockPet.UI.TopBar
 
         /// <summary>
         /// 從現有系統讀數值（每 0.25 秒，有變才更新）。
-        /// 愛心：目前 PetHealthManager 是 24 小時秒數，換算成 0～5 顆（第 6 步改成半顆制）。
-        /// 進化條：目前只有「收集進度」一個數字、還沒有分類能量（第 3 步辨識後才有），先整段用第一個色段顯示。
+        /// 愛心：PetHealthManager.Hearts（0～5 顆、半顆，伺服器時間每 5 小時掉半顆）；0 顆時切成死亡狀態。
+        /// 進化條：收集進度依照片辨識的類別分成五色段（PetCollectionManager.EnergyByCategory）。
+        /// 想吃：TodayWant（全房間同一個，換日或換寵物時自動變）。
         /// </summary>
         void PollLiveData()
         {
@@ -111,13 +114,15 @@ namespace BlockPet.UI.TopBar
                 SetCoins(_liveCoins);
             }
 
-            if (_health != null && _health.maxHealth > 0f && config != null)
+            if (_health != null)
             {
-                float h = _health.CurrentHealth / _health.maxHealth * config.maxHearts;
+                float h = _health.Hearts;
                 if (!Mathf.Approximately(h, _liveHearts))
                 {
                     _liveHearts = h;
                     SetHearts(h);
+                    bool dead = h <= 0f;
+                    if (dead != _dead) SetDead(dead);
                 }
             }
 
@@ -136,15 +141,23 @@ namespace BlockPet.UI.TopBar
                     var sprite = _legacyTopBar != null ? _legacyTopBar.GetPetSprite(_livePetIndex) : null;
                     if (sprite != null) SetPetSprite(sprite);
                 }
+                int photoCount = SaveManager.Instance?.data?.photos?.Count ?? 0;
                 float progress = pets.ProgressPercent;
-                if (!Mathf.Approximately(progress, _liveProgress))
+                if (!Mathf.Approximately(progress, _liveProgress) || photoCount != _livePhotoCount)
                 {
                     _liveProgress = progress;
-                    int n = config != null ? config.segments.Count : 5;
-                    var energies = new float[n];
-                    if (n > 0) energies[0] = progress;
-                    SetEnergies(energies);
+                    _livePhotoCount = photoCount;
+                    var cats = new System.Collections.Generic.List<string>();
+                    if (config != null) foreach (var seg in config.segments) cats.Add(seg.category);
+                    SetEnergies(pets.EnergyByCategory(cats));
                 }
+            }
+
+            string want = BlockPet.Feed.TodayWant.Current();
+            if (want != null && want != _liveWant)
+            {
+                _liveWant = want;
+                SetWant(want);
             }
         }
 
@@ -282,7 +295,9 @@ namespace BlockPet.UI.TopBar
         public void ClickWantChip()
         {
             if (!_dead) return;
-            if (onReviveRequested.GetPersistentEventCount() == 0) Debug.Log("[TopBarView] 點我復活（尚未接上）");
+            // 沒有另外接的話，打開復活確認（房間金幣 100）
+            if (onReviveRequested.GetPersistentEventCount() == 0)
+                BlockPet.Feed.ReviveDialog.Show(config != null ? config.font : null, nameText != null ? nameText.text : "寵物");
             onReviveRequested.Invoke();
         }
 

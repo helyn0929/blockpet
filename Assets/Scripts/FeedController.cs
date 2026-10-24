@@ -38,7 +38,10 @@ public class FeedController : MonoBehaviour
         // 1. 觸發動畫
         if (petAnimator != null) petAnimator.SetTrigger("Eat");
 
-        SaveManager.Instance.SavePhoto(photo);
+        // 照片辨識（第 3 步），類別跟著照片存、分享到營地
+        var vision = BlockPet.Vision.PhotoClassifier.Instance != null ? BlockPet.Vision.PhotoClassifier.Instance.Classify(photo) : default;
+        if (vision.Ok) Debug.Log($"[FeedController] 照片辨識：{vision.category}（{vision.confidence:P0}）");
+        SaveManager.Instance.SavePhoto(photo, vision.category, vision.confidence);
 
         // 2. 顯示飛行的照片
         if (flyingPhotoObject != null) flyingPhotoObject.SetActive(true);

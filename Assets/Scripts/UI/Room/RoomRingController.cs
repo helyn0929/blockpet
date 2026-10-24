@@ -312,8 +312,6 @@ namespace BlockPet.UI.Room
             _pendingSelectId = null;
 
             var health = FindObjectOfType<PetHealthManager>(true);
-            float maxHealth = health != null && health.maxHealth > 0f ? health.maxHealth : 86400f;
-            int maxHearts = config != null ? config.maxHearts : 5;
 
             var used = new HashSet<string>();
             _items.Clear();
@@ -321,7 +319,7 @@ namespace BlockPet.UI.Room
             {
                 if (r == null || string.IsNullOrEmpty(r.roomId)) continue;
                 bool isCurrent = r.roomId == current;
-                float hp = isCurrent && health != null ? health.CurrentHealth : HealthNow(r, maxHealth);
+                float hearts = isCurrent && health != null ? health.Hearts : HeartsNow(r);
                 var item = new Item
                 {
                     kind = Kind.Room,
@@ -329,7 +327,7 @@ namespace BlockPet.UI.Room
                     // 寵物名字（空間資訊可改）；沒有就沿用空間名稱
                     name = !string.IsNullOrEmpty(r.petName) ? r.petName : (string.IsNullOrEmpty(r.name) ? r.roomId : r.name),
                     petIndex = r.petIndex,
-                    hearts = hp / maxHealth * maxHearts,
+                    hearts = hearts,
                     evo = isCurrent && PetCollectionManager.Instance != null ? PetCollectionManager.Instance.ProgressPercent : -1f,
                     photo = PhotoFor(r.roomId),
                     createdAt = r.createdAt,
@@ -356,13 +354,12 @@ namespace BlockPet.UI.Room
             foreach (var s in _slots) s.k = int.MinValue;
         }
 
-        static float HealthNow(FirebaseManager.RoomSummary r, float maxHealth)
+        /// <summary>其他空間的愛心：與 FirebaseManager.GetRoomHeartsNow 相同算法（伺服器時間、每 5 小時掉半顆）；舊資料還沒搬移的當 5 顆。</summary>
+        static float HeartsNow(FirebaseManager.RoomSummary r)
         {
-            // 與 FirebaseManager.GetRoomHealthNow 相同算法：每秒扣 1
-            float hp = r.currentHealth;
-            if (!string.IsNullOrEmpty(r.lastUpdateTime) && DateTime.TryParse(r.lastUpdateTime, out var last))
-                hp -= (float)(DateTime.Now - last).TotalSeconds;
-            return Mathf.Clamp(hp, 0f, maxHealth);
+            if (r.heartsAt <= 0) return BlockPet.Feed.PetHearts.Max;
+            long now = FirebaseManager.Instance != null ? FirebaseManager.Instance.ServerNowMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return BlockPet.Feed.PetHearts.At(r.hearts, r.heartsAt, now);
         }
 
         Texture2D PhotoFor(string roomId)

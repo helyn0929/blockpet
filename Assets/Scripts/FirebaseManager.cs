@@ -46,6 +46,10 @@ public class FirebaseManager : MonoBehaviour
     RoomPetState _petState;
     public bool HasRoomPetState => _petState != null;
 
+    long _serverOffsetMs;
+    /// <summary>估計的伺服器現在時間（Unix 毫秒）：手機時間加上 Firebase 回報的時間差，改手機時間不影響。</summary>
+    public long ServerNowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + _serverOffsetMs;
+
     bool _equipListening;
     DatabaseReference _equipRef;
 
@@ -93,6 +97,11 @@ public class FirebaseManager : MonoBehaviour
                 var db = FirebaseDatabase.GetInstance(app, "https://blockpet-fc23b-default-rtdb.firebaseio.com/");
                 db.SetPersistenceEnabled(true);
                 dbRef = db.RootReference;
+                // 伺服器時間（愛心計時用）：.info/serverTimeOffset 是「伺服器 − 手機」的毫秒差
+                db.GetReference(".info/serverTimeOffset").ValueChanged += (s, e) =>
+                {
+                    try { _serverOffsetMs = Convert.ToInt64(e.Snapshot?.Value ?? 0L); } catch { }
+                };
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
                 lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => _roomId = PlayerPrefs.GetString(PrefsRoomId, "")); }
@@ -673,6 +682,8 @@ public class FirebaseManager : MonoBehaviour
         public int petIndex;
         public float currentHealth;
         public string lastUpdateTime;
+        public float hearts;      // 上次餵食（或復活）時的愛心
+        public long heartsAt;     // 那時的伺服器時間（Unix 毫秒）；0＝舊資料還沒搬移
     }
 
     DatabaseReference UserRoomsRoot()
@@ -711,10 +722,10 @@ public class FirebaseManager : MonoBehaviour
 
         var initPet = new RoomPetState
         {
-            currentHealth = 86400f,
-            lastUpdateTime = DateTime.UtcNow.ToString("o"),
             petIndex = 0,
             startingPhotoCount = 0,
+            hearts = BlockPet.Feed.PetHearts.Max,
+            heartsAt = ServerNowMs,
         };
 
         var roomRoot = dbRef.Child("Rooms").Child(id);
@@ -1033,7 +1044,9 @@ public class FirebaseManager : MonoBehaviour
                     petName = meta != null ? meta.petName : null,
                     petIndex = pet != null ? pet.petIndex : 0,
                     currentHealth = pet != null ? pet.currentHealth : 0f,
-                    lastUpdateTime = pet != null ? pet.lastUpdateTime : null
+                    lastUpdateTime = pet != null ? pet.lastUpdateTime : null,
+                    hearts = pet != null ? pet.hearts : 0f,
+                    heartsAt = pet != null ? pet.heartsAt : 0
                 });
             };
 
@@ -1342,6 +1355,8 @@ public class FirebaseManager : MonoBehaviour
         public string takerAvatarFileName;
         public string userId;
         public string displayName;
+        public string category;
+        public float categoryConfidence;
         public string imageBase64Jpg;
     }
 
@@ -1393,6 +1408,8 @@ public class FirebaseManager : MonoBehaviour
             takerAvatarFileName = meta.takerAvatarFileName,
             userId = auth.CurrentUser.UserId,
             displayName = GetDisplayName(),
+            category = meta.category,
+            categoryConfidence = meta.categoryConfidence,
             imageBase64Jpg = Convert.ToBase64String(jpg)
         };
 
@@ -1408,6 +1425,7 @@ public class FirebaseManager : MonoBehaviour
         {
             kind = "post",
             photoFileName = meta.fileName,
+            category = meta.category,
             senderId = auth.CurrentUser.UserId,
         });
     }
@@ -1452,6 +1470,8 @@ public class FirebaseManager : MonoBehaviour
                     meta.timestamp = rec.timestamp;
                 meta.takerUserId = rec.userId;
                 meta.takerName = rec.displayName;
+                meta.category = rec.category;
+                meta.categoryConfidence = rec.categoryConfidence;
                 SaveManager.Instance.ImportPhotoFromCloud(meta, bytes);
             });
         }
@@ -1460,10 +1480,12 @@ public class FirebaseManager : MonoBehaviour
     [Serializable]
     public class RoomPetState
     {
-        public float currentHealth;
+        public float currentHealth;   // 舊版 24 小時秒數制（已不用，保留讀舊資料）
         public string lastUpdateTime;
         public int petIndex;
         public int startingPhotoCount;
+        public float hearts;          // 上次餵食（或復活）時的愛心（0～5，半顆）
+        public long heartsAt;         // 那時的伺服器時間（Unix 毫秒）；0＝舊資料，載入時補成 5 顆
     }
 
     DatabaseReference RoomRoot()
@@ -1578,10 +1600,10 @@ public class FirebaseManager : MonoBehaviour
         _petInitRequested = true;
         var init = new RoomPetState
         {
-            currentHealth = 86400f,
-            lastUpdateTime = DateTime.Now.ToString(),
             petIndex = 0,
-            startingPhotoCount = 0
+            startingPhotoCount = 0,
+            hearts = BlockPet.Feed.PetHearts.Max,
+            heartsAt = ServerNowMs,
         };
         petRef.SetRawJsonValueAsync(JsonUtility.ToJson(init));
     }
@@ -1841,57 +1863,140 @@ public class FirebaseManager : MonoBehaviour
         try { st = JsonUtility.FromJson<RoomPetState>(json); } catch { st = null; }
         if (st == null) return;
         _petState = st;
+        if (st.heartsAt <= 0) MigratePetHearts(); // 舊房間：第一次載入補成 5 顆
 
         // Apply to local systems on main thread.
         lock (_mainThreadQueue)
         {
             _mainThreadQueue.Enqueue(() =>
             {
-                // Update SaveManager health snapshot so PetHealthManager can read it.
-                if (SaveManager.Instance?.data != null)
-                {
-                    SaveManager.Instance.data.currentHealth = st.currentHealth;
-                    SaveManager.Instance.data.lastUpdateTime = st.lastUpdateTime;
-                }
-
                 // Push pet index/progress directly into PetCollectionManager.
                 PetCollectionManager.Instance?.ApplyRoomPetState(st.petIndex, st.startingPhotoCount);
             });
         }
     }
 
-    public float GetRoomHealthNow(float maxHealth)
+    /// <summary>目前房間寵物的愛心（0～5，半顆）；還沒載入房間寵物時回傳 -1。</summary>
+    public float GetRoomHeartsNow()
     {
-        if (_petState == null) return SaveManager.Instance?.data?.currentHealth ?? maxHealth;
-        float baseHealth = _petState.currentHealth;
-        if (string.IsNullOrEmpty(_petState.lastUpdateTime)) return Mathf.Clamp(baseHealth, 0, maxHealth);
-        if (!DateTime.TryParse(_petState.lastUpdateTime, out var last)) return Mathf.Clamp(baseHealth, 0, maxHealth);
-        float decayed = baseHealth - (float)(DateTime.Now - last).TotalSeconds;
-        return Mathf.Clamp(decayed, 0, maxHealth);
+        var st = _petState;
+        if (st == null) return -1f;
+        if (st.heartsAt <= 0) return BlockPet.Feed.PetHearts.Max; // 搬移中
+        return BlockPet.Feed.PetHearts.At(st.hearts, st.heartsAt, ServerNowMs);
     }
 
-    public void AddRoomHealth(float healAmount, float maxHealth)
+    /// <summary>下一次掉半顆還要多久。</summary>
+    public TimeSpan GetRoomHeartsNextDrop()
     {
-        if (!enableSharedRoomPet || _petRef == null) return;
+        var st = _petState;
+        if (st == null || st.heartsAt <= 0) return TimeSpan.Zero;
+        return BlockPet.Feed.PetHearts.UntilNextDrop(st.hearts, st.heartsAt, ServerNowMs);
+    }
+
+    static float ReadFloat(Dictionary<string, object> d, string key)
+    {
+        if (d != null && d.TryGetValue(key, out var v) && v != null) try { return Convert.ToSingle(v); } catch { }
+        return 0f;
+    }
+
+    static long ReadLong(Dictionary<string, object> d, string key)
+    {
+        if (d != null && d.TryGetValue(key, out var v) && v != null) try { return Convert.ToInt64(v); } catch { }
+        return 0;
+    }
+
+    /// <summary>
+    /// 餵食回心（房間任何成員餵都算）：先算出現在的愛心再加，並重新開始 5 小時計時。
+    /// 寵物已經死亡（0 顆）時不回心，要先復活。用 transaction，兩個人同時餵不會互相蓋掉。
+    /// </summary>
+    public void AddRoomHearts(float amount)
+    {
+        if (!enableSharedRoomPet || _petRef == null || amount <= 0f) return;
         _petRef.RunTransaction(mutable =>
         {
             var dict = mutable.Value as Dictionary<string, object> ?? new Dictionary<string, object>();
-            float cur = 0f;
-            if (dict.TryGetValue("currentHealth", out var curObj))
-                cur = Convert.ToSingle(curObj);
-            string lastStr = dict.TryGetValue("lastUpdateTime", out var lastObj) ? (lastObj as string) : null;
-            if (!string.IsNullOrEmpty(lastStr) && DateTime.TryParse(lastStr, out var last))
-            {
-                cur -= (float)(DateTime.Now - last).TotalSeconds;
-            }
-            cur = Mathf.Clamp(cur + healAmount, 0, maxHealth);
-            dict["currentHealth"] = cur;
-            dict["lastUpdateTime"] = DateTime.Now.ToString();
-
-            // Preserve pet progress keys if present.
+            long now = ServerNowMs;
+            long at = ReadLong(dict, "heartsAt");
+            float h = at <= 0 ? BlockPet.Feed.PetHearts.Max : BlockPet.Feed.PetHearts.At(ReadFloat(dict, "hearts"), at, now);
+            if (h <= 0f) return TransactionResult.Abort();
+            dict["hearts"] = (double)Mathf.Min(BlockPet.Feed.PetHearts.Max, h + amount);
+            dict["heartsAt"] = now;
             mutable.Value = dict;
             return TransactionResult.Success(mutable);
+        }).ContinueWith(t =>
+        {
+            if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] AddRoomHearts failed: " + t.Exception?.GetBaseException()?.Message);
         });
+    }
+
+    /// <summary>
+    /// 復活：從房間帳戶扣 <see cref="BlockPet.Feed.PetHearts.ReviveCost"/> 金幣，愛心回到 5 顆滿。
+    /// 先扣款再復活；如果扣款後發現別人已經先復活了，把錢退回。done(ok, 原因) 在主執行緒呼叫，原因：coins／alive／error。
+    /// </summary>
+    public void ReviveRoomPet(Action<bool, string> done)
+    {
+        if (!enableSharedRoomPet || _petRef == null) { done?.Invoke(false, "error"); return; }
+        if (GetRoomHeartsNow() > 0f) { done?.Invoke(false, "alive"); return; }
+        int cost = BlockPet.Feed.PetHearts.ReviveCost;
+        var petRef = _petRef;
+        SpendRoomCoins(cost, "revive", ok =>
+        {
+            if (!ok) { done?.Invoke(false, "coins"); return; }
+            bool revived = false;
+            petRef.RunTransaction(mutable =>
+            {
+                var dict = mutable.Value as Dictionary<string, object> ?? new Dictionary<string, object>();
+                long now = ServerNowMs;
+                long at = ReadLong(dict, "heartsAt");
+                float h = at <= 0 ? BlockPet.Feed.PetHearts.Max : BlockPet.Feed.PetHearts.At(ReadFloat(dict, "hearts"), at, now);
+                revived = false;
+                if (h > 0f) return TransactionResult.Abort(); // 別人先復活了
+                dict["hearts"] = (double)BlockPet.Feed.PetHearts.Max;
+                dict["heartsAt"] = now;
+                mutable.Value = dict;
+                revived = true;
+                return TransactionResult.Success(mutable);
+            }).ContinueWith(t =>
+            {
+                bool success = !t.IsFaulted && !t.IsCanceled && revived;
+                if (!success) AddRoomCoins(cost, "refund:revive");
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(success, success ? null : (t.IsFaulted ? "error" : "alive")));
+            });
+        });
+    }
+
+    /// <summary>測試用（Editor 選單 BlockPet/Debug/愛心）：直接把房間愛心設成 hearts，從現在開始計時。</summary>
+    public void DebugSetRoomHearts(float hearts)
+    {
+        if (_petRef == null) { Debug.LogWarning("[FirebaseManager] 還沒進房間"); return; }
+        _petRef.Child("hearts").SetValueAsync((double)BlockPet.Feed.PetHearts.Snap(hearts));
+        _petRef.Child("heartsAt").SetValueAsync(ServerNowMs);
+    }
+
+    /// <summary>測試用：把計時往前推 hours 小時（模擬很久沒人餵）。</summary>
+    public void DebugAgeRoomHearts(double hours)
+    {
+        var st = _petState;
+        if (_petRef == null || st == null || st.heartsAt <= 0) { Debug.LogWarning("[FirebaseManager] 還沒進房間"); return; }
+        _petRef.Child("heartsAt").SetValueAsync(st.heartsAt - (long)(hours * 3600000.0));
+    }
+
+    bool _heartsMigrating;
+
+    /// <summary>舊房間（24 小時秒數制）搬到愛心制：直接補成 5 顆滿、從現在開始計時（只做一次，誰先載入誰做）。</summary>
+    void MigratePetHearts()
+    {
+        if (_heartsMigrating || _petRef == null) return;
+        _heartsMigrating = true;
+        _petRef.RunTransaction(mutable =>
+        {
+            var dict = mutable.Value as Dictionary<string, object>;
+            if (dict == null || ReadLong(dict, "heartsAt") > 0) return TransactionResult.Abort();
+            dict["hearts"] = (double)BlockPet.Feed.PetHearts.Max;
+            dict["heartsAt"] = ServerNowMs;
+            mutable.Value = dict;
+            return TransactionResult.Success(mutable);
+        }).ContinueWith(t => { _heartsMigrating = false; });
     }
 
     public void PublishRoomPetProgress(int petIndex, int startingPhotoCount)

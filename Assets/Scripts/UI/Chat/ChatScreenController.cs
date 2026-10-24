@@ -228,6 +228,30 @@ namespace BlockPet.UI.Chat
         public static string Initial(string name, bool mine) =>
             mine ? "我" : (string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1));
 
+        PhotoSplitView _splitView;
+
+        /// <summary>打開分割畫面到這張照片；沒有掛 PhotoSplitView 或照片還沒同步到相簿時，改開這則訊息的選單。</summary>
+        void OpenSplitView(string fileName, string key)
+        {
+            if (_splitView == null) _splitView = FindObjectOfType<PhotoSplitView>(true);
+            if (_splitView != null && _splitView.Open(fileName)) return;
+            OpenMenu(key);
+        }
+
+        /// <summary>照片左上角的類別標籤（照片辨識結果）：白底膠囊＋類別色圓點。</summary>
+        void CategoryTag(RectTransform frame, string category)
+        {
+            var t = Label(frame, 0, 0, 120, 22, category, 11, Ink, TextAlignmentOptions.Left);
+            float tw = Mathf.Ceil(t.GetPreferredValues(category).x);
+            var tag = Place(frame, "Category", 8, 8, tw + 26f, 22);
+            UIShapes.AddRounded(tag.gameObject, new Color(1f, 1f, 1f, 0.92f), 11).raycastTarget = false;
+            UIShapes.AddRounded(Place(tag, "Dot", 8, 7.5f, 7, 7).gameObject, BlockPet.UI.Album.AlbumScreenController.CategoryColor(category), 3.5f).raycastTarget = false;
+            t.rectTransform.SetParent(tag, false);
+            t.rectTransform.anchoredPosition = new Vector2(19f, 0f);
+            t.rectTransform.sizeDelta = new Vector2(tw + 2f, 22f);
+            t.raycastTarget = false;
+        }
+
         string Snippet(ChatEntry e) => e.IsPost ? "照片：" + (string.IsNullOrEmpty(e.msg.message) ? "餵了一張照片" : e.msg.message) : e.msg.message;
 
         static DateTime LocalTime(long ts)
@@ -429,6 +453,19 @@ namespace BlockPet.UI.Chat
                     img.raycastTarget = false;
                 }
                 else Label(frame, 0, 0, PostImgW, PostImgH, "照片同步中…", 12, Muted2, TextAlignmentOptions.Center);
+                if (!string.IsNullOrEmpty(e.msg.category)) CategoryTag(frame, e.msg.category);
+                // 點照片打開分割畫面（大照片＋留言＋縮小的營地）；點泡泡其他地方還是開選單
+                if (tex != null)
+                {
+                    var frameImg = frame.GetComponent<Image>();
+                    frameImg.raycastTarget = true;
+                    var fb = frame.gameObject.AddComponent<Button>();
+                    fb.targetGraphic = frameImg;
+                    fb.transition = Selectable.Transition.None;
+                    string file = e.msg.photoFileName;
+                    string postKey = e.key;
+                    fb.onClick.AddListener(() => OpenSplitView(file, postKey));
+                }
                 items.Add((frame, PostImgH));
                 bw = Mathf.Max(bw, PostImgW);
                 if (!string.IsNullOrEmpty(e.msg.message))

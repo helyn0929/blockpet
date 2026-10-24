@@ -253,9 +253,7 @@ public class CameraController : MonoBehaviour
             feedController.FeedWithPhoto(capturedPhoto);
 
         PhotoCooldown.Start();
-
-        if (healthManager != null) healthManager.AddHealth();
-        else FindObjectOfType<PetHealthManager>()?.AddHealth();
+        // 回心、金幣在照片存好時由 FeedSettlement 結算
 
         if (cameraPreview != null && cameraPreview.gameObject != null)
             cameraPreview.gameObject.SetActive(false);

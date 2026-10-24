@@ -11,9 +11,6 @@ public class EconomyManager : MonoBehaviour
 {
     public static EconomyManager Instance;
 
-    [Header("Currency")]
-    [SerializeField] int moneyPerPhoto = 50;
-
     [Header("UI")]
     [SerializeField] TextMeshProUGUI moneyText;
 
@@ -44,7 +41,7 @@ public class EconomyManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Add coins to the shared wallet (e.g. refund).</summary>
+    /// <summary>Add coins to the shared wallet (e.g. refund). 餵照片的收益由 BlockPet.Feed.FeedSettlement 呼叫。</summary>
     public void AddCoins(int amount, string reason = "")
     {
         if (amount <= 0) return;
@@ -74,15 +71,9 @@ public class EconomyManager : MonoBehaviour
 
     void OnEnable()
     {
-        SaveManager.OnPhotoSaved += AddMoneyFromPhoto;
         // Sync display with the value that may have arrived while the object was inactive.
         displayedMoney = currentMoney;
         RefreshMoneyUI();
-    }
-
-    void OnDisable()
-    {
-        SaveManager.OnPhotoSaved -= AddMoneyFromPhoto;
     }
 
     void OnDestroy()
@@ -113,13 +104,6 @@ public class EconomyManager : MonoBehaviour
             displayedMoney = currentMoney;
             RefreshMoneyUI();
         }
-    }
-
-    void AddMoneyFromPhoto()
-    {
-        Debug.Log($"[EconomyManager] AddMoneyFromPhoto: +{moneyPerPhoto} coins, firebase={FirebaseManager.Instance != null}");
-        if (FirebaseManager.Instance != null)
-            FirebaseManager.Instance.AddRoomCoins(moneyPerPhoto, "photo");
     }
 
     IEnumerator CountUpMoneyRoutine(int from, int to)

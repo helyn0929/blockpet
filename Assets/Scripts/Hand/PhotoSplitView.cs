@@ -12,7 +12,7 @@ namespace BlockPet.Hand
 {
     /// <summary>
     /// 分割畫面（設計稿首頁 v8「2 分割畫面：大照片＋留言＋縮小的營地」Camp8Photo，頂部用 A 版）：
-    /// 點手牌最右邊的營地最新照片打開。
+    /// 點手牌最右邊的營地最新照片打開（從最新一張開始）；聊天室點餵食貼文的照片也會打開（從那一張開始，蓋在聊天室上面，返回就回聊天室）。
     /// - 頂部玻璃列：返回、照片縮圖疊（目前這張黃框，最多 4 張＋「+N」）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）。
     /// - 中間大照片（346×346）：左右滑或兩側箭頭換張；下方疊最近 2 則留言與說明；底下留言框。
     /// - 下方縮小的營地：寵物（愛心、進化條）看著照片說話。
@@ -79,6 +79,8 @@ namespace BlockPet.Hand
         // 大照片
         RawImage _photo;
         RectTransform _newTag, _overlay;
+        RectTransform _card, _cardFill, _frame, _commentRow, _prevBtn, _nextBtn;
+        float _photoH = PhotoSize;   // 大照片的高度：螢幕比設計稿長時，多出來的高度給照片（營地維持 266）
         TMP_InputField _input;
         Image _sendBg;
 
@@ -101,12 +103,16 @@ namespace BlockPet.Hand
         // ─── 開關 ──────────────────────────────────────────────────────
 
         /// <summary>打開分割畫面，從最新一張照片開始。沒有照片回傳 false。</summary>
-        public bool Open()
+        public bool Open() => Open(null);
+
+        /// <summary>打開分割畫面並顯示指定的照片（null＝最新一張）。沒有照片、或指定的照片還沒同步到相簿時回傳 false。</summary>
+        public bool Open(string fileName)
         {
             LoadShots();
-            if (_shots.Count == 0) return false;
+            int index = string.IsNullOrEmpty(fileName) ? 0 : _shots.FindIndex(s => s.meta.fileName == fileName);
+            if (_shots.Count == 0 || index < 0) return false;
             if (_canvas == null) Build();
-            _index = 0;
+            _index = index;
             _viewed.Clear();
             _open = true;
             _openT = 0f;
@@ -117,7 +123,7 @@ namespace BlockPet.Hand
             FirebaseManager.OnChatEntryRemoved += OnChatRemoved;
             SaveManager.OnSaveDataChanged += OnSaveChanged;
             _input.text = "";
-            Show(0);
+            Show(_index);
             return true;
         }
 
@@ -285,7 +291,7 @@ namespace BlockPet.Hand
             // 大照片
             _photo.texture = _big.TryGetValue(s.meta.fileName, out var tex) ? tex : null;
             _photo.enabled = _photo.texture != null;
-            if (_photo.texture != null) _photo.uvRect = ChatScreenController.AspectFill(tex.width, tex.height, 1f, 1f);
+            FitPhoto();
             _newTag.gameObject.SetActive(s.isNew);
             BuildOverlay(s);
             ((TMP_Text)_input.placeholder).text = s.mine ? "補一句話…" : "留言給 " + s.who + "…";
@@ -432,7 +438,7 @@ namespace BlockPet.Hand
                 var tex = _big.TryGetValue(s.meta.fileName, out var b) ? b : null;
                 _photo.texture = tex;
                 _photo.enabled = tex != null;
-                if (tex != null) _photo.uvRect = ChatScreenController.AspectFill(tex.width, tex.height, 1f, 1f);
+                if (tex != null) FitPhoto();
                 yield return null;
             }
             bool changed = false;
@@ -494,9 +500,35 @@ namespace BlockPet.Hand
             _design.localScale = Vector3.one * _k;
             _design.sizeDelta = new Vector2(DesignW, _screenH);
             _design.anchoredPosition = new Vector2(0f, -_topInset);
-            // 下方縮小的營地撐到底部（設計稿 772 高時是 266）
-            float campH = Mathf.Max(200f, _screenH - _topInset - 492f - 14f - _bottomInset);
+            // 營地維持設計稿的 266；螢幕比較長時多的高度給大照片，比較短時先縮營地（最少 200）、再縮照片
+            float room = _screenH - _topInset - _bottomInset - 14f;   // 營地底下留 14
+            float campH = Mathf.Clamp(room - 492f, 200f, 266f);
+            float photoH = Mathf.Max(260f, PhotoSize + (room - 492f - campH));
+            ApplyPhotoHeight(photoH);
+            _camp.anchoredPosition = new Vector2(14f, -(_card.sizeDelta.y + 68f + 14f));
             _camp.sizeDelta = new Vector2(362f, campH);
+        }
+
+        void ApplyPhotoHeight(float h)
+        {
+            _photoH = h;
+            _card.sizeDelta = new Vector2(362f, 8f + h + 8f + 40f + 8f);
+            _cardFill.sizeDelta = _card.sizeDelta;
+            _frame.sizeDelta = new Vector2(PhotoSize, h);
+            _photo.rectTransform.sizeDelta = new Vector2(PhotoSize, h);
+            _overlay.sizeDelta = new Vector2(PhotoSize - 20f, h - 20f);
+            _commentRow.anchoredPosition = new Vector2(8f, -(8f + h + 8f));
+            _prevBtn.anchoredPosition = new Vector2(_prevBtn.anchoredPosition.x, -(h / 2f - 22f));
+            _nextBtn.anchoredPosition = new Vector2(_nextBtn.anchoredPosition.x, -(h / 2f - 22f));
+            FitPhoto();
+            if (_index >= 0 && _index < _shots.Count) BuildOverlay(_shots[_index]);
+        }
+
+        /// <summary>大照片等比填滿目前的照片框（框不是正方形時要依框的比例裁）。</summary>
+        void FitPhoto()
+        {
+            var tex = _photo.texture;
+            if (tex != null) _photo.uvRect = ChatScreenController.AspectFill(tex.width, tex.height, PhotoSize, _photoH);
         }
 
         // ─── 建立介面 ──────────────────────────────────────────────────
@@ -562,11 +594,12 @@ namespace BlockPet.Hand
 
         void BuildPhotoCard()
         {
-            var card = Place(_design, "PhotoCard", 14, 68, 362, 8f + PhotoSize + 8f + 40f + 8f);
+            var card = _card = Place(_design, "PhotoCard", 14, 68, 362, 8f + PhotoSize + 8f + 40f + 8f);
             UIShapes.AddShadow(card, new Color(0, 0, 0, 0.4f), 20, 30, 14);
-            UIShapes.AddRounded(Place(card, "Fill", 0, 0, 362, card.sizeDelta.y).gameObject, Card, 20).raycastTarget = false;
+            _cardFill = Place(card, "Fill", 0, 0, 362, card.sizeDelta.y);
+            UIShapes.AddRounded(_cardFill.gameObject, Card, 20).raycastTarget = false;
 
-            var frame = Place(card, "Photo", 8, 8, PhotoSize, PhotoSize);
+            var frame = _frame = Place(card, "Photo", 8, 8, PhotoSize, PhotoSize);
             var frameBg = UIShapes.AddRounded(frame.gameObject, Dark, 13);
             frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             _photo = Place(frame, "Img", 0, 0, PhotoSize, PhotoSize).gameObject.AddComponent<RawImage>();
@@ -582,13 +615,13 @@ namespace BlockPet.Hand
             UIShapes.AddRounded(Place(_newTag, "Fill", 0, 0, 32, 20).gameObject, Coral, 8).raycastTarget = false;
             Label(_newTag, 0, 0, 32, 20, "新", 12, Color.white, TextAlignmentOptions.Center);
 
-            Arrow(frame, 6, true);
-            Arrow(frame, PhotoSize - 6f - 44f, false);
+            _prevBtn = Arrow(frame, 6, true);
+            _nextBtn = Arrow(frame, PhotoSize - 6f - 44f, false);
 
             _overlay = Place(frame, "Overlay", 10, 10, PhotoSize - 20f, PhotoSize - 20f);
 
             // 留言框
-            var row = Place(card, "Comment", 8, 8 + PhotoSize + 8, PhotoSize, 40);
+            var row = _commentRow = Place(card, "Comment", 8, 8 + PhotoSize + 8, PhotoSize, 40);
             UIShapes.AddRounded(row.gameObject, Beige, 13).raycastTarget = false;
             _input = BuildInput(row, 12, 2, PhotoSize - 12f - 4f - 32f - 6f, 36);
             var send = Place(row, "Send", PhotoSize - 4f - 32f, 4, 32, 32);
@@ -605,7 +638,7 @@ namespace BlockPet.Hand
             sb.onClick.AddListener(Send);
         }
 
-        void Arrow(RectTransform frame, float x, bool left)
+        RectTransform Arrow(RectTransform frame, float x, bool left)
         {
             var b = Place(frame, left ? "Prev" : "Next", x, PhotoSize / 2f - 22f, 44, 44);
             var bg = UIShapes.AddRounded(b.gameObject, new Color(0, 0, 0, 0.22f), 22);
@@ -618,6 +651,7 @@ namespace BlockPet.Hand
             btn.targetGraphic = bg;
             btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => Show(_index + (left ? -1 : 1)));
+            return b;
         }
 
         void BuildCamp()

@@ -17,7 +17,7 @@ namespace BlockPet.Hand
     ///   底部變成「相簿／拍照／聊天」；相簿打開遊戲裡的相簿頁，拍照在冷卻中顯示倒數不能按，
     ///   冷卻結束後手牌自動展開。
     /// 介面在執行時以 390×772 的設計座標建立（直接對照設計檔），再依螢幕寬度等比放大、貼齊畫面底部。
-    /// 餵食效果（辨識、結算）在第 3 步透過 <see cref="OnFeedRequested"/> 接上。
+    /// 餵食結算（辨識、命中、金幣、愛心）在 <see cref="BlockPet.Feed.FeedSettlement"/>；結算完寵物頭上冒台詞，命中時開心跳兩下。
     /// </summary>
     public class HandController : MonoBehaviour
     {
@@ -152,6 +152,16 @@ namespace BlockPet.Hand
         }
         readonly List<Flight> _flights = new List<Flight>();
 
+        // 寵物台詞（餵食結算後）
+        RectTransform _petLine;
+        CanvasGroup _petLineGroup;
+        TMP_Text _petLineText;
+        TMP_Text _petLineSub;
+        float _petLineTime = -1f;
+        BlockPet.Feed.FeedResult? _pendingLine;
+        float _pendingAt;
+        const float PetLineHold = 2.4f;
+
         bool _dockMode;
         /// <summary>底部顯示相簿／拍照／聊天：出牌後的冷卻中，或手牌被滑動收起時。</summary>
         bool DockVisible => _dockMode || _collapsed;
@@ -179,6 +189,7 @@ namespace BlockPet.Hand
             BuildLatest();
             BuildDock();
             BuildPopup();
+            BuildPetLine();
             LayoutCards(snap: true);
         }
 
@@ -186,6 +197,7 @@ namespace BlockPet.Hand
         {
             if (_overlay != null) _overlay.gameObject.SetActive(true);
             if (cameraUI != null) cameraUI.hideHomeButtons = true;
+            BlockPet.Feed.FeedSettlement.OnSettled += OnFeedSettled;
             Refresh();
         }
 
@@ -194,6 +206,7 @@ namespace BlockPet.Hand
             if (_selected != null) PutBack();
             if (_overlay != null) _overlay.gameObject.SetActive(false);
             if (cameraUI != null) cameraUI.hideHomeButtons = false;
+            BlockPet.Feed.FeedSettlement.OnSettled -= OnFeedSettled;
         }
 
         void OnDestroy()
@@ -221,6 +234,13 @@ namespace BlockPet.Hand
             _overlayGroup.alpha = home ? 1f : 0f;
             _overlayGroup.blocksRaycasts = home;
 
+            // 相機拍照餵食時首頁被藏起來，回到首頁才冒台詞（太久就不冒了）
+            if (_pendingLine.HasValue && home)
+            {
+                if (Time.unscaledTime - _pendingAt < 6f) ShowPetLine(_pendingLine.Value);
+                _pendingLine = null;
+            }
+
             float w = _overlay.rect.width;
             if (w > 0f && !Mathf.Approximately(w, _lastWidth))
             {
@@ -244,6 +264,7 @@ namespace BlockPet.Hand
             AnimateDock();
             PollLatest();
             AnimateLatest();
+            AnimatePetLine();
 
         }
 
@@ -555,15 +576,15 @@ namespace BlockPet.Hand
             }
         }
 
-        /// <summary>寵物身體中心在設計座標（_design 本地座標）的位置。</summary>
-        Vector3? PetPointInDesign()
+        /// <summary>寵物身體中心（top：頭頂）在設計座標（_design 本地座標）的位置。</summary>
+        Vector3? PetPointInDesign(bool top = false)
         {
             var pet = AIController.Instance;
             var cam = Camera.main;
             if (pet == null || cam == null) return null;
             Vector3 world = pet.transform.position;
             var r = pet.GetComponentInChildren<Renderer>();
-            if (r != null) world = r.bounds.center;
+            if (r != null) world = top ? new Vector3(r.bounds.center.x, r.bounds.max.y, r.bounds.center.z) : r.bounds.center;
             Vector3 screen = cam.WorldToScreenPoint(world);
             if (screen.z < 0f) return null;
             var canvas = _design.GetComponentInParent<Canvas>().rootCanvas;
@@ -579,17 +600,85 @@ namespace BlockPet.Hand
                 feedController.petAnimator.SetTrigger("Eat");
             ReleasePet();
 
+            // 照片辨識（第 3 步）：縮圖就夠用，比原圖快
+            var vision = BlockPet.Vision.PhotoClassifier.Instance != null ? BlockPet.Vision.PhotoClassifier.Instance.Classify(thumb) : default;
+            if (vision.Ok) Debug.Log($"[HandController] 照片辨識：{vision.category}（{vision.confidence:P0}）");
+
             // 存進相簿：用較大的原圖（縮圖只有 thumbnailMaxSize）；SavePhoto 也會自動分享到營地
             Texture2D full = null;
             try { full = NativeGallery.LoadImageAtPath(photo.path, AlbumPhotoMaxSize, false, false); }
             catch (Exception e) { Debug.LogWarning("[HandController] 讀取原圖失敗，改存縮圖: " + e.Message); }
-            if (SaveManager.Instance != null) SaveManager.Instance.SavePhoto(full != null ? full : thumb);
+            if (SaveManager.Instance != null) SaveManager.Instance.SavePhoto(full != null ? full : thumb, vision.category, vision.confidence);
             if (full != null) Destroy(full);
 
             if (OnFeedRequested != null)
                 OnFeedRequested.Invoke(photo, thumb);
             else if (thumb != null)
                 Destroy(thumb);
+        }
+
+        // ─── 寵物台詞（結算後）─────────────────────────────────────────
+
+        void OnFeedSettled(BlockPet.Feed.FeedResult r)
+        {
+            _pendingLine = r;
+            _pendingAt = Time.unscaledTime;
+        }
+
+        void ShowPetLine(BlockPet.Feed.FeedResult r)
+        {
+            // 命中：開心跳起；沒命中：中性的「嗯…？」（不用難過的表情）
+            _petLineText.text = r.dead ? "……" : (r.hit ? "好好吃！" : "嗯…？");
+            _petLineSub.text = r.dead ? $"昏倒了，點想吃膠囊復活・+{r.coins} 金幣" : r.hit
+                ? $"命中今天想吃・+{r.coins} 金幣"
+                : (string.IsNullOrEmpty(r.want) ? $"+{r.coins} 金幣" : $"今天想吃{r.want}・+{r.coins} 金幣");
+            _petLineSub.color = r.hit ? Coral : Muted;
+            float w = Mathf.Max(96f, Mathf.Ceil(_petLineSub.GetPreferredValues(_petLineSub.text).x) + 28f);
+            _petLine.sizeDelta = new Vector2(w, 58f);
+            _petLineText.rectTransform.sizeDelta = new Vector2(w, 26f);
+            _petLineSub.rectTransform.sizeDelta = new Vector2(w, 16f);
+            _petLine.gameObject.SetActive(true);
+            _petLine.SetAsLastSibling();
+            _petLineTime = 0f;
+            if (r.hit && !r.dead && AIController.Instance != null) BlockPet.Feed.PetHop.Play(AIController.Instance.gameObject);
+        }
+
+        void AnimatePetLine()
+        {
+            if (_petLineTime < 0f) return;
+            _petLineTime += Time.unscaledDeltaTime;
+            float t = _petLineTime;
+            // 彈出（0.2 秒，稍微超過再回來）→ 停留 → 淡出 0.3 秒
+            float pop = Mathf.Clamp01(t / 0.2f);
+            float scale = pop < 1f ? Mathf.Sin(pop * Mathf.PI * 0.5f) * 1.08f : Mathf.Lerp(1.08f, 1f, Mathf.Clamp01((t - 0.2f) / 0.1f));
+            _petLine.localScale = Vector3.one * scale;
+            _petLineGroup.alpha = t < PetLineHold ? 1f : 1f - Mathf.Clamp01((t - PetLineHold) / 0.3f);
+            var head = PetPointInDesign(top: true);
+            if (head.HasValue) _petLine.localPosition = head.Value + new Vector3(0f, 14f, 0f);
+            if (t >= PetLineHold + 0.3f)
+            {
+                _petLineTime = -1f;
+                _petLine.gameObject.SetActive(false);
+            }
+        }
+
+        void BuildPetLine()
+        {
+            _petLine = Place(_design, "PetLine", 0, 0, 120, 58);
+            _petLine.anchorMin = _petLine.anchorMax = new Vector2(0.5f, 0f);
+            _petLine.pivot = new Vector2(0.5f, 0f); // 底邊中央對齊寵物頭頂
+            _petLine.localPosition = new Vector3(0f, 320f, 0f);
+            _petLineGroup = _petLine.gameObject.AddComponent<CanvasGroup>();
+            _petLineGroup.blocksRaycasts = false;
+            _petLineGroup.interactable = false;
+            UIShapes.AddShadow(_petLine, CardShadow, 16, 12, 4);
+            var bg = Fill(Stretch(_petLine, "Bg"), Skin(s => s.popup), true, Cream, 16);
+            bg.raycastTarget = false;
+            _petLineText = Label(_petLine, 0, 8, 120, 26, "", 18, Ink, TextAlignmentOptions.Center);
+            _petLineText.enableWordWrapping = false;
+            _petLineSub = Label(_petLine, 0, 34, 120, 16, "", 11, Muted, TextAlignmentOptions.Center);
+            _petLineSub.enableWordWrapping = false;
+            _petLine.gameObject.SetActive(false);
         }
 
         // ─── 左右滑收起／展開 ──────────────────────────────────────────

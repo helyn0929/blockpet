@@ -27,6 +27,8 @@ public class ChatMessage
     /// <summary>""／"text"：一般文字；"post"：餵食照片（照片在 SharedPhotos／本機相簿，用 photoFileName 對應）。</summary>
     public string kind;
     public string photoFileName;
+    /// <summary>餵食照片的辨識類別（kind 是 post 時）。</summary>
+    public string category;
 
     // Firebase 必須要有一個無參數的建構子
     public ChatMessage() { }

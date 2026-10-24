@@ -14,7 +14,7 @@ namespace BlockPet.UI.Album
     /// 營地相簿（設計稿「聊天室與相簿」Album.dc.html、AlbumFilter）：
     /// - 照日期分組（今天／昨天／M/D（週）＋張數），兩欄照片卡：誰拍的、時間、說明、emoji 與留言數。
     /// - 上次打開之後的新照片有黃框與「新」。
-    /// - 右上「篩選」：類別（照片辨識接上後才能用）、誰拍的；「看 N 張」才套用，有篩選時按鈕變深色並顯示項目數。
+    /// - 右上「篩選」：類別（照片辨識的結果）、誰拍的；「看 N 張」才套用，有篩選時按鈕變深色並顯示項目數。
     /// - 右上聊天鈕顯示未讀數；點照片打開大圖（AlbumUIManager.OpenPhotoDetail）。
     /// emoji 與留言數取自聊天室裡同一張照片的那則餵食訊息（FirebaseManager.ChatEntries）。
     /// 介面在執行時以 390 寬設計座標建立，依螢幕寬度等比縮放；照片縮圖逐張載入。
@@ -67,6 +67,8 @@ namespace BlockPet.UI.Album
 
         // 篩選（套用中／面板裡還沒套用的）
         string _who, _draftWho;
+        string _cat, _draftCat;   // null＝全部
+        readonly List<(string cat, CanvasGroup group, Image ring, Image fill, TMP_Text text)> _catChips = new List<(string, CanvasGroup, Image, Image, TMP_Text)>();
         readonly List<Shot> _shots = new List<Shot>();
         DateTime _seenBefore;
 
@@ -204,10 +206,10 @@ namespace BlockPet.UI.Album
             _shots.Sort((a, b) => b.time.CompareTo(a.time)); // 新到舊
         }
 
-        List<Shot> Filtered(string who)
+        List<Shot> Filtered(string who, string cat)
         {
-            if (who == null) return _shots;
-            return _shots.FindAll(s => s.whoId == who);
+            if (who == null && cat == null) return _shots;
+            return _shots.FindAll(s => (who == null || s.whoId == who) && (cat == null || s.meta.category == cat));
         }
 
         /// <summary>聊天室裡這張照片的那則餵食訊息（emoji 與回覆）。</summary>
@@ -241,7 +243,7 @@ namespace BlockPet.UI.Album
             _glows.Clear();
             _pending.Clear();
 
-            var list = Filtered(_who);
+            var list = Filtered(_who, _cat);
             float y = 56f + _topInset;
             DateTime? day = null;
             int i = 0;
@@ -407,12 +409,13 @@ namespace BlockPet.UI.Album
 
         void RefreshTopBar()
         {
-            bool filtered = _who != null;
+            int count = (_who != null ? 1 : 0) + (_cat != null ? 1 : 0);
+            bool filtered = count > 0;
             _filterBg.color = filtered ? Ink : Glass;
             _filterText.color = filtered ? Color.white : Ink;
             foreach (var bar in _filterIcon) bar.color = filtered ? Color.white : Ink;
             _filterBadge.gameObject.SetActive(filtered);
-            _filterBadgeText.text = "1";
+            _filterBadgeText.text = count.ToString();
 
             int unread = ChatScreenController.UnreadCount();
             _chatBadge.gameObject.SetActive(unread > 0);
@@ -436,7 +439,9 @@ namespace BlockPet.UI.Album
         void OpenSheet()
         {
             _draftWho = _who;
+            _draftCat = _cat;
             BuildWhoChips();
+            RefreshCatChips();
             UpdateApply();
             _sheetOpen = true;
             _sheetLayer.gameObject.SetActive(true);
@@ -459,7 +464,19 @@ namespace BlockPet.UI.Album
             if (!_sheetOpen && _sheetT <= 0f) _sheetLayer.gameObject.SetActive(false);
         }
 
-        void UpdateApply() => _applyText.text = $"看 {Filtered(_draftWho).Count} 張";
+        void UpdateApply() => _applyText.text = $"看 {Filtered(_draftWho, _draftCat).Count} 張";
+
+        void RefreshCatChips()
+        {
+            foreach (var (cat, group, ring, fill, text) in _catChips)
+            {
+                bool on = cat == _draftCat;
+                group.alpha = on ? 1f : 0.75f;
+                ring.color = on ? Ink : Line;
+                fill.color = on ? Ink : Card;
+                text.color = on ? Color.white : Ink;
+            }
+        }
 
         void BuildWhoChips()
         {
@@ -665,11 +682,11 @@ namespace BlockPet.UI.Album
             xb.targetGraphic = xbg;
             xb.onClick.AddListener(() => CloseSheet());
 
-            // 類別：照片辨識（開發順序第 3 步）接上後才有資料，先顯示但不能選
+            // 類別：照片辨識的結果（PhotoMeta.category）；辨識前的舊照片只在「全部」裡
             float y = 89f;
             Label(_sheet, 18, y, w, 16, "類別", 12, Muted, TextAlignmentOptions.Left);
-            Label(_sheet, 18, y, w, 16, "照片辨識完成後就能用", 11, Muted2, TextAlignmentOptions.Right);
             y += 22f;
+            _catChips.Clear();
             float cx = 18f, cy = y;
             foreach (var cat in Categories)
             {
@@ -679,14 +696,21 @@ namespace BlockPet.UI.Album
                 if (cx + cw > 18f + w) { cx = 18f; cy += 46f; }
                 var chip = Place(_sheet, cat, cx, cy, cw, 38);
                 var group = chip.gameObject.AddComponent<CanvasGroup>();
-                group.alpha = all ? 1f : 0.45f;
-                UIShapes.AddRounded(chip.gameObject, all ? Ink : Line, 19).raycastTarget = false;
-                StretchIn(UIShapes.AddRounded(Place(chip, "Fill", 0, 0, 0, 0).gameObject, all ? Ink : Card, 17.5f).rectTransform, 1.5f, 1.5f, 1.5f, 1.5f);
+                var ring = UIShapes.AddRounded(chip.gameObject, Line, 19);
+                var fill = UIShapes.AddRounded(Place(chip, "Fill", 0, 0, 0, 0).gameObject, Card, 17.5f);
+                fill.raycastTarget = false;
+                StretchIn(fill.rectTransform, 1.5f, 1.5f, 1.5f, 1.5f);
                 if (!all)
-                    UIShapes.AddRounded(Place(chip, "Dot", 12, 14.5f, 9, 9).gameObject, MarketColor(cat), 4.5f).raycastTarget = false;
+                    UIShapes.AddRounded(Place(chip, "Dot", 12, 14.5f, 9, 9).gameObject, CategoryColor(cat), 4.5f).raycastTarget = false;
                 t.rectTransform.SetParent(chip, false);
                 t.rectTransform.anchoredPosition = new Vector2(all ? 0f : 13f, 0f);
                 t.rectTransform.sizeDelta = new Vector2(cw - (all ? 0f : 13f), 38f);
+                string pick = all ? null : cat;
+                _catChips.Add((pick, group, ring, fill, t));
+                var b = chip.gameObject.AddComponent<Button>();
+                b.targetGraphic = ring;
+                b.transition = Selectable.Transition.None;
+                b.onClick.AddListener(() => { _draftCat = pick; RefreshCatChips(); UpdateApply(); });
                 cx += cw + 8f;
             }
             y = cy + 38f + 14f;
@@ -702,7 +726,7 @@ namespace BlockPet.UI.Album
             Label(clear, 0, 0, cancelW, 50, "清除", 15, Ink, TextAlignmentOptions.Center);
             var clb = clear.gameObject.AddComponent<Button>();
             clb.targetGraphic = clbg;
-            clb.onClick.AddListener(() => { _draftWho = null; BuildWhoChips(); UpdateApply(); });
+            clb.onClick.AddListener(() => { _draftWho = null; _draftCat = null; BuildWhoChips(); RefreshCatChips(); UpdateApply(); });
 
             float aw = w - cancelW - 8f;
             var apply = Place(_sheet, "Apply", 18 + cancelW + 8f, y, aw, 50);
@@ -714,6 +738,7 @@ namespace BlockPet.UI.Album
             ab.onClick.AddListener(() =>
             {
                 _who = _draftWho;
+                _cat = _draftCat;
                 CloseSheet();
                 _dirty = true;
                 _scroll.verticalNormalizedPosition = 1f;
@@ -722,7 +747,8 @@ namespace BlockPet.UI.Album
             _sheetLayer.gameObject.SetActive(false);
         }
 
-        static Color MarketColor(string category)
+        /// <summary>五大類的代表色（篩選圓點、聊天室照片的類別標籤）。</summary>
+        public static Color CategoryColor(string category)
         {
             switch (category)
             {

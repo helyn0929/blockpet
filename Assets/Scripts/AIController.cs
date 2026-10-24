@@ -55,6 +55,9 @@ public class AIController : MonoBehaviour, IEditModeFreezable
 
     void OnDisable() => StopAllCoroutines();
 
+    /// <summary>愛心星等 ★1～★5（PetHealthManager 依房間愛心即時設定）：越高待機越短、走越快，下一段待機／移動開始時生效。</summary>
+    public void SetHeartLevel(int level) => heartLevel = Mathf.Clamp(level, 1, 5);
+
     void OnDestroy()
     {
         if (Instance == this) Instance = null;

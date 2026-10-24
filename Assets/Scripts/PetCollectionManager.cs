@@ -34,6 +34,28 @@ public class PetCollectionManager : MonoBehaviour
     /// <summary>目前寵物的收集進度（0～100），給新版頂部狀態欄的進化條用。</summary>
     public float ProgressPercent => TargetAmount > 0 ? Mathf.Clamp(100f * CurrentProgress / TargetAmount, 0f, 100f) : 0f;
 
+    /// <summary>
+    /// 進化條各色段（0～100，加起來＝ProgressPercent）：目前這隻寵物開始後餵的照片，依辨識類別分段。
+    /// categories 是色段順序；辨識前的舊照片沒有類別，算在第一段（和以前整段一色一樣）。
+    /// </summary>
+    public float[] EnergyByCategory(System.Collections.Generic.IList<string> categories)
+    {
+        var result = new float[categories.Count];
+        var photos = SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null;
+        int target = TargetAmount;
+        if (photos == null || target <= 0 || result.Length == 0) return result;
+        float each = 100f / target;
+        float sum = 0f;
+        for (int i = Mathf.Max(0, startingPhotoCount); i < photos.Count && sum < 100f; i++)
+        {
+            int c = photos[i] != null && !string.IsNullOrEmpty(photos[i].category) ? categories.IndexOf(photos[i].category) : -1;
+            float add = Mathf.Min(each, 100f - sum);
+            result[c >= 0 ? c : 0] += add;
+            sum += add;
+        }
+        return result;
+    }
+
     int CurrentPhotoCount => SaveManager.Instance != null && SaveManager.Instance.data?.photos != null
         ? SaveManager.Instance.data.photos.Count
         : 0;

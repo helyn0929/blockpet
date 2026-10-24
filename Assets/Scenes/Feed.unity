@@ -8313,6 +8313,7 @@ GameObject:
   - component: {fileID: 1431013794}
   - component: {fileID: 1431013796}
   - component: {fileID: 1431013795}
+  - component: {fileID: 1431013797}
   m_Layer: 5
   m_Name: PetSettingPage
   m_TagString: Untagged
@@ -8346,7 +8347,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1431013793}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ef26d55e23934d2c9cc0a4053a665f4, type: 3}
   m_Name: 
@@ -8367,7 +8368,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1431013793}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
@@ -8376,6 +8377,30 @@ MonoBehaviour:
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 9197481963319205126, guid: b87e5089f0a5f41359c6ee3a8571a71c, type: 3}
   m_SortingOrder: 0
+--- !u!114 &1431013797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1431013793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d065b4e54a61649e4ba2faa19b37e1d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skin: {fileID: 11400000, guid: 4f567c4b4617d4e879e7d7c9afb4d5ab, type: 2}
+  background: {fileID: 2800000, guid: e1b8f608bd8a847858d38cb8261bd314, type: 3}
+  petSprites:
+  - {fileID: 21300000, guid: dedc3d543ed8e4bfc9eadd298af4a442, type: 3}
+  - {fileID: 21300000, guid: f83f856b77534404fbbe2b36052f4e68, type: 3}
+  - {fileID: 21300000, guid: 706618373f135494094b5bc873a180dc, type: 3}
+  - {fileID: 21300000, guid: 981755e596548bc4faaff9aee916b43d, type: 3}
+  - {fileID: 21300000, guid: afb2198856756b7428cc4f91c860655d, type: 3}
+  - {fileID: 21300000, guid: d503b8969ef12c748b282b094ee7197e, type: 3}
+  - {fileID: 21300000, guid: 77f874e2b2659214787ea0faadc15d90, type: 3}
+  sortingOrder: 35
+  pageManager: {fileID: 177731950}
 --- !u!1 &1435411286
 GameObject:
   m_ObjectHideFlags: 0
@@ -12991,6 +13016,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2068539003}
   - component: {fileID: 2068539004}
+  - component: {fileID: 2068539005}
   m_Layer: 5
   m_Name: Hand
   m_TagString: Untagged
@@ -13039,6 +13065,30 @@ MonoBehaviour:
   petWaitPoint: {fileID: 0}
   decorMode: {fileID: 11400000, guid: ce1247aebc430470193a75aa8d3ada24, type: 2}
   feedController: {fileID: 0}
+--- !u!114 &2068539005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2068539002}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec9776786e55b4ed280a9318cc74be82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skin: {fileID: 11400000, guid: 4f567c4b4617d4e879e7d7c9afb4d5ab, type: 2}
+  background: {fileID: 2800000, guid: e1b8f608bd8a847858d38cb8261bd314, type: 3}
+  petSprites:
+  - {fileID: 21300000, guid: dedc3d543ed8e4bfc9eadd298af4a442, type: 3}
+  - {fileID: 21300000, guid: f83f856b77534404fbbe2b36052f4e68, type: 3}
+  - {fileID: 21300000, guid: 706618373f135494094b5bc873a180dc, type: 3}
+  - {fileID: 21300000, guid: 981755e596548bc4faaff9aee916b43d, type: 3}
+  - {fileID: 21300000, guid: afb2198856756b7428cc4f91c860655d, type: 3}
+  - {fileID: 21300000, guid: d503b8969ef12c748b282b094ee7197e, type: 3}
+  - {fileID: 21300000, guid: 77f874e2b2659214787ea0faadc15d90, type: 3}
+  config: {fileID: 11400000, guid: 8fcf4a43f01ed42bb94a850edc86d172, type: 2}
+  sortingOrder: 36
 --- !u!1 &2086253783
 GameObject:
   m_ObjectHideFlags: 0

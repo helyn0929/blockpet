@@ -655,6 +655,8 @@ public class FirebaseManager : MonoBehaviour
     {
         public string roomId;
         public string name;
+        /// <summary>寵物名字（空間資訊可改）；舊空間沒有，沿用 name。</summary>
+        public string petName;
         public string ownerUserId;
         public string createdAt;
         public string lastActiveAt;
@@ -667,6 +669,7 @@ public class FirebaseManager : MonoBehaviour
         public string name;
         public string lastActiveAt;
         public string createdAt;
+        public string petName;
         public int petIndex;
         public float currentHealth;
         public string lastUpdateTime;
@@ -880,6 +883,22 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>Updates the room's display name. Callback runs on main thread.</summary>
+    /// <summary>改寵物名字（Rooms/{roomId}/meta/petName），所有成員都看得到。callback 在主執行緒。</summary>
+    public void SetRoomPetName(string roomId, string newName, Action<bool> done)
+    {
+        if (dbRef == null || string.IsNullOrWhiteSpace(roomId) || string.IsNullOrWhiteSpace(newName))
+        {
+            done?.Invoke(false);
+            return;
+        }
+        dbRef.Child("Rooms").Child(roomId).Child("meta").Child("petName")
+            .SetValueAsync(newName.Trim()).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
     public void SetRoomName(string roomId, string newName, Action<bool> done)
     {
         if (dbRef == null || string.IsNullOrWhiteSpace(roomId) || string.IsNullOrWhiteSpace(newName))
@@ -954,6 +973,14 @@ public class FirebaseManager : MonoBehaviour
             // 每個房間只讀 meta 與 petState（不讀整個房間：聊天、照片 base64 很大；
             // 而且讀目前房間的上層節點會讓 desktop SDK 重新監聽子路徑，觸發 persistent_connection 斷言）。
             // 目前房間的 petState 已在監聽，直接用快取，不再讀一次。
+            // 每個房間的讀取回到主執行緒才發出（desktop 版 Firebase 在背景執行緒同時開查詢會崩潰）
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => FetchRoomSummaries(ids, currentRoom, cachedPet, done));
+        });
+    }
+
+    void FetchRoomSummaries(List<string> ids, string currentRoom, RoomPetState cachedPet, Action<List<RoomSummary>> done)
+    {
+        {
             var results = new List<RoomSummary>();
             int remaining = ids.Count;
             for (int i = 0; i < ids.Count; i++)
@@ -972,7 +999,7 @@ public class FirebaseManager : MonoBehaviour
                     lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(results));
                 });
             }
-        });
+        }
     }
 
     /// <summary>讀單一房間的 meta＋petState 組成摘要；房間不存在時回傳 null。callback 在背景執行緒。</summary>
@@ -1003,6 +1030,7 @@ public class FirebaseManager : MonoBehaviour
                     name = meta != null ? meta.name : ("Room " + id),
                     lastActiveAt = meta != null ? meta.lastActiveAt : null,
                     createdAt = meta != null ? meta.createdAt : null,
+                    petName = meta != null ? meta.petName : null,
                     petIndex = pet != null ? pet.petIndex : 0,
                     currentHealth = pet != null ? pet.currentHealth : 0f,
                     lastUpdateTime = pet != null ? pet.lastUpdateTime : null
@@ -1014,7 +1042,7 @@ public class FirebaseManager : MonoBehaviour
                 finish(cachedPet);
                 return;
             }
-            room.Child("petState").GetValueAsync().ContinueWith(tPet =>
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => room.Child("petState").GetValueAsync().ContinueWith(tPet =>
             {
                 RoomPetState pet = null;
                 try
@@ -1027,7 +1055,7 @@ public class FirebaseManager : MonoBehaviour
                 }
                 catch { }
                 finish(pet);
-            });
+            }));
         });
     }
 
@@ -1141,6 +1169,15 @@ public class FirebaseManager : MonoBehaviour
                 return;
             }
 
+            // 接下來的讀取回到主執行緒才發出：desktop 版 Firebase 在背景執行緒同時開查詢會崩潰
+            // （Query.GetValue → DatabaseInternal::AddEventRegistration，2026-10-24 Editor 當掉的原因）。
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => FetchMemberNicknames(uids, done));
+        });
+    }
+
+    void FetchMemberNicknames(List<string> uids, Action<List<RoomMemberInfo>> done)
+    {
+        {
             var results  = new List<RoomMemberInfo>();
             int remaining = uids.Count;
 
@@ -1168,7 +1205,7 @@ public class FirebaseManager : MonoBehaviour
                     }
                 });
             }
-        });
+        }
     }
 
     // 發送訊息到資料庫 (legacy signature)

@@ -657,12 +657,17 @@ namespace BlockPet.Hand
 
         void OnChatClicked() => cameraUI?.OpenChatFromHand();
 
-        /// <summary>最新照片卡：第 8 步會改成分割畫面，目前先打開相簿頁。</summary>
+        /// <summary>最新照片卡：打開分割畫面（大照片＋留言＋縮小的營地）；沒有掛 PhotoSplitView 時改開相簿頁。</summary>
         void OnLatestClicked()
         {
             if (_selected != null) PutBack();
+            if (_splitView == null) _splitView = GetComponent<PhotoSplitView>();
+            if (_splitView == null) _splitView = FindObjectOfType<PhotoSplitView>(true);
+            if (_splitView != null && _splitView.Open()) return;
             cameraUI?.OpenAlbumFromHand();
         }
+
+        PhotoSplitView _splitView;
 
         // ─── 營地最新照片 ──────────────────────────────────────────────
 

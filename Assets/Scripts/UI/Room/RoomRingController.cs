@@ -326,7 +326,8 @@ namespace BlockPet.UI.Room
                 {
                     kind = Kind.Room,
                     roomId = r.roomId,
-                    name = string.IsNullOrEmpty(r.name) ? r.roomId : r.name,
+                    // 寵物名字（空間資訊可改）；沒有就沿用空間名稱
+                    name = !string.IsNullOrEmpty(r.petName) ? r.petName : (string.IsNullOrEmpty(r.name) ? r.roomId : r.name),
                     petIndex = r.petIndex,
                     hearts = hp / maxHealth * maxHearts,
                     evo = isCurrent && PetCollectionManager.Instance != null ? PetCollectionManager.Instance.ProgressPercent : -1f,

@@ -24,10 +24,16 @@ namespace BlockPet.UI.Room
         const float DesignW = 390f;
         const float DesignH = 772f;
         static readonly Vector2 Center = new Vector2(390f, 772f);
-        const float R1 = 172f, R2 = 352f, Step = 22.5f, Mid = 225f, SegGap = 0.8f, WindowHalf = 45f;
-        const float BigHalf = 17f, BigR1 = R1 - 18f, BigR2 = R2 + 30f;
+        const float R1 = 172f, R2 = 352f, Mid = 225f, SegGap = 0.8f, WindowHalf = 45f;
+        const float BigR1 = R1 - 18f, BigR2 = R2 + 30f;
         const int SlotCount = 11;
-        const int MinItems = 4;
+        // 設計稿 E-7：4 格以上每格 22.5°（窗內看到 4 格）；比較少時每格變大填滿 90° 的窗，不留空白，
+        // 不到 3 格補「可以再養一隻」的空位。中間金框固定 60°（2026-10-28：比設計稿大，左右各露一點鄰居）。
+        const float FullStep = 22.5f;
+        const int MinItems = 3;
+        const float NameH = 64f;   // 38 號字行高 56.25：框至少要這麼高
+        float Step = FullStep;
+        const float BigHalf = 30f;
 
         static readonly Color Ink = Hex(0x3A2E22);
         static readonly Color Cream = Hex(0xFFFCF4);
@@ -67,16 +73,17 @@ namespace BlockPet.UI.Room
         [Header("Links")]
         [SerializeField] PageManager pageManager;
 
-        enum Kind { Room, Add, Empty, Join }
+        enum Kind { Room, Add, Nest, Join }
 
         class Item
         {
             public Kind kind;
             public string roomId;
-            public string name;
+            public string name;       // 寵物名字（沒取名時用空間名稱）
+            public string place;      // 空間名稱
             public int petIndex;
             public float hearts = -1f;   // < 0：不知道
-            public float evo = -1f;      // < 0：不顯示進化條（目前只有正在使用的空間有進度）
+            public float[] energy;       // 進化條各類別色段（0～100）；null：不顯示（新增、空位）
             public string createdAt;     // 空間建立時間（算「幾天大」）
             public Texture2D photo;
             public bool Hungry => kind == Kind.Room && hearts >= 0f && hearts <= LowHearts;
@@ -197,6 +204,7 @@ namespace BlockPet.UI.Room
             if (_canvas != null) _canvas.gameObject.SetActive(true);
             MakeBlurredBackground();
             FirebaseManager.OnRoomChanged += Reload;
+            FirebaseManager.OnRoomMetaChanged += Reload;
             FirebaseManager.OnLoginSuccess += OnLogin;
             StartRoomsListener();
             CloseSheet(instant: true);
@@ -206,6 +214,7 @@ namespace BlockPet.UI.Room
         void OnDisable()
         {
             FirebaseManager.OnRoomChanged -= Reload;
+            FirebaseManager.OnRoomMetaChanged -= Reload;
             FirebaseManager.OnLoginSuccess -= OnLogin;
             StopRoomsListener();
             if (_canvas != null) _canvas.gameObject.SetActive(false);
@@ -319,16 +328,20 @@ namespace BlockPet.UI.Room
             {
                 if (r == null || string.IsNullOrEmpty(r.roomId)) continue;
                 bool isCurrent = r.roomId == current;
+                // 目前空間用即時的名字（空間資訊剛改名也會馬上更新）
+                string room = isCurrent && fb?.CurrentRoomName != null ? fb.CurrentRoomName : r.name;
+                string pet = isCurrent && fb?.CurrentPetName != null ? fb.CurrentPetName : r.petName;
                 float hearts = isCurrent && health != null ? health.Hearts : HeartsNow(r);
                 var item = new Item
                 {
                     kind = Kind.Room,
                     roomId = r.roomId,
                     // 寵物名字（空間資訊可改）；沒有就沿用空間名稱
-                    name = !string.IsNullOrEmpty(r.petName) ? r.petName : (string.IsNullOrEmpty(r.name) ? r.roomId : r.name),
+                    name = !string.IsNullOrEmpty(pet) ? pet : (string.IsNullOrEmpty(room) ? r.roomId : room),
+                    place = string.IsNullOrEmpty(room) ? r.roomId : room,
                     petIndex = r.petIndex,
                     hearts = hearts,
-                    evo = isCurrent && PetCollectionManager.Instance != null ? PetCollectionManager.Instance.ProgressPercent : -1f,
+                    energy = EnergyOf(r, isCurrent),
                     photo = PhotoFor(r.roomId),
                     createdAt = r.createdAt,
                 };
@@ -339,7 +352,8 @@ namespace BlockPet.UI.Room
             if (_joinPreview != null && !used.Contains(_joinPreview.roomId)) _items.Add(_joinPreview);
             else _joinPreview = null;
             _items.Add(new Item { kind = Kind.Add, name = "＋ 新增" });
-            while (_items.Count < MinItems) _items.Add(new Item { kind = Kind.Empty, name = "" });
+            while (_items.Count < MinItems) _items.Add(new Item { kind = Kind.Nest, name = "可以再養一隻", place = "空位" });
+            ApplyStep();
 
             // 釋放已經不在轉盤上的照片
             var drop = new List<string>();
@@ -386,6 +400,23 @@ namespace BlockPet.UI.Room
 
         // ─── 轉盤 ──────────────────────────────────────────────────────
 
+        readonly List<(RingSectorGraphic g, float da)> _bigShadows = new List<(RingSectorGraphic, float)>();
+        RingSectorGraphic _bigStroke;
+
+        /// <summary>依項目數決定每格角度（E-7），角度變了就重畫中間金框、轉盤停回選中的格子。</summary>
+        void ApplyStep()
+        {
+            int n = Mathf.Max(1, _items.Count);
+            float step = n >= 4 ? FullStep : 90f / n;
+            if (Mathf.Approximately(step, Step)) return;
+            Step = step;
+            _rot = -_sel * Step;
+            foreach (var (g, da) in _bigShadows) g.Set(Mid - BigHalf - da, Mid + BigHalf + da, 0f);
+            _big?.Set(Mid - BigHalf, Mid + BigHalf, 0f);
+            _bigStroke?.Set(Mid - BigHalf, Mid + BigHalf, 0f);
+            foreach (var sl in _slots) sl.k = int.MinValue;
+        }
+
         void LayoutRing()
         {
             int centerK = Mathf.RoundToInt(-_rot / Step);
@@ -417,7 +448,7 @@ namespace BlockPet.UI.Room
                     var p = Pt((R1 + R2) / 2f, at);
                     s.label.anchoredPosition = new Vector2(p.x, -p.y);
                     float edge = Mathf.Clamp01((WindowHalf - Mathf.Abs(at - Mid) - 2f) / 6f);
-                    s.labelGroup.alpha = selected || item.kind == Kind.Empty ? 0f : edge;
+                    s.labelGroup.alpha = selected ? 0f : edge;
                 }
             }
             _hit.clipMin = clipMin;
@@ -430,7 +461,7 @@ namespace BlockPet.UI.Room
             if (item.photo != null && (item.kind == Kind.Room || item.kind == Kind.Join))
                 c = item.Hungry ? new Color(0.82f, 0.8f, 0.78f, 1f) : Color.white;
             else if (item.kind == Kind.Add) c = new Color(1f, 0.973f, 0.925f, 0.35f);
-            else if (item.kind == Kind.Empty) c = new Color(1f, 0.973f, 0.925f, 0.1f);
+            else if (item.kind == Kind.Nest) c = new Color(1f, 0.973f, 0.925f, 0.2f);
             else c = Grass;
             if (!selected) c = new Color(c.r * Dim.r, c.g * Dim.g, c.b * Dim.b, c.a);
             return c;
@@ -438,7 +469,7 @@ namespace BlockPet.UI.Room
 
         void SetSlotLabel(Slot s, Item item, bool selected)
         {
-            bool add = item.kind == Kind.Add;
+            bool add = item.kind == Kind.Add || item.kind == Kind.Nest;
             s.tag.text = item.name ?? "";
             s.tag.color = add ? Ink : Paper;
             s.tagBg.color = add ? new Color(1f, 0.973f, 0.925f, 0.92f) : Ink;
@@ -475,7 +506,7 @@ namespace BlockPet.UI.Room
         {
             _shownSel = _sel;
             var item = ItemAt(_sel);
-            bool isNew = item.kind == Kind.Add || item.kind == Kind.Empty;
+            bool isNew = item.kind == Kind.Add || item.kind == Kind.Nest;
             bool isJoin = item.kind == Kind.Join;
 
             // 中間的大格子
@@ -486,7 +517,7 @@ namespace BlockPet.UI.Room
             SetSize((RectTransform)_bigLabelText.transform.parent, lw, 22f, -lw / 2f, -11f);
 
             // 左側資訊
-            _place.text = isNew ? "新的空間" : "邀請碼 " + item.roomId;
+            _place.text = isNew ? (item.kind == Kind.Nest ? "空位" : "新的空間") : (item.place ?? "");
             float pw = _place.GetPreferredValues(_place.text).x;
             SetSize(_place.rectTransform, pw + 4f, 18f, 0f, 0f);
             string badge = BadgeOf(item, out var bg, out var fg, out var edge);
@@ -508,19 +539,20 @@ namespace BlockPet.UI.Room
                 _ageText.text = age;
                 float nw = Mathf.Min(_name.GetPreferredValues(_name.text).x, 200f);
                 float aw = _ageText.GetPreferredValues(age).x + 15f;
-                _name.rectTransform.sizeDelta = new Vector2(nw + 2f, 42f);
+                // 名字框不縮窄（字型還沒產生字形時量到的寬度可能是 0，縮窄會被省略號吃掉）
+                _name.rectTransform.sizeDelta = new Vector2(200f, NameH);
                 // 名字右邊、對齊基線（設計稿 translateY(-4)）
                 SetSize(_ageChip, aw, 22f, nw + 8f, 24f + 12f);
             }
-            else _name.rectTransform.sizeDelta = new Vector2(290f, 42f);
+            else _name.rectTransform.sizeDelta = new Vector2(290f, NameH);
             ShowComments(isNew ? null : item.roomId);
 
             _heartsRow.gameObject.SetActive(!isNew);
             if (!isNew) SetHearts(item.hearts < 0f ? (config != null ? config.maxHearts : 5) : item.hearts);
-            _evoRow.gameObject.SetActive(!isNew && item.evo >= 0f);
-            if (!isNew && item.evo >= 0f) SetEvo(item.evo);
+            _evoRow.gameObject.SetActive(!isNew && item.energy != null);
+            if (!isNew && item.energy != null) SetEvo(item.energy);
             _newText.gameObject.SetActive(isNew);
-            _newText.text = "孵一顆新蛋，或用邀請碼加入朋友的空間";
+            _newText.text = item.kind == Kind.Nest ? "還可以再養一隻：孵一顆蛋，或加入朋友的空間" : "孵一顆新蛋，或用邀請碼加入朋友的空間";
             _infoTime = 0f;
 
             // 寵物：新增／空位顯示淡淡的剪影；肚子餓變灰、不跳
@@ -554,20 +586,45 @@ namespace BlockPet.UI.Room
             }
         }
 
-        void SetEvo(float percent)
+        /// <summary>進化條：依照片類別分色（與首頁狀態欄同色），加起來就是進度。</summary>
+        void SetEvo(float[] energy)
         {
-            // 目前只有「收集進度」一個數字（與頂部狀態欄相同），整段用第一個類別色
             const float barW = 150f;
-            float w = barW * Mathf.Clamp01(percent / 100f);
-            _evoFill.sizeDelta = new Vector2(w, 8f);
-            if (_evoSegs.Count > 0)
+            float total = 0f;
+            foreach (var e in energy) total += e;
+            total = Mathf.Clamp(total, 0f, 100f);
+            _evoFill.sizeDelta = new Vector2(barW * total / 100f, 8f);
+            while (_evoSegs.Count < energy.Length)
             {
-                _evoSegs[0].rectTransform.sizeDelta = new Vector2(w, 8f);
-                _evoSegs[0].color = config != null && config.segments.Count > 0 ? config.segments[0].color : Hex(0xF29A3A);
+                var seg = Place(_evoFill, "Seg", 0, 0, 0, 8).gameObject.AddComponent<Image>();
+                seg.raycastTarget = false;
+                _evoSegs.Add(seg);
             }
-            bool ready = percent >= 100f;
-            _evoText.text = ready ? "可進化！" : "進化 " + Mathf.FloorToInt(percent) + "%";
+            float x = 0f;
+            for (int i = 0; i < _evoSegs.Count; i++)
+            {
+                float w = i < energy.Length ? barW * Mathf.Clamp01(energy[i] / 100f) : 0f;
+                var rt = _evoSegs[i].rectTransform;
+                rt.anchoredPosition = new Vector2(x, 0f);
+                rt.sizeDelta = new Vector2(w, 8f);
+                _evoSegs[i].color = config != null && i < config.segments.Count ? config.segments[i].color : Hex(0xF29A3A);
+                x += w;
+            }
+            bool ready = total >= 100f;
+            _evoText.text = ready ? "可進化！" : "進化 " + Mathf.FloorToInt(total) + "%";
             _evoText.color = ready ? ReadyText : Color.white;
+        }
+
+        /// <summary>空間的進化能量：目前空間用記憶體裡的相簿，其他空間讀那個空間的存檔（save_{id}.json）。</summary>
+        float[] EnergyOf(FirebaseManager.RoomSummary r, bool isCurrent)
+        {
+            var cats = new List<string>();
+            if (config != null) foreach (var seg in config.segments) cats.Add(seg.category);
+            if (cats.Count == 0) cats.AddRange(BlockPet.Feed.PetPreferences.Categories);
+            var pets = PetCollectionManager.Instance;
+            if (isCurrent && pets != null) return pets.EnergyByCategory(cats);
+            var photos = SaveManager.Instance != null ? SaveManager.Instance.GetPhotosForRoom(r.roomId) : null;
+            return PetCollectionManager.EnergyFor(photos, r.startingPhotoCount, r.petIndex, cats);
         }
 
         void UpdateHint()
@@ -831,7 +888,8 @@ namespace BlockPet.UI.Room
                 {
                     kind = Kind.Join,
                     roomId = code,
-                    name = string.IsNullOrEmpty(meta.name) ? code : meta.name,
+                    name = !string.IsNullOrEmpty(meta.petName) ? meta.petName : (string.IsNullOrEmpty(meta.name) ? code : meta.name),
+                    place = string.IsNullOrEmpty(meta.name) ? code : meta.name,
                     createdAt = meta.createdAt,
                 };
                 _codeInput.text = "";
@@ -1023,11 +1081,12 @@ namespace BlockPet.UI.Room
                 sh.raycastTarget = false;
                 float da = i * 2f / BigR1 * Mathf.Rad2Deg;
                 sh.Set(Mid - BigHalf - da, Mid + BigHalf + da, 0f);
+                _bigShadows.Add((sh, da));
             }
             _big = Sector(_bottom, "Big", BigR1, BigR2);
             _big.raycastTarget = false;
             _big.Set(Mid - BigHalf, Mid + BigHalf, 0f);
-            var bigStroke = Sector(_bottom, "BigStroke", BigR1, BigR2);
+            var bigStroke = _bigStroke = Sector(_bottom, "BigStroke", BigR1, BigR2);
             bigStroke.stroke = 5f;
             bigStroke.color = Yellow;
             bigStroke.raycastTarget = false;
@@ -1069,8 +1128,6 @@ namespace BlockPet.UI.Room
         void BuildPet()
         {
             var host = Place(_top, "Pet", 4, 250, 200, 200);
-            var shadow = Place(host, "Shadow", 42, 168, 120, 20);
-            UIShapes.AddRounded(shadow.gameObject, new Color(30f / 255f, 45f / 255f, 20f / 255f, 0.3f), 10).raycastTarget = false;
             _pet = Place(host, "Sprite", 6, 0, 192, 180);
             _petImage = _pet.gameObject.AddComponent<Image>();
             _petImage.preserveAspect = true;
@@ -1107,7 +1164,8 @@ namespace BlockPet.UI.Room
             StretchIn(_infoBadgeText.rectTransform);
             _infoBadge.gameObject.AddComponent<PulseScale>();
 
-            _name = Label(_info, 0, 24, 290, 42, "", 38, Color.white, TextAlignmentOptions.Left, onScene: true);
+            // 38 號字的行高比 42 高：框要夠高，不然 Ellipsis 判定放不下一行，整行都不畫
+            _name = Label(_info, 0, 13, 290, NameH, "", 38, Color.white, TextAlignmentOptions.Left, onScene: true);
             _name.enableWordWrapping = false;
             _name.overflowMode = TextOverflowModes.Ellipsis;
 

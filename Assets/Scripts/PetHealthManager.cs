@@ -54,7 +54,7 @@ public class PetHealthManager : MonoBehaviour
         FirebaseManager.Instance?.AddRoomHearts(PetHearts.Step);
     }
 
-    /// <summary>復活（房間金幣 <see cref="PetHearts.ReviveCost"/>）。done(ok, 原因：coins／alive／error) 在主執行緒呼叫。</summary>
+    /// <summary>復活：喝一瓶空間的復活藥水（商城買）。done(ok, 原因：potion／alive／error) 在主執行緒呼叫。</summary>
     public void Revive(System.Action<bool, string> done)
     {
         var fb = FirebaseManager.Instance;

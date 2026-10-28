@@ -13,7 +13,8 @@ namespace BlockPet.Hand
     /// <summary>
     /// 分割畫面（設計稿首頁 v8「2 分割畫面：大照片＋留言＋縮小的營地」Camp8Photo，頂部用 A 版）：
     /// 點手牌最右邊的營地最新照片打開（從最新一張開始）；聊天室點餵食貼文的照片也會打開（從那一張開始，蓋在聊天室上面，返回就回聊天室）。
-    /// - 頂部玻璃列：返回、照片縮圖疊（目前這張黃框，最多 4 張＋「+N」）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）。
+    /// - 頂部玻璃列：返回、照片縮圖疊（目前這張黃框，最多 4 張＋「+N」）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）、
+    ///   最右邊聊天室入口（有未讀時右上角紅點數字）。
     /// - 中間大照片（346×346）：左右滑或兩側箭頭換張；下方疊最近 2 則留言與說明；底下留言框。
     /// - 下方縮小的營地：寵物（愛心、進化條）看著照片說話。
     /// 留言就是聊天室裡回覆這張照片的訊息（照片的餵食貼文；舊照片沒有貼文時用 photo:{檔名} 當回覆對象），所以聊天室也看得到。
@@ -74,6 +75,9 @@ namespace BlockPet.Hand
         RectTransform _stack;
         TMP_Text _title, _ago;
         RectTransform _newBadge;
+        RectTransform _chatBadge;
+        TMP_Text _chatBadgeText;
+        int _shownUnread = -1;
         TMP_Text _newText;
 
         // 大照片
@@ -142,6 +146,14 @@ namespace BlockPet.Hand
 
         void OnDisable() => Close();
 
+        /// <summary>右上聊天室：關掉分割畫面、打開聊天室（從聊天室進來的就直接回去）。</summary>
+        void OpenChat()
+        {
+            Close();
+            var pm = FindObjectOfType<PageManager>(true);
+            pm?.ShowChatPage();
+        }
+
         void OnDestroy()
         {
             foreach (var t in _big.Values) if (t != null) Destroy(t);
@@ -174,6 +186,14 @@ namespace BlockPet.Hand
             if (!_open && _openT <= 0f) { _canvas.gameObject.SetActive(false); return; }
 
             if (_dirty) { _dirty = false; Show(_index); }
+
+            int unread = ChatScreenController.UnreadCount();
+            if (unread != _shownUnread)
+            {
+                _shownUnread = unread;
+                _chatBadge.gameObject.SetActive(unread > 0);
+                _chatBadgeText.text = unread > 99 ? "99" : unread.ToString();
+            }
 
             // 寵物：照片是自己拍的跳一跳，其他人的歪頭（設計稿 c5Jump／c5Tilt）
             float t = Time.unscaledTime;
@@ -351,7 +371,7 @@ namespace BlockPet.Hand
             float tx = 56f + x + 8f;
             _title.rectTransform.anchoredPosition = new Vector2(tx, _title.rectTransform.anchoredPosition.y);
             _ago.rectTransform.anchoredPosition = new Vector2(tx, _ago.rectTransform.anchoredPosition.y);
-            float tw = DesignW - 20f - tx - (_newBadge.gameObject.activeSelf ? 60f : 12f);
+            float tw = DesignW - 20f - tx - 6f - 40f - (_newBadge.gameObject.activeSelf ? 8f + 48f + 8f : 8f);
             _title.rectTransform.sizeDelta = new Vector2(tw, 18f);
             _ago.rectTransform.sizeDelta = new Vector2(tw, 15f);
         }
@@ -586,7 +606,24 @@ namespace BlockPet.Hand
             _ago = Label(bar, 120, 27, 160, 15, "", 11, Muted, TextAlignmentOptions.Left);
             _ago.enableWordWrapping = false;
 
-            _newBadge = Place(bar, "New", DesignW - 20f - 12f - 48f, 16, 48, 20);
+            // 聊天室入口（最右邊）：對話泡泡
+            float barW = DesignW - 20f;
+            var chat = Place(bar, "Chat", barW - 6f - 40f, 6, 40, 40);
+            var cbg = UIShapes.AddRounded(chat.gameObject, Paper, 20);
+            UIShapes.AddRing(Place(chat, "Bubble", 10, 11, 20, 15).gameObject, Ink, 5f);
+            var ctail = AddGraphic<UIPolygon>(Place(chat, "Tail", 0, 0, 40, 40));
+            ctail.color = Ink;
+            ctail.raycastTarget = false;
+            ctail.SetPoints(new Vector2(14f, 24f), new Vector2(19f, 24f), new Vector2(13f, 30f));
+            var cb = chat.gameObject.AddComponent<Button>();
+            cb.targetGraphic = cbg;
+            cb.onClick.AddListener(OpenChat);
+            _chatBadge = Place(chat, "Badge", 26, -4, 18, 18);
+            UIShapes.AddRounded(_chatBadge.gameObject, Coral, 9).raycastTarget = false;
+            _chatBadgeText = Label(_chatBadge, 0, 0, 18, 18, "", 10, Color.white, TextAlignmentOptions.Center);
+            _chatBadge.gameObject.SetActive(false);
+
+            _newBadge = Place(bar, "New", barW - 6f - 40f - 8f - 48f, 16, 48, 20);
             UIShapes.AddRounded(Place(_newBadge, "Edge", 0, 2, 48, 20).gameObject, CoralEdge, 8).raycastTarget = false;
             UIShapes.AddRounded(Place(_newBadge, "Fill", 0, 0, 48, 20).gameObject, Coral, 8).raycastTarget = false;
             _newText = Label(_newBadge, 0, 0, 48, 20, "", 11, Color.white, TextAlignmentOptions.Center);

@@ -5,7 +5,7 @@ namespace BlockPet.Feed
 {
     /// <summary>
     /// 愛心規則（開發順序第 6 步）：0～5 顆、半顆為單位；每 5 小時沒人餵掉半顆（以伺服器時間計算）；
-    /// 房間任何成員餵一張回半顆，並重新開始計時；0 顆＝死亡，要用房間金幣復活（完全恢復）。
+    /// 房間任何成員餵一張回半顆，並重新開始計時；0 顆＝死亡，要喝一瓶復活藥水（商城買）才會醒來（完全恢復）。
     /// 房間存的是「上次有人餵（或復活）時的愛心」＋「那時的伺服器時間」，現在的愛心每台手機自己算，不用一直寫伺服器。
     /// 5 顆滿 → 45 小時剩半顆 → 50 小時死亡。
     /// 舊房間（24 小時秒數制、沒有 heartsAt）第一次載入時直接補成 5 顆滿（FirebaseManager.MigratePetHearts）。
@@ -15,7 +15,8 @@ namespace BlockPet.Feed
         public const float Max = 5f;
         public const float Step = 0.5f;
         public const double DecayHours = 5.0;
-        public const int ReviveCost = 100;   // 2026-10-24 定案
+        /// <summary>復活藥水的商品 id（Rooms/{room}/shop/item_revive 是空間有幾瓶）。2026-10-28 定案：復活要喝藥水，藥水在商城用金幣買（價格見 MarketCatalog）。</summary>
+        public const string PotionId = "item_revive";
 
         const double DecayMs = DecayHours * 3600.0 * 1000.0;
 

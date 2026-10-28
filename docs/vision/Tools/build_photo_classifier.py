@@ -10,8 +10,8 @@
   python3 docs/vision/Tools/build_photo_classifier.py MODEL_DIR                 # 輸出模型與類別向量到 Unity 專案
   python3 docs/vision/Tools/build_photo_classifier.py MODEL_DIR --eval DIR…    # 只用測試照片看分類結果（不寫入專案）
 輸出：
-  Assets/Models/photo_classifier_vision.onnx   影像模型（輸入 pixel_values [1,3,224,224]，輸出 image_embeds [1,D]）
-  Assets/Data/Vision/photo_categories.json      每類一個單位向量、分數倍率、前處理參數
+  Assets/Resources/Vision/photo_classifier_vision.onnx   影像模型（輸入 pixel_values [1,3,224,224]，輸出 image_embeds [1,D]）
+  Assets/Resources/Vision/photo_categories.json          每類每句一個單位向量、分數倍率、前處理參數（遊戲執行時自動載入）
 """
 import glob, json, os, sys
 import numpy as np
@@ -21,8 +21,8 @@ from transformers import CLIPModel, CLIPTokenizerFast
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
-ONNX_OUT = os.path.join(ROOT, "Assets", "Models", "photo_classifier_vision.onnx")
-JSON_OUT = os.path.join(ROOT, "Assets", "Data", "Vision", "photo_categories.json")
+ONNX_OUT = os.path.join(ROOT, "Assets", "Resources", "Vision", "photo_classifier_vision.onnx")
+JSON_OUT = os.path.join(ROOT, "Assets", "Resources", "Vision", "photo_categories.json")
 
 # 每類幾句英文描述（CLIP 是用英文訓練的），向量取平均。分錯就在這裡加句子。
 CATEGORIES = [

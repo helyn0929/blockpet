@@ -15,7 +15,8 @@ namespace BlockPet.UI.Market
     /// - 上方 330：營地預覽。家具／環境放進虛線框「試擺」（可拖曳），寵物在旁邊說喜不喜歡；
     ///   裝飾戴在寵物頭上看看；寵物蛋放在窩裡搖。
     /// - 頂部：返回、「商店」、空間金幣（全空間共用）。
-    /// - 下方面板：家具／裝飾／環境／寵物蛋四個分頁，三欄商品卡；最下方購買列。
+    /// - 下方面板：家具／裝飾／環境／寵物蛋／道具五個分頁，三欄商品卡；最下方購買列。
+    ///   道具（復活藥水）可以一直買，用掉就少一瓶；寵物昏倒時在這裡或復活確認窗喝。
     /// - 全部用空間金幣買（FirebaseManager.SpendRoomCoins），買過的記在 Rooms/{roomId}/shop。
     ///   家具買過後「去擺放」→ 回首頁進佈置模式直接開始擺。裝飾不用買（寵物從照片撿，等照片辨識接上才有進度）。
     /// 介面在執行時以 390×772 設計座標建立：預覽與頂部貼齊上方，面板延伸到底部，依螢幕寬度等比縮放。
@@ -73,7 +74,7 @@ namespace BlockPet.UI.Market
         MarketTab _tab = MarketTab.Furniture;
         readonly Dictionary<MarketTab, int> _sel = new Dictionary<MarketTab, int>
         {
-            { MarketTab.Furniture, 0 }, { MarketTab.Decor, 0 }, { MarketTab.Environment, 0 }, { MarketTab.Egg, 0 },
+            { MarketTab.Furniture, 0 }, { MarketTab.Decor, 0 }, { MarketTab.Environment, 0 }, { MarketTab.Egg, 0 }, { MarketTab.Item, 0 },
         };
         Dictionary<string, int> _owned = new Dictionary<string, int>();
         bool _busy;
@@ -92,6 +93,7 @@ namespace BlockPet.UI.Market
         // 預覽
         RectTransform _placeLayer, _decorLayer, _eggLayer;
         RectTransform _placePet, _decorPet, _eggImgRt;
+        GameObject _eggNest;
         Image _placePetImg, _decorPetImg, _tryImg, _decorHeadImg, _eggImg;
         RectTransform _tryBox;
         Image _tryDash;
@@ -144,6 +146,7 @@ namespace BlockPet.UI.Market
             _coins = int.MinValue;
             _toastGroup.alpha = 0f;
             RefreshSharedNote();
+            ApplyPendingItem();
             LoadOwned();
             ShowTab(_tab);
         }
@@ -271,6 +274,10 @@ namespace BlockPet.UI.Market
                     _section.text = "營地環境";
                     _sectionRight.text = "新環境可以放更多家具";
                     break;
+                case MarketTab.Item:
+                    _section.text = "道具";
+                    _sectionRight.text = $"這個空間有 {OwnedCount(MarketCatalog.RevivePotion)} 瓶復活藥水";
+                    break;
                 default:
                     _section.text = "寵物蛋";
                     _sectionRight.text = $"1 顆 {list[0].price:N0} 金幣";
@@ -287,6 +294,11 @@ namespace BlockPet.UI.Market
                 var have = new List<string>();
                 foreach (var e in list) if (OwnedCount(e.id) > 0) have.Add($"{e.name} {OwnedCount(e.id)} 顆");
                 _footText.text = "・買到的蛋要餵照片才會孵化，進化方向看你餵什麼\n・這個空間有：" + (have.Count > 0 ? string.Join("、", have) : "還沒有蛋");
+                _footNote.gameObject.SetActive(true);
+            }
+            else if (tab == MarketTab.Item)
+            {
+                _footText.text = "・寵物愛心歸零會昏倒，喝一瓶復活藥水就醒來、愛心回到 5 顆滿\n・藥水是這個空間共用的，誰都可以讓寵物喝";
                 _footNote.gameObject.SetActive(true);
             }
             else _footNote.gameObject.SetActive(false);
@@ -313,8 +325,10 @@ namespace BlockPet.UI.Market
             bool place = _tab == MarketTab.Furniture || _tab == MarketTab.Environment;
             _placeLayer.gameObject.SetActive(place);
             _decorLayer.gameObject.SetActive(_tab == MarketTab.Decor);
-            _eggLayer.gameObject.SetActive(_tab == MarketTab.Egg);
-            _bubble.gameObject.SetActive(_tab != MarketTab.Egg);
+            bool item = _tab == MarketTab.Item;
+            _eggLayer.gameObject.SetActive(_tab == MarketTab.Egg || item);
+            _eggNest.SetActive(!item); // 道具不放在蛋窩裡
+            _bubble.gameObject.SetActive(_tab != MarketTab.Egg && !item);
             var sprite = SpriteOf(e);
             string pet = PetName();
 
@@ -336,6 +350,12 @@ namespace BlockPet.UI.Market
                 _bubbleText.text = got ? "要戴這個嗎？" : "好想要那個…";
                 SetBubble(262f, 92f, 14f);
                 _previewNote.text = e.desc;
+                _previewNote.gameObject.SetActive(true);
+            }
+            else if (item)
+            {
+                _eggImg.sprite = sprite;
+                _previewNote.text = PetDead() ? PetName() + " 昏倒了，喝一瓶就會醒來" : "寵物昏倒時才用得到，先備著";
                 _previewNote.gameObject.SetActive(true);
             }
             else
@@ -376,6 +396,19 @@ namespace BlockPet.UI.Market
                 _btnSecondText.text = "買 1 顆";
                 _btnSecondCoin.gameObject.SetActive(true);
                 SetPriceText(_btnSecondText, "買 1 顆", e.price);
+            }
+            else if (_tab == MarketTab.Item)
+            {
+                // 寵物昏倒、空間有藥水：主按鈕「喝一瓶」，旁邊還是可以買
+                int have = OwnedCount(e.id);
+                if (PetDead() && have > 0)
+                {
+                    SetMain($"喝一瓶（有 {have} 瓶）", Coral, CoralEdge, Color.white, true);
+                    _btnSecond.gameObject.SetActive(true);
+                    _btnSecondCoin.gameObject.SetActive(true);
+                    SetPriceText(_btnSecondText, "買 1 瓶", e.price);
+                }
+                else SetMain("買 1 瓶", Yellow, YellowEdge, Ink, true, e.price);
             }
             else if (Locked(e)) SetMain("還沒解鎖", Line, Line, Muted2, false);
             else if (Owned(e))
@@ -446,6 +479,12 @@ namespace BlockPet.UI.Market
                 return;
             }
             if (_tab == MarketTab.Egg) { Buy(e, 10, MarketCatalog.EggTenPrice); return; }
+            if (_tab == MarketTab.Item)
+            {
+                if (PetDead() && OwnedCount(e.id) > 0) DrinkPotion();
+                else Buy(e, 1, e.price);
+                return;
+            }
             if (Locked(e)) return;
             if (Owned(e))
             {
@@ -458,7 +497,7 @@ namespace BlockPet.UI.Market
         void OnSecond()
         {
             var e = Current;
-            if (e == null || _busy || _tab != MarketTab.Egg) return;
+            if (e == null || _busy || (_tab != MarketTab.Egg && _tab != MarketTab.Item)) return;
             Buy(e, 1, e.price);
         }
 
@@ -484,10 +523,53 @@ namespace BlockPet.UI.Market
                         return;
                     }
                     _owned[e.id] = OwnedCount(e.id) + count;
-                    Toast(e.tab == MarketTab.Egg ? $"買到 {count} 顆{e.name}！" : (e.tab == MarketTab.Environment ? "新環境解鎖了！" : "買好了！可以去擺放"));
+                    Toast(e.tab == MarketTab.Egg ? $"買到 {count} 顆{e.name}！"
+                        : e.tab == MarketTab.Item ? $"買到 {count} 瓶{e.name}！"
+                        : (e.tab == MarketTab.Environment ? "新環境解鎖了！" : "買好了！可以去擺放"));
                     ShowTab(_tab);
                 });
             });
+        }
+
+        static bool PetDead()
+        {
+            var health = FindObjectOfType<PetHealthManager>(true);
+            return health != null && health.IsDead;
+        }
+
+        void DrinkPotion()
+        {
+            var health = FindObjectOfType<PetHealthManager>(true);
+            if (health == null) return;
+            _busy = true;
+            health.Revive((ok, reason) =>
+            {
+                _busy = false;
+                if (this == null) return;
+                if (ok) { _owned[MarketCatalog.RevivePotion] = Mathf.Max(0, OwnedCount(MarketCatalog.RevivePotion) - 1); Toast(PetName() + " 醒來了！愛心全滿"); }
+                else Toast(reason == "alive" ? "已經有人讓牠醒來了" : reason == "potion" ? "藥水剛好被用完了" : "復活失敗，請再試一次");
+                LoadOwned();
+            });
+        }
+
+        /// <summary>打開商店並選好某個商品（例如復活確認窗的「去商店買」）。</summary>
+        public static void OpenAt(string itemId)
+        {
+            _pendingItem = itemId;
+            var pm = FindObjectOfType<PageManager>(true);
+            pm?.ShowMarketPage();
+        }
+
+        static string _pendingItem;
+
+        void ApplyPendingItem()
+        {
+            if (string.IsNullOrEmpty(_pendingItem)) return;
+            var e = MarketCatalog.Get(_pendingItem);
+            _pendingItem = null;
+            if (e == null) return;
+            _sel[e.tab] = Mathf.Max(0, MarketCatalog.InTab(e.tab).IndexOf(e));
+            _tab = e.tab;
         }
 
         void GoPlace(MarketEntry e)
@@ -683,8 +765,10 @@ namespace BlockPet.UI.Market
             var eglow = Place(_eggLayer, "Glow", 105, 70, 180, 180);
             UIShapes.AddShadow(eglow, new Color(1f, 0.925f, 0.667f, 0.55f), 90, 60, 0);
             UIShapes.AddRounded(Place(eglow, "Disc", 0, 0, 180, 180).gameObject, new Color(1f, 0.973f, 0.925f, 0.4f), 90).raycastTarget = false;
-            UIShapes.AddRounded(Place(_eggLayer, "NestShade", 130, 234, 130, 24).gameObject, Hex(0x6E4A2E), 12).raycastTarget = false;
-            UIShapes.AddRounded(Place(_eggLayer, "Nest", 130, 228, 130, 24).gameObject, Hex(0x8B5E3C), 12).raycastTarget = false;
+            var nest = Place(_eggLayer, "NestGroup", 0, 0, DesignW, PreviewH);
+            _eggNest = nest.gameObject;
+            UIShapes.AddRounded(Place(nest, "NestShade", 130, 234, 130, 24).gameObject, Hex(0x6E4A2E), 12).raycastTarget = false;
+            UIShapes.AddRounded(Place(nest, "Nest", 130, 228, 130, 24).gameObject, Hex(0x8B5E3C), 12).raycastTarget = false;
             _eggImgRt = Place(_eggLayer, "EggImg", 135, 108, 120, 128);
             _eggImgRt.pivot = new Vector2(0.5f, 0.1f);
             _eggImgRt.anchoredPosition = new Vector2(195f, -108f - 128f * 0.9f);
@@ -760,9 +844,9 @@ namespace BlockPet.UI.Market
             // 分頁：家具／裝飾／環境／寵物蛋
             var tabs = Place(_panel, "Tabs", PadX, 22, DesignW - PadX * 2f, 44);
             UIShapes.AddRounded(tabs.gameObject, Beige, 15).raycastTarget = false;
-            string[] labels = { "家具", "裝飾", "環境", "寵物蛋" };
-            float tw = (DesignW - PadX * 2f - 8f - 12f) / 4f;
-            for (int i = 0; i < 4; i++)
+            string[] labels = { "家具", "裝飾", "環境", "寵物蛋", "道具" };
+            float tw = (DesignW - PadX * 2f - 8f - 4f * (labels.Length - 1)) / labels.Length;
+            for (int i = 0; i < labels.Length; i++)
             {
                 var t = Place(tabs, labels[i], 4f + i * (tw + 4f), 4, tw, 36);
                 var hit = t.gameObject.AddComponent<Image>();
@@ -871,7 +955,7 @@ namespace BlockPet.UI.Market
             {
                 Label(rt, 7, y, iw, 16, "未解鎖・" + e.lockText, 11, Muted2, TextAlignmentOptions.Left).enableWordWrapping = false;
             }
-            else if (Owned(e) && e.tab != MarketTab.Egg)
+            else if (Owned(e) && e.tab != MarketTab.Egg && e.tab != MarketTab.Item)
             {
                 var chip = Place(rt, "Owned", 7, y, 52, 18);
                 UIShapes.AddRounded(chip.gameObject, Hex(0xE3EED9), 8).raycastTarget = false;
@@ -882,7 +966,8 @@ namespace BlockPet.UI.Market
                 var coin = Place(rt, "Coin", 7, y + 1, 14, 14).gameObject.AddComponent<Image>();
                 coin.sprite = SpriteByName("ui_coin");
                 coin.raycastTarget = false;
-                string price = e.price.ToString("N0") + (e.tab == MarketTab.Egg && OwnedCount(e.id) > 0 ? $"  有 {OwnedCount(e.id)} 顆" : "");
+                string unit = e.tab == MarketTab.Item ? "瓶" : "顆";
+                string price = e.price.ToString("N0") + ((e.tab == MarketTab.Egg || e.tab == MarketTab.Item) && OwnedCount(e.id) > 0 ? $"  有 {OwnedCount(e.id)} {unit}" : "");
                 Label(rt, 25, y, iw - 18f, 16, price, 12, Ink, TextAlignmentOptions.Left).enableWordWrapping = false;
             }
 

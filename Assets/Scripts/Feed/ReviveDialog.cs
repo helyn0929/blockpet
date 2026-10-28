@@ -6,8 +6,8 @@ using UnityEngine.UI;
 namespace BlockPet.Feed
 {
     /// <summary>
-    /// 復活確認（愛心 0 顆時點狀態欄的「點我復活」）：顯示房間餘額，確認後從房間帳戶扣
-    /// <see cref="PetHearts.ReviveCost"/> 金幣，愛心回到 5 顆滿（圖鑑紀錄不撤銷）。
+    /// 復活確認（愛心 0 顆時點狀態欄的「點我復活」）：顯示空間有幾瓶復活藥水；
+    /// 有藥水就喝一瓶，愛心回到 5 顆滿（圖鑑紀錄不撤銷）；沒有就帶去商城的道具分頁買。
     /// 執行時自己建一個最上層的 Screen Space Overlay，390 設計寬度等比縮放。
     /// </summary>
     public class ReviveDialog : MonoBehaviour
@@ -33,6 +33,7 @@ namespace BlockPet.Feed
         CanvasGroup _confirmGroup;
         bool _busy, _open;
         float _t;
+        int _potions = -1; // -1：查詢中
         PetHealthManager _health;
 
         public static void Show(TMP_FontAsset font, string petName)
@@ -54,8 +55,23 @@ namespace BlockPet.Feed
             _busy = false;
             _open = true;
             gameObject.SetActive(true);
+            LoadPotions();
             Refresh();
         }
+
+        void LoadPotions()
+        {
+            _potions = -1;
+            var fb = FirebaseManager.Instance;
+            if (fb == null) { _potions = 0; return; }
+            fb.GetRoomShop(owned =>
+            {
+                if (this == null) return;
+                _potions = owned != null && owned.TryGetValue(PetHearts.PotionId, out var n) ? n : 0;
+            });
+        }
+
+        static int PotionPrice => BlockPet.UI.Market.MarketCatalog.Get(PetHearts.PotionId)?.price ?? 0;
 
         void Close() => _open = false;
 
@@ -77,22 +93,24 @@ namespace BlockPet.Feed
 
         void Refresh()
         {
-            int coins = EconomyManager.Instance != null ? EconomyManager.Instance.CurrentMoney : 0;
-            int cost = PetHearts.ReviveCost;
-            bool enough = coins >= cost;
-            _balance.text = $"房間現有 {coins} 金幣";
-            _balance.color = enough ? Muted : Coral;
-            if (!enough && string.IsNullOrEmpty(_hint.text)) _hint.text = $"還差 {cost - coins} 金幣・餵照片可以賺金幣";
-            if (enough && _hint.text.StartsWith("還差")) _hint.text = "";
-            _confirmGroup.alpha = enough && !_busy ? 1f : 0.45f;
-            _confirmText.text = _busy ? "處理中…" : $"復活・{cost} 金幣";
+            if (_potions < 0) _balance.text = "查看藥水中…";
+            else if (_potions > 0) _balance.text = $"這個空間有 {_potions} 瓶復活藥水";
+            else _balance.text = "這個空間還沒有復活藥水";
+            _balance.color = _potions == 0 ? Coral : Muted;
+            _confirmGroup.alpha = _busy || _potions < 0 ? 0.45f : 1f;
+            _confirmText.text = _busy ? "處理中…" : _potions > 0 ? "喝一瓶藥水" : $"去商城買・{PotionPrice} 金幣";
         }
 
         void Confirm()
         {
-            if (_busy) return;
-            int coins = EconomyManager.Instance != null ? EconomyManager.Instance.CurrentMoney : 0;
-            if (coins < PetHearts.ReviveCost) return;
+            if (_busy || _potions < 0) return;
+            if (_potions == 0)
+            {
+                // 沒有藥水：去商城的道具分頁
+                Close();
+                BlockPet.UI.Market.MarketScreenController.OpenAt(PetHearts.PotionId);
+                return;
+            }
             if (_health == null) _health = FindObjectOfType<PetHealthManager>();
             if (_health == null) return;
             _busy = true;
@@ -102,7 +120,8 @@ namespace BlockPet.Feed
                 _busy = false;
                 if (this == null) return;
                 if (ok || reason == "alive") { Close(); return; }
-                _hint.text = reason == "coins" ? "金幣不夠，可能剛好有人花掉了" : "復活失敗，請再試一次";
+                _hint.text = reason == "potion" ? "藥水剛好被用完了" : "復活失敗，請再試一次";
+                LoadPotions();
                 Refresh();
             });
         }
@@ -139,7 +158,7 @@ namespace BlockPet.Feed
             UIShapes.AddRounded(card.gameObject, Cream, 24);
 
             _title = Label(card, 20, 26, CardW - 40f, 30, "", 21, Ink, TextAlignmentOptions.Center);
-            Label(card, 24, 66, CardW - 48f, 48, "愛心歸零了。用房間的金幣讓牠醒來，愛心會回到 5 顆滿。", 14, Ink, TextAlignmentOptions.Center);
+            Label(card, 24, 66, CardW - 48f, 48, "愛心歸零了。喝一瓶復活藥水就會醒來，愛心回到 5 顆滿。", 14, Ink, TextAlignmentOptions.Center);
             _balance = Label(card, 20, 124, CardW - 40f, 20, "", 13, Muted, TextAlignmentOptions.Center);
             _hint = Label(card, 20, 146, CardW - 40f, 18, "", 11, Coral, TextAlignmentOptions.Center);
 

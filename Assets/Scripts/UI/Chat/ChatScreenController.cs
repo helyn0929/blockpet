@@ -230,12 +230,12 @@ namespace BlockPet.UI.Chat
 
         PhotoSplitView _splitView;
 
-        /// <summary>打開分割畫面到這張照片；沒有掛 PhotoSplitView 或照片還沒同步到相簿時，改開這則訊息的選單。</summary>
-        void OpenSplitView(string fileName, string key)
+        /// <summary>右上「營地照片」：打開分割畫面（從最新一張開始，蓋在聊天室上面，返回就回聊天室）。</summary>
+        void OpenSplitView()
         {
             if (_splitView == null) _splitView = FindObjectOfType<PhotoSplitView>(true);
-            if (_splitView != null && _splitView.Open(fileName)) return;
-            OpenMenu(key);
+            if (_splitView != null && _splitView.Open()) return;
+            Toast(_splitView == null ? "分割畫面還沒設定" : "營地還沒有照片");
         }
 
         /// <summary>照片左上角的類別標籤（照片辨識結果）：白底膠囊＋類別色圓點。</summary>
@@ -454,18 +454,6 @@ namespace BlockPet.UI.Chat
                 }
                 else Label(frame, 0, 0, PostImgW, PostImgH, "照片同步中…", 12, Muted2, TextAlignmentOptions.Center);
                 if (!string.IsNullOrEmpty(e.msg.category)) CategoryTag(frame, e.msg.category);
-                // 點照片打開分割畫面（大照片＋留言＋縮小的營地）；點泡泡其他地方還是開選單
-                if (tex != null)
-                {
-                    var frameImg = frame.GetComponent<Image>();
-                    frameImg.raycastTarget = true;
-                    var fb = frame.gameObject.AddComponent<Button>();
-                    fb.targetGraphic = frameImg;
-                    fb.transition = Selectable.Transition.None;
-                    string file = e.msg.photoFileName;
-                    string postKey = e.key;
-                    fb.onClick.AddListener(() => OpenSplitView(file, postKey));
-                }
                 items.Add((frame, PostImgH));
                 bw = Mathf.Max(bw, PostImgW);
                 if (!string.IsNullOrEmpty(e.msg.message))
@@ -902,10 +890,10 @@ namespace BlockPet.UI.Chat
             _petAvatar.preserveAspect = true;
             _petAvatar.raycastTarget = false;
 
-            _roomName = Label(row, 116, 13, 200, 22, "", 16, Ink, TextAlignmentOptions.Left);
+            _roomName = Label(row, 116, 13, 150, 22, "", 16, Ink, TextAlignmentOptions.Left);
             _roomName.enableWordWrapping = false;
             _roomName.overflowMode = TextOverflowModes.Ellipsis;
-            _roomSub = Label(row, 116, 35, 210, 16, "", 11, Muted2, TextAlignmentOptions.Left);
+            _roomSub = Label(row, 116, 35, 158, 16, "", 11, Muted2, TextAlignmentOptions.Left);
             _roomSub.enableWordWrapping = false;
             _roomSub.overflowMode = TextOverflowModes.Ellipsis;
 
@@ -918,6 +906,15 @@ namespace BlockPet.UI.Chat
             var ab = album.gameObject.AddComponent<Button>();
             ab.targetGraphic = abg;
             ab.onClick.AddListener(OpenAlbum);
+
+            // 分割畫面鈕（相簿左邊）：上面一張大照片、下面一塊營地
+            var split = Place(row, "Split", DesignW - 12f - 44f - 8f - 44f, 10, 44, 44);
+            var sbg = UIShapes.AddRounded(split.gameObject, Beige, 14);
+            UIShapes.AddRing(Place(split, "Photo", 12, 10, 20, 15).gameObject, Ink, 3.5f);
+            UIShapes.AddRounded(Place(split, "Camp", 12, 27, 20, 7).gameObject, Ink, 2.5f).raycastTarget = false;
+            var sb = split.gameObject.AddComponent<Button>();
+            sb.targetGraphic = sbg;
+            sb.onClick.AddListener(OpenSplitView);
         }
 
         void BuildMessagesArea()

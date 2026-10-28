@@ -1,7 +1,7 @@
 """把設計稿「商店 A」（MarketA.dc.html）裡的家具、裝飾、擴建、寵物蛋與金幣圖示（inline SVG），
 用 headless Chrome 以 3 倍解析度、透明背景存成 Unity sprite。
-用法：python3 docs/market/Tools/make_market_sprites.py
-輸出：Assets/Art/UI/Market/Sprites/*.png（檔名 furn_* / dec_* / exp_* / egg_* / ui_coin）
+用法：python3 docs/market/Tools/make_market_sprites.py [檔名…]（只給檔名就只輸出那幾張，例如 item_potion）
+輸出：Assets/Art/UI/Market/Sprites/*.png（檔名 furn_* / dec_* / exp_* / egg_* / item_* / ui_coin）
 匯入設定由 Assets/Editor/TopBar/TopBarSpriteImporter.cs 自動套用（PPU 300）。
 """
 import os, subprocess, sys, tempfile
@@ -53,6 +53,15 @@ E = {
     "city": egg("#A9BEF2", "<path d='M14 36 H66 M12 46 H68' stroke='#6F8FE0' stroke-width='5'/>"),
     "star": egg("#C9A0E0", "<path d='M50 26 l2.5 5 5.5 .8 -4 3.9 1 5.5 -5 -2.6 -5 2.6 1 -5.5 -4 -3.9 5.5 -.8Z' fill='#FFD45C'/><circle cx='30' cy='46' r='3' fill='#FFD45C'/><circle cx='48' cy='52' r='2.5' fill='#FFD45C'/>"),
 }
+# 道具（設計稿沒有，照同樣畫風補畫）
+I = {
+    "potion": "<rect x='32' y='2' width='16' height='8' rx='2.5' fill='#C98A4E'/><rect x='34' y='9' width='12' height='12' fill='#DDEEF5'/>"
+              "<circle cx='40' cy='40' r='22' fill='#E8F4FA'/>"
+              "<path d='M18.5 38 Q29 33 40 38 T61.5 38 A21.5 21.5 0 0 1 18.5 38Z' fill='#F06B8B'/>"
+              "<path d='M40 55 C31 49 29 44 33 41 C36 39 39 41 40 43 C41 41 44 39 47 41 C51 44 49 49 40 55Z' fill='#FFFFFF'/>"
+              "<ellipse cx='30' cy='30' rx='4' ry='7' fill='#FFFFFF' opacity='0.7' transform='rotate(25 30 30)'/>"
+              "<circle cx='40' cy='40' r='22' fill='none' stroke='#B9D3E0' stroke-width='2.5'/>",
+}
 COIN = "<circle cx='8' cy='8' r='7.5' fill='#FFD54F'/><circle cx='8' cy='8' r='4.6' fill='none' stroke='#E0A21E' stroke-width='1.6'/>"
 
 # (輸出檔名, viewBox 寬, 高, SVG 內容)
@@ -65,6 +74,8 @@ for k in D:
     SPRITES.append(("dec_" + k, 80, 64, D[k]))
 for k in E:
     SPRITES.append(("egg_" + k, 80, 66, E[k]))
+for k in I:
+    SPRITES.append(("item_" + k, 80, 64, I[k]))
 SPRITES.append(("ui_coin", 16, 16, COIN))
 
 
@@ -74,7 +85,10 @@ def main():
         sys.exit("找不到 Google Chrome")
     os.makedirs(OUT, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="market_sprites_")
+    only = set(sys.argv[1:])
     for name, w, h, body in SPRITES:
+        if only and name not in only:
+            continue
         html = ("<!doctype html><html><head><style>html,body{margin:0;background:transparent}</style></head><body>"
                 f"<svg xmlns='http://www.w3.org/2000/svg' width='{w}' height='{h}' viewBox='0 0 {w} {h}' style='display:block'>"
                 f"{body}</svg></body></html>")

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace BlockPet.UI.Market
 {
-    public enum MarketTab { Furniture, Decor, Environment, Egg }
+    public enum MarketTab { Furniture, Decor, Environment, Egg, Item }
 
     /// <summary>商店一件商品（設計稿「商店 A」MarketA.dc.html 的 DATA）。價格全部是空間金幣。</summary>
     public class MarketEntry
@@ -30,6 +30,8 @@ namespace BlockPet.UI.Market
     public static class MarketCatalog
     {
         public const string Lake = "exp_lake";
+        /// <summary>復活藥水（2026-10-28 定案：寵物死亡時用藥水復活，藥水在商城用金幣買）。id 與 PetHearts.PotionId 相同。</summary>
+        public const string RevivePotion = "item_revive";
 
         public static readonly List<MarketEntry> All = new List<MarketEntry>
         {
@@ -64,6 +66,9 @@ namespace BlockPet.UI.Market
             new MarketEntry { id = "egg_forest", tab = MarketTab.Egg, name = "森林蛋", desc = "比較容易孵出自然系的寵物", price = 600, sprite = "egg_forest", tone = Hex(0xE3EED9) },
             new MarketEntry { id = "egg_city", tab = MarketTab.Egg, name = "城市蛋", desc = "比較容易孵出城市系的寵物", price = 600, sprite = "egg_city", tone = Hex(0xE3EAF9) },
             new MarketEntry { id = "egg_star", tab = MarketTab.Egg, name = "星空蛋（限定）", desc = "限定外觀，有機會出稀有寵物", price = 600, sprite = "egg_star", tone = Hex(0xEFE3F6) },
+
+            // 道具（可以買很多個，用掉就少一個）
+            new MarketEntry { id = RevivePotion, tab = MarketTab.Item, name = "復活藥水", desc = "寵物昏倒時喝一瓶，愛心回到 5 顆滿", price = 100, sprite = "item_potion", tone = Hex(0xFDE3EA) },
         };
 
         /// <summary>10 顆蛋一起買的價格（9 折，同設計稿 270 / 300）。</summary>

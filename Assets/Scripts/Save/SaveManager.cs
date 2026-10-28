@@ -207,6 +207,18 @@ public class SaveManager : MonoBehaviour
     }
 
     /// <summary>Returns the latest photo texture for any room without switching the active room.</summary>
+    /// <summary>某個空間的相簿照片清單（目前空間用記憶體裡的；其他空間讀那個空間的存檔，不改目前狀態）。</summary>
+    public List<PhotoMeta> GetPhotosForRoom(string roomId)
+    {
+        if (string.IsNullOrEmpty(roomId)) return null;
+        if (roomId == _currentRoomId) return data?.photos;
+        string safe = roomId.Replace("/", "_").Replace("\\", "_").Replace("..", "_");
+        string jsonPath = Path.Combine(Application.persistentDataPath, $"save_{safe}.json");
+        if (!File.Exists(jsonPath)) return null;
+        try { return JsonUtility.FromJson<SaveData>(File.ReadAllText(jsonPath))?.photos; }
+        catch { return null; }
+    }
+
     public Texture2D GetLatestPhotoTextureForRoom(string roomId)
     {
         if (string.IsNullOrEmpty(roomId)) return null;

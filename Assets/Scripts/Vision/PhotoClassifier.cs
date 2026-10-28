@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Sentis;
 using UnityEngine;
@@ -21,16 +22,30 @@ namespace BlockPet.Vision
     /// 前處理照 TinyCLIP：短邊縮到 224、置中裁正方形、0～1、減 mean 除 std。
     /// 在 CPU 上直接讀照片原始像素做裁切縮放（每格 4×4 取平均），避免 Linear 色彩空間在 GPU 取樣時把顏色變暗。
     /// 模型與向量由 docs/vision/Tools/build_photo_classifier.py 產生；換模型、改句子都只改那邊，這裡不用動。
+    /// 舊照片補辨識：進房間、相簿有變動時，在背景一幀一張把還沒有類別的照片辨識完，結果寫回相簿、營地照片記錄與聊天室貼文。
     /// </summary>
     public class PhotoClassifier : MonoBehaviour
     {
         [SerializeField] ModelAsset model;
-        [Tooltip("Assets/Data/Vision/photo_categories.json")]
+        [Tooltip("Assets/Resources/Vision/photo_categories.json")]
         [SerializeField] TextAsset categories;
         [Tooltip("有 compute shader 的裝置用 GPU，否則用 CPU")]
         [SerializeField] bool preferGpu = true;
 
         public static PhotoClassifier Instance { get; private set; }
+
+        /// <summary>模型與類別向量放在 Resources/Vision：場景裡沒有 PhotoClassifier 時，遊戲開始就自動建一個（不用手動執行 Build）。</summary>
+        const string ResModel = "Vision/photo_classifier_vision";
+        const string ResCategories = "Vision/photo_categories";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void Bootstrap()
+        {
+            if (Instance != null || FindObjectOfType<PhotoClassifier>() != null) return;
+            var go = new GameObject("PhotoClassifier (auto)");
+            DontDestroyOnLoad(go);
+            go.AddComponent<PhotoClassifier>();
+        }
 
         [Serializable]
         class CategoryJson { public string name; public string[] prompts; public float[] embeddings; }
@@ -68,10 +83,63 @@ namespace BlockPet.Vision
             Instance = this;
         }
 
+        void Start()
+        {
+            SaveManager.OnRoomSwitched += KickBackfill;
+            SaveManager.OnSaveDataChanged += KickBackfill;
+            KickBackfill();
+        }
+
         void OnDestroy()
         {
+            SaveManager.OnRoomSwitched -= KickBackfill;
+            SaveManager.OnSaveDataChanged -= KickBackfill;
             ReleaseWorker();
             if (Instance == this) Instance = null;
+        }
+
+        // ─── 舊照片補辨識 ──────────────────────────────────────────────
+
+        Coroutine _backfill;
+        readonly HashSet<string> _backfillFailed = new HashSet<string>();
+
+        void KickBackfill()
+        {
+            if (_backfill == null && isActiveAndEnabled && Instance == this) _backfill = StartCoroutine(Backfill());
+        }
+
+        IEnumerator Backfill()
+        {
+            yield return null; // 等進房間的其他處理跑完
+            int done = 0;
+            while (true)
+            {
+                var save = SaveManager.Instance;
+                var photos = save != null ? save.data?.photos : null;
+                if (photos == null) break;
+                var next = photos.Find(p => p != null && !string.IsNullOrEmpty(p.fileName)
+                                            && string.IsNullOrEmpty(p.category) && !_backfillFailed.Contains(p.fileName));
+                if (next == null) break;
+
+                var tex = save.LoadPhoto(next);
+                var r = tex != null ? Classify(tex) : default;
+                if (tex != null) Destroy(tex);
+                if (!r.Ok) { _backfillFailed.Add(next.fileName); yield return null; continue; }
+
+                next.category = r.category;
+                next.categoryConfidence = r.confidence;
+                FirebaseManager.Instance?.UpdatePhotoCategory(next);
+                done++;
+                if (done % 10 == 0) save.Save();
+                yield return null; // 一幀一張，不卡畫面
+            }
+            if (done > 0)
+            {
+                SaveManager.Instance?.Save();
+                Debug.Log($"[PhotoClassifier] 舊照片補辨識完成：{done} 張");
+                SaveManager.OnSaveDataChanged?.Invoke(); // 相簿篩選、進化條更新（_backfill 還沒清掉，不會重跑）
+            }
+            _backfill = null;
         }
 
         /// <summary>釋放 Sentis worker（Editor 測試用完要呼叫）。</summary>
@@ -86,9 +154,11 @@ namespace BlockPet.Vision
         {
             if (_loaded) return _worker != null && _cfg != null;
             _loaded = true;
+            if (model == null) model = Resources.Load<ModelAsset>(ResModel);
+            if (categories == null) categories = Resources.Load<TextAsset>(ResCategories);
             if (model == null || categories == null)
             {
-                Debug.LogWarning("[PhotoClassifier] 沒有指定模型或類別向量（執行 BlockPet/Build Photo Classifier）");
+                Debug.LogWarning("[PhotoClassifier] 找不到模型或類別向量（Assets/Resources/Vision）");
                 return false;
             }
             try

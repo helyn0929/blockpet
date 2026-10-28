@@ -38,11 +38,15 @@ public class PetCollectionManager : MonoBehaviour
     /// 進化條各色段（0～100，加起來＝ProgressPercent）：目前這隻寵物開始後餵的照片，依辨識類別分段。
     /// categories 是色段順序；辨識前的舊照片沒有類別，算在第一段（和以前整段一色一樣）。
     /// </summary>
-    public float[] EnergyByCategory(System.Collections.Generic.IList<string> categories)
+    public float[] EnergyByCategory(System.Collections.Generic.IList<string> categories) =>
+        EnergyFor(SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null, startingPhotoCount, currentPetIndex, categories);
+
+    /// <summary>任一空間的進化條色段（選擇空間轉盤用）：照片清單、這隻寵物從第幾張開始算、寵物種類。</summary>
+    public static float[] EnergyFor(System.Collections.Generic.IList<PhotoMeta> photos, int startingPhotoCount, int petIndex,
+                                    System.Collections.Generic.IList<string> categories)
     {
         var result = new float[categories.Count];
-        var photos = SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null;
-        int target = TargetAmount;
+        int target = GetTargetAmountForPet(petIndex);
         if (photos == null || target <= 0 || result.Length == 0) return result;
         float each = 100f / target;
         float sum = 0f;
@@ -217,8 +221,12 @@ public class PetCollectionManager : MonoBehaviour
             petNameText.text = GetPetDisplayName(currentPetIndex);
     }
 
-    /// <summary>Display name for the current pet.</summary>
-    public string GetPetDisplayName() => GetPetDisplayName(currentPetIndex);
+    /// <summary>目前寵物的名字：空間資訊裡取的名字優先（全空間共用）；還沒取名才用預設的種類名。</summary>
+    public string GetPetDisplayName()
+    {
+        string named = FirebaseManager.Instance != null ? FirebaseManager.Instance.CurrentPetName : null;
+        return !string.IsNullOrEmpty(named) ? named : GetPetDisplayName(currentPetIndex);
+    }
 
     static string GetPetDisplayName(int petIndex)
     {

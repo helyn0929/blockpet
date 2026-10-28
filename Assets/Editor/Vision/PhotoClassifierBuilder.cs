@@ -10,14 +10,15 @@ namespace BlockPet.EditorTools.Vision
     /// <summary>
     /// 照片辨識（第 3 步）的編輯器選單：
     /// - BlockPet/Build Photo Classifier：場景加一個 PhotoClassifier 物件，接好模型與類別向量
+    ///   （可不做：場景沒有時遊戲開始會自動從 Resources/Vision 建一個）
     /// - BlockPet/Vision/Test Editor Photos：用專案根目錄 EditorHandPhotos/ 的照片在 Unity 裡辨識一次，結果印在 Console
     ///   （可以和 python3 docs/vision/Tools/build_photo_classifier.py MODEL --eval EditorHandPhotos 的結果對照）
     /// 模型與向量由 docs/vision/Tools/build_photo_classifier.py 產生。
     /// </summary>
     public static class PhotoClassifierBuilder
     {
-        const string ModelPath = "Assets/Models/photo_classifier_vision.onnx";
-        const string CategoriesPath = "Assets/Data/Vision/photo_categories.json";
+        const string ModelPath = "Assets/Resources/Vision/photo_classifier_vision.onnx";
+        const string CategoriesPath = "Assets/Resources/Vision/photo_categories.json";
 
         [MenuItem("BlockPet/Build Photo Classifier")]
         public static void Build()

@@ -104,7 +104,15 @@ public class FirebaseManager : MonoBehaviour
                 };
                 auth = FirebaseAuth.GetAuth(app);
                 Debug.Log($"[FirebaseManager] Init OK. CurrentUser={auth?.CurrentUser?.UserId ?? "null"}");
-                lock (_mainThreadQueue) { _mainThreadQueue.Enqueue(() => _roomId = PlayerPrefs.GetString(PrefsRoomId, "")); }
+                lock (_mainThreadQueue)
+                {
+                    _mainThreadQueue.Enqueue(() =>
+                    {
+                        _roomId = PlayerPrefs.GetString(PrefsRoomId, "");
+                        // 上次的空間：存檔也要切過去（不然照片、類別都存在沒有空間的暫存裡，關掉遊戲就不見）
+                        if (!string.IsNullOrEmpty(_roomId)) SaveManager.Instance?.SwitchRoom(_roomId);
+                    });
+                }
 
                 // Listen for auth state changes (sign-in, token refresh, sign-out).
                 auth.StateChanged += OnAuthStateChanged;
@@ -684,6 +692,7 @@ public class FirebaseManager : MonoBehaviour
         public string lastUpdateTime;
         public float hearts;      // 上次餵食（或復活）時的愛心
         public long heartsAt;     // 那時的伺服器時間（Unix 毫秒）；0＝舊資料還沒搬移
+        public int startingPhotoCount; // 這隻寵物從相簿第幾張開始算進化
     }
 
     DatabaseReference UserRoomsRoot()
@@ -1017,10 +1026,16 @@ public class FirebaseManager : MonoBehaviour
     void FetchRoomSummary(string id, string currentRoom, RoomPetState cachedPet, Action<RoomSummary> done)
     {
         var room = dbRef.Child("Rooms").Child(id);
-        room.Child("meta").GetValueAsync().ContinueWith(tMeta =>
+        // 目前空間的 meta 已在監聽（StartMetaListening）：直接用快取，不再讀一次
+        //（desktop SDK 對已監聽的路徑再讀會觸發 persistent_connection 斷言；名字載入後 OnRoomMetaChanged 會讓轉盤重新整理）
+        var metaTask = id == currentRoom && _metaRef != null
+            ? Task.FromResult<DataSnapshot>(null)
+            : room.Child("meta").GetValueAsync();
+        RoomMeta cachedMeta = id == currentRoom ? _roomMeta : null;
+        metaTask.ContinueWith(tMeta =>
         {
-            RoomMeta meta = null;
-            bool exists = false;
+            RoomMeta meta = cachedMeta;
+            bool exists = cachedMeta != null || (id == currentRoom && _metaRef != null);
             try
             {
                 if (tMeta.IsCompleted && !tMeta.IsFaulted && !tMeta.IsCanceled && tMeta.Result != null && tMeta.Result.Exists)
@@ -1046,7 +1061,8 @@ public class FirebaseManager : MonoBehaviour
                     currentHealth = pet != null ? pet.currentHealth : 0f,
                     lastUpdateTime = pet != null ? pet.lastUpdateTime : null,
                     hearts = pet != null ? pet.hearts : 0f,
-                    heartsAt = pet != null ? pet.heartsAt : 0
+                    heartsAt = pet != null ? pet.heartsAt : 0,
+                    startingPhotoCount = pet != null ? pet.startingPhotoCount : 0
                 });
             };
 
@@ -1347,6 +1363,31 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    // SharedPhotos 底下 fileName → push key（補寫類別用）
+    readonly Dictionary<string, string> _photoKeys = new Dictionary<string, string>();
+
+    /// <summary>
+    /// 舊照片補辨識後，把類別寫回營地照片記錄（SharedPhotos）與聊天室的餵食貼文，房間其他人同步下來就有類別。
+    /// 每個人辨識的結果都一樣（同一個模型），重複寫也沒關係。
+    /// </summary>
+    public void UpdatePhotoCategory(PhotoMeta meta)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(_roomId) || meta == null || string.IsNullOrEmpty(meta.category)) return;
+        string key;
+        lock (_photoKeys) _photoKeys.TryGetValue(meta.fileName, out key);
+        if (!string.IsNullOrEmpty(key))
+        {
+            var rec = RoomRoot().Child("SharedPhotos").Child(key);
+            rec.Child("category").SetValueAsync(meta.category);
+            rec.Child("categoryConfidence").SetValueAsync((double)meta.categoryConfidence);
+        }
+        foreach (var e in ChatEntries)
+        {
+            if (e == null || !e.IsPost || e.msg.photoFileName != meta.fileName || !string.IsNullOrEmpty(e.msg.category)) continue;
+            RoomRoot().Child("Chat").Child(e.key).Child("category").SetValueAsync(meta.category);
+        }
+    }
+
     [Serializable]
     class CloudPhotoRecord
     {
@@ -1448,6 +1489,8 @@ public class FirebaseManager : MonoBehaviour
         if (rec == null || string.IsNullOrEmpty(rec.fileName) || string.IsNullOrEmpty(rec.imageBase64Jpg))
             return;
 
+        lock (_photoKeys) _photoKeys[rec.fileName] = args.Snapshot.Key;
+
         // Mark seen before import to prevent re-upload echo.
         if (!_seenPhotoFileNames.Contains(rec.fileName))
             _seenPhotoFileNames.Add(rec.fileName);
@@ -1503,6 +1546,7 @@ public class FirebaseManager : MonoBehaviour
         // persistent_connection.cc listens_.find(query_spec) 斷言，也是多餘的重新下載。
         if (normalized == _roomId && !string.IsNullOrEmpty(normalized))
         {
+            SaveManager.Instance?.SwitchRoom(normalized); // 保險：存檔停在別的空間時切回來（同一個空間不會做事）
             TryStartListeningForMessages();
             TryStartListeningForPhotos();
             TryStartListeningForPetState();
@@ -1590,6 +1634,42 @@ public class FirebaseManager : MonoBehaviour
         // 節點不存在時由 HandlePetStateChanged 建立預設值。不要在同一路徑另外 GetValueAsync：
         // desktop SDK 對已監聽的路徑再讀一次會觸發 persistent_connection.cc listens_.find 斷言。
         _petRef.ValueChanged += HandlePetStateChanged;
+        StartMetaListening();
+    }
+
+    // ─── 目前空間的名字（寵物名字、空間名稱）：空間資訊改名後首頁、聊天室、轉盤立刻更新 ───
+
+    DatabaseReference _metaRef;
+    volatile RoomMeta _roomMeta;
+    /// <summary>目前空間的寵物名字（空間資訊可改）；還沒設定時是 null。</summary>
+    public string CurrentPetName => _roomMeta != null && !string.IsNullOrWhiteSpace(_roomMeta.petName) ? _roomMeta.petName : null;
+    /// <summary>目前空間的名稱；還沒載入時是 null。</summary>
+    public string CurrentRoomName => _roomMeta != null && !string.IsNullOrWhiteSpace(_roomMeta.name) ? _roomMeta.name : null;
+    /// <summary>目前空間的名字有變（主執行緒）。</summary>
+    public static event Action OnRoomMetaChanged;
+
+    void StartMetaListening()
+    {
+        if (_metaRef != null || string.IsNullOrEmpty(_roomId) || dbRef == null) return;
+        _metaRef = RoomRoot().Child("meta");
+        _metaRef.ValueChanged += HandleMetaChanged;
+    }
+
+    void StopMetaListening()
+    {
+        if (_metaRef != null) _metaRef.ValueChanged -= HandleMetaChanged;
+        _metaRef = null;
+        _roomMeta = null;
+    }
+
+    void HandleMetaChanged(object sender, ValueChangedEventArgs args)
+    {
+        if (args.DatabaseError != null || args.Snapshot == null || !args.Snapshot.Exists) return;
+        RoomMeta meta = null;
+        try { meta = JsonUtility.FromJson<RoomMeta>(args.Snapshot.GetRawJsonValue()); } catch { }
+        if (meta == null) return;
+        _roomMeta = meta;
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => OnRoomMetaChanged?.Invoke());
     }
 
     bool _petInitRequested;
@@ -1610,6 +1690,7 @@ public class FirebaseManager : MonoBehaviour
 
     void StopPetListening()
     {
+        StopMetaListening();
         if (_petRef != null)
             _petRef.ValueChanged -= HandlePetStateChanged;
         _petRef = null;
@@ -1930,18 +2011,19 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 復活：從房間帳戶扣 <see cref="BlockPet.Feed.PetHearts.ReviveCost"/> 金幣，愛心回到 5 顆滿。
-    /// 先扣款再復活；如果扣款後發現別人已經先復活了，把錢退回。done(ok, 原因) 在主執行緒呼叫，原因：coins／alive／error。
+    /// 復活：用掉空間的一瓶復活藥水（<see cref="BlockPet.Feed.PetHearts.PotionId"/>），愛心回到 5 顆滿。
+    /// 先扣藥水再復活；如果扣了之後發現別人已經先復活了，把藥水還回去。
+    /// done(ok, 原因) 在主執行緒呼叫，原因：potion（沒有藥水）／alive（已經活著）／error。
     /// </summary>
     public void ReviveRoomPet(Action<bool, string> done)
     {
         if (!enableSharedRoomPet || _petRef == null) { done?.Invoke(false, "error"); return; }
         if (GetRoomHeartsNow() > 0f) { done?.Invoke(false, "alive"); return; }
-        int cost = BlockPet.Feed.PetHearts.ReviveCost;
+        string potion = BlockPet.Feed.PetHearts.PotionId;
         var petRef = _petRef;
-        SpendRoomCoins(cost, "revive", ok =>
+        UseRoomShopItem(potion, ok =>
         {
-            if (!ok) { done?.Invoke(false, "coins"); return; }
+            if (!ok) { done?.Invoke(false, "potion"); return; }
             bool revived = false;
             petRef.RunTransaction(mutable =>
             {
@@ -1959,9 +2041,36 @@ public class FirebaseManager : MonoBehaviour
             }).ContinueWith(t =>
             {
                 bool success = !t.IsFaulted && !t.IsCanceled && revived;
-                if (!success) AddRoomCoins(cost, "refund:revive");
-                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(success, success ? null : (t.IsFaulted ? "error" : "alive")));
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+                {
+                    if (!success) AddRoomShopItem(potion, 1, null); // 藥水還回去
+                    done?.Invoke(success, success ? null : (revived ? "error" : "alive"));
+                });
             });
+        });
+    }
+
+    /// <summary>用掉空間的一個道具（數量 −1，沒有就失敗）。done(ok) 在主執行緒呼叫。</summary>
+    public void UseRoomShopItem(string itemId, Action<bool> done)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId) || string.IsNullOrEmpty(itemId))
+        {
+            done?.Invoke(false);
+            return;
+        }
+        bool empty = false;
+        RoomRoot().Child("shop").Child(itemId).RunTransaction(data =>
+        {
+            long cur = 0;
+            try { if (data.Value != null) cur = Convert.ToInt64(data.Value); } catch { }
+            empty = cur <= 0;
+            if (empty) return TransactionResult.Abort();
+            data.Value = cur - 1;
+            return TransactionResult.Success(data);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && !empty;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
         });
     }
 

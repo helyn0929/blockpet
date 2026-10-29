@@ -37,7 +37,7 @@ namespace BlockPet.EditorTools.TopBar
         const string HudName = "TopBarHUD";
 
         // 先放進字型的字（其他字在執行時動態補）
-        const string PrewarmChars = "BowLv0123456789+%！？…・想吃美食自然城市生活人物運動戶外進化可點我復活旅行圖鑑設定 ";
+        const string PrewarmChars = "BowLv0123456789+%！？…・想吃美食自然城市生活人物寵物進化可點我復活旅行圖鑑設定 ";
 
         [MenuItem("BlockPet/Build TopBar")]
         public static void Build()

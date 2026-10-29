@@ -1367,7 +1367,7 @@ public class FirebaseManager : MonoBehaviour
     readonly Dictionary<string, string> _photoKeys = new Dictionary<string, string>();
 
     /// <summary>
-    /// 舊照片補辨識後，把類別寫回營地照片記錄（SharedPhotos）與聊天室的餵食貼文，房間其他人同步下來就有類別。
+    /// 舊照片補辨識（或類別版本更新後重新辨識）後，把類別寫回營地照片記錄（SharedPhotos）與聊天室的餵食貼文，房間其他人同步下來就有類別。
     /// 每個人辨識的結果都一樣（同一個模型），重複寫也沒關係。
     /// </summary>
     public void UpdatePhotoCategory(PhotoMeta meta)
@@ -1380,10 +1380,11 @@ public class FirebaseManager : MonoBehaviour
             var rec = RoomRoot().Child("SharedPhotos").Child(key);
             rec.Child("category").SetValueAsync(meta.category);
             rec.Child("categoryConfidence").SetValueAsync((double)meta.categoryConfidence);
+            rec.Child("categoryVersion").SetValueAsync(meta.categoryVersion ?? "");
         }
         foreach (var e in ChatEntries)
         {
-            if (e == null || !e.IsPost || e.msg.photoFileName != meta.fileName || !string.IsNullOrEmpty(e.msg.category)) continue;
+            if (e == null || !e.IsPost || e.msg.photoFileName != meta.fileName || e.msg.category == meta.category) continue;
             RoomRoot().Child("Chat").Child(e.key).Child("category").SetValueAsync(meta.category);
         }
     }
@@ -1398,6 +1399,7 @@ public class FirebaseManager : MonoBehaviour
         public string displayName;
         public string category;
         public float categoryConfidence;
+        public string categoryVersion;
         public string imageBase64Jpg;
     }
 
@@ -1451,6 +1453,7 @@ public class FirebaseManager : MonoBehaviour
             displayName = GetDisplayName(),
             category = meta.category,
             categoryConfidence = meta.categoryConfidence,
+            categoryVersion = meta.categoryVersion,
             imageBase64Jpg = Convert.ToBase64String(jpg)
         };
 
@@ -1515,6 +1518,7 @@ public class FirebaseManager : MonoBehaviour
                 meta.takerName = rec.displayName;
                 meta.category = rec.category;
                 meta.categoryConfidence = rec.categoryConfidence;
+                meta.categoryVersion = rec.categoryVersion;
                 SaveManager.Instance.ImportPhotoFromCloud(meta, bytes);
             });
         }

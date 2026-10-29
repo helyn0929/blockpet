@@ -8,6 +8,7 @@
 
 用法：
   python3 docs/vision/Tools/build_photo_classifier.py MODEL_DIR                 # 輸出模型與類別向量到 Unity 專案
+  python3 docs/vision/Tools/build_photo_classifier.py MODEL_DIR --json-only     # 只重算類別向量（改了 CATEGORIES 時）
   python3 docs/vision/Tools/build_photo_classifier.py MODEL_DIR --eval DIR…    # 只用測試照片看分類結果（不寫入專案）
 輸出：
   Assets/Resources/Vision/photo_classifier_vision.onnx   影像模型（輸入 pixel_values [1,3,224,224]，輸出 image_embeds [1,D]）
@@ -25,6 +26,9 @@ ONNX_OUT = os.path.join(ROOT, "Assets", "Resources", "Vision", "photo_classifier
 JSON_OUT = os.path.join(ROOT, "Assets", "Resources", "Vision", "photo_categories.json")
 
 # 每類幾句英文描述（CLIP 是用英文訓練的），向量取平均。分錯就在這裡加句子。
+# 2026-10-29：運動戶外併入自然，多一類「寵物」（家裡養的貓狗等；野生動物仍算自然）。
+# 改了類別或句子要把 VERSION 加一：遊戲會把舊版本辨識過的照片重新辨識。
+VERSION = "2"
 CATEGORIES = [
     ("美食", ["a photo of food", "a photo of a meal on a plate", "a photo of a drink or a cup of coffee",
              "a photo of dessert, cake or snacks", "a photo of a dish at a restaurant", "a photo of noodles or rice",
@@ -32,16 +36,20 @@ CATEGORIES = [
     ("自然", ["a photo of nature", "a photo of mountains or a forest", "a photo of the sea or a beach",
              "a photo of flowers or plants", "a photo of the sky, clouds or a sunset", "a photo of a lake or a river",
              "a photo of a landscape",
-             "a photo of wild animals in nature", "a photo of a zebra, a bear or a bird in the wild"]),
+             "a photo of wild animals in nature", "a photo of a zebra, a bear or a bird in the wild",
+             # 原「運動戶外」
+             "a photo of people playing sports", "a photo of running or hiking", "a photo of a gym workout",
+             "a photo of cycling or swimming", "a photo of camping outdoors", "a photo of a ball game or a sports field",
+             "a photo of skiing or surfing"]),
     ("城市", ["a photo of a city street", "a photo of buildings", "a photo of a city at night",
              "a photo of a shop front or a train station", "a photo of cars and roads", "a photo of a bridge in a city",
              "a photo of architecture"]),
     ("生活人物", ["a photo of a person", "a selfie", "a photo of friends or family together",
-               "a photo of a pet cat or dog", "a photo of everyday life at home", "a photo of a baby or children",
+               "a photo of everyday life at home", "a photo of a baby or children",
                "a photo of a room interior"]),
-    ("運動戶外", ["a photo of people playing sports", "a photo of running or hiking", "a photo of a gym workout",
-               "a photo of cycling or swimming", "a photo of camping outdoors", "a photo of a ball game or a sports field",
-               "a photo of skiing or surfing"]),
+    ("寵物", ["a photo of a pet", "a photo of a pet dog", "a photo of a pet cat", "a photo of a puppy or a kitten",
+             "a photo of a person holding a cat or a dog", "a photo of a pet rabbit or hamster",
+             "a photo of a pet bird or fish"]),
 ]
 
 
@@ -77,6 +85,7 @@ def main():
         sys.exit(__doc__)
     model_dir = args[0]
     eval_dirs = args[args.index("--eval") + 1:] if "--eval" in args else []
+    json_only = "--json-only" in args
 
     clip = CLIPModel.from_pretrained(model_dir).eval()
     tok = CLIPTokenizerFast.from_pretrained(model_dir)
@@ -97,21 +106,24 @@ def main():
         evaluate(clip, cats, scale, size, mean, std, eval_dirs)
         return
 
-    # 輸出 ONNX（opset 15，Sentis 支援）
-    os.makedirs(os.path.dirname(ONNX_OUT), exist_ok=True)
-    dummy = torch.zeros(1, 3, size, size)
-    torch.onnx.export(VisionEmbeds(clip).eval(), dummy, ONNX_OUT, input_names=["pixel_values"], output_names=["image_embeds"],
-                      opset_version=15, do_constant_folding=True, dynamo=False)
+    # 輸出 ONNX（opset 15，Sentis 支援）；只改類別句子時加 --json-only，模型檔不用重寫
+    if not json_only:
+        os.makedirs(os.path.dirname(ONNX_OUT), exist_ok=True)
+        dummy = torch.zeros(1, 3, size, size)
+        torch.onnx.export(VisionEmbeds(clip).eval(), dummy, ONNX_OUT, input_names=["pixel_values"], output_names=["image_embeds"],
+                          opset_version=15, do_constant_folding=True, dynamo=False)
     os.makedirs(os.path.dirname(JSON_OUT), exist_ok=True)
     with open(JSON_OUT, "w", encoding="utf-8") as f:
         json.dump({
             "model": os.path.basename(os.path.normpath(model_dir)),
+            "version": VERSION,
             "inputSize": size, "mean": mean, "std": std, "logitScale": round(scale, 4),
             # 每類每句一個向量（扁平：句數 × dim），遊戲端每類取最像的一句
             "dim": int(cats[0][2].shape[1]),
             "categories": [{"name": n, "prompts": p, "embeddings": [round(float(x), 6) for x in v.reshape(-1)]} for n, p, v in cats],
         }, f, ensure_ascii=False)
-    print("寫入", ONNX_OUT, os.path.getsize(ONNX_OUT) // 1024, "KB")
+    if not json_only:
+        print("寫入", ONNX_OUT, os.path.getsize(ONNX_OUT) // 1024, "KB")
     print("寫入", JSON_OUT)
 
 
@@ -124,7 +136,7 @@ def category_probs(e, cats, scale):
 
 def evaluate(clip, cats, scale, size, mean, std, dirs):
     paths = [p for d in dirs for p in sorted(glob.glob(os.path.join(d, "*"))) if p.lower().endswith((".jpg", ".jpeg", ".png"))]
-    labels = ["food", "nature", "city", "people", "sports"]
+    labels = ["food", "nature", "city", "people", "pet"]
     tiles = []
     counts = {c[0]: 0 for c in cats}
     with torch.no_grad():

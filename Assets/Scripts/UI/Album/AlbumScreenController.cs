@@ -43,7 +43,7 @@ namespace BlockPet.UI.Album
         static readonly Color Coral = Hex(0xE86B4F);
         static readonly Color CoralEdge = Hex(0xB44A33);
         static readonly Color Glass = new Color(1f, 0.973f, 0.925f, 0.9f);
-        static readonly string[] Categories = { "全部", "美食", "自然", "城市", "生活人物", "運動戶外" };
+        static readonly string[] Categories = { "全部", "美食", "自然", "城市", "生活人物", "寵物" };
 
         [Header("Style")]
         [SerializeField] HandSkin skin;

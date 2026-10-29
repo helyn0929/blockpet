@@ -6,7 +6,7 @@ using System;
 /// </summary>
 public static class PhotoCooldown
 {
-    public const double DurationSeconds = 30;
+    public const double DurationSeconds = 10 * 60; // 2026-10-29 改成 10 分鐘（原本 30 秒）
 
     public static double RemainingSeconds
     {

@@ -12,9 +12,11 @@ public class PhotoMeta
     /// <summary>誰拍的（Firebase uid／暱稱）；舊照片沒有。相簿的「誰拍的」篩選用。</summary>
     public string takerUserId;
     public string takerName;
-    /// <summary>照片辨識的類別（美食／自然／城市／生活人物／運動戶外）與信心；舊照片沒有。</summary>
+    /// <summary>照片辨識的類別（美食／自然／城市／生活人物／寵物）與信心；舊照片沒有。</summary>
     public string category;
     public float categoryConfidence;
+    /// <summary>辨識時的類別版本（photo_categories.json 的 version）；和目前版本不同時會重新辨識。</summary>
+    public string categoryVersion;
 
     public PhotoMeta(string fileName)
     {

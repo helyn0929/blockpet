@@ -9,7 +9,7 @@ namespace BlockPet.Vision
     /// <summary>照片辨識結果：五大類之一＋信心（0～1）。</summary>
     public struct PhotoCategoryResult
     {
-        public string category;   // 美食／自然／城市／生活人物／運動戶外；辨識失敗是 null
+        public string category;   // 美食／自然／城市／生活人物／寵物；辨識失敗是 null
         public float confidence;
         public float[] scores;    // 依 PhotoClassifier.Categories 順序
         public bool Ok => !string.IsNullOrEmpty(category);
@@ -22,7 +22,8 @@ namespace BlockPet.Vision
     /// 前處理照 TinyCLIP：短邊縮到 224、置中裁正方形、0～1、減 mean 除 std。
     /// 在 CPU 上直接讀照片原始像素做裁切縮放（每格 4×4 取平均），避免 Linear 色彩空間在 GPU 取樣時把顏色變暗。
     /// 模型與向量由 docs/vision/Tools/build_photo_classifier.py 產生；換模型、改句子都只改那邊，這裡不用動。
-    /// 舊照片補辨識：進房間、相簿有變動時，在背景一幀一張把還沒有類別的照片辨識完，結果寫回相簿、營地照片記錄與聊天室貼文。
+    /// 舊照片補辨識：進房間、相簿有變動時，在背景一幀一張把還沒有類別、或是用舊版類別辨識的照片重新辨識，
+    /// 結果寫回相簿、營地照片記錄與聊天室貼文（2026-10-29 運動戶外併入自然、新增寵物，版本 2）。
     /// </summary>
     public class PhotoClassifier : MonoBehaviour
     {
@@ -54,6 +55,7 @@ namespace BlockPet.Vision
         class FileJson
         {
             public string model;
+            public string version;   // 類別與句子的版本；改了就會重新辨識舊照片
             public int inputSize = 224;
             public float[] mean;
             public float[] std;
@@ -65,6 +67,16 @@ namespace BlockPet.Vision
         FileJson _cfg;
         Worker _worker;
         bool _loaded;
+
+        /// <summary>目前類別資料的版本（舊資料沒有版本時是 "1"）。</summary>
+        public string Version
+        {
+            get
+            {
+                EnsureLoaded();
+                return _cfg == null ? null : (string.IsNullOrEmpty(_cfg.version) ? "1" : _cfg.version);
+            }
+        }
 
         public IReadOnlyList<string> Categories
         {
@@ -111,6 +123,8 @@ namespace BlockPet.Vision
         IEnumerator Backfill()
         {
             yield return null; // 等進房間的其他處理跑完
+            string version = Version;
+            if (version == null) { _backfill = null; yield break; } // 模型載入失敗
             int done = 0;
             while (true)
             {
@@ -118,7 +132,8 @@ namespace BlockPet.Vision
                 var photos = save != null ? save.data?.photos : null;
                 if (photos == null) break;
                 var next = photos.Find(p => p != null && !string.IsNullOrEmpty(p.fileName)
-                                            && string.IsNullOrEmpty(p.category) && !_backfillFailed.Contains(p.fileName));
+                                            && (string.IsNullOrEmpty(p.category) || p.categoryVersion != version)
+                                            && !_backfillFailed.Contains(p.fileName));
                 if (next == null) break;
 
                 var tex = save.LoadPhoto(next);
@@ -128,6 +143,7 @@ namespace BlockPet.Vision
 
                 next.category = r.category;
                 next.categoryConfidence = r.confidence;
+                next.categoryVersion = version;
                 FirebaseManager.Instance?.UpdatePhotoCategory(next);
                 done++;
                 if (done % 10 == 0) save.Save();

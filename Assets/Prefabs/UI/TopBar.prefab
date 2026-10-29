@@ -1764,7 +1764,7 @@ GameObject:
   - component: {fileID: 8620117526189001631}
   - component: {fileID: 2973901558449307206}
   m_Layer: 5
-  m_Name: "Seg5_\u904B\u52D5\u6236\u5916"
+  m_Name: "Seg5_\u5BF5\u7269"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

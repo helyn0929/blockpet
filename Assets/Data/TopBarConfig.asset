@@ -71,7 +71,7 @@ MonoBehaviour:
   - category: "\u57CE\u5E02"
     bg: {r: 0.8862745, g: 0.9098039, b: 0.972549, a: 1}
     fg: {r: 0.24705882, g: 0.35686275, b: 0.65882355, a: 1}
-  - category: "\u904B\u52D5\u6236\u5916"
+  - category: "\u5BF5\u7269"
     bg: {r: 0.9843137, g: 0.9411765, b: 0.78431374, a: 1}
     fg: {r: 0.5568628, g: 0.43137255, b: 0.047058824, a: 1}
   evoHeight: 8
@@ -86,7 +86,7 @@ MonoBehaviour:
     color: {r: 0.43529412, g: 0.56078434, b: 0.8784314, a: 1}
   - category: "\u751F\u6D3B\u4EBA\u7269"
     color: {r: 0.84313726, g: 0.5411765, b: 0.8156863, a: 1}
-  - category: "\u904B\u52D5\u6236\u5916"
+  - category: "\u5BF5\u7269"
     color: {r: 0.9098039, g: 0.7647059, b: 0.22745098, a: 1}
   evoTextFormat: "\u9032\u5316 {energy}%"
   readyText: "\u53EF\u9032\u5316\uFF01"

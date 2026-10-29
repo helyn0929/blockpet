@@ -21,7 +21,7 @@ namespace BlockPet.UI.TopBar
             public int level = 10;
             [Range(0f, 5f)] public float hearts = 4f;
             public string want = "美食";
-            [Tooltip("依 TopBarConfig.segments 順序：美食、自然、城市、生活人物、運動戶外")]
+            [Tooltip("依 TopBarConfig.segments 順序：美食、自然、城市、生活人物、寵物")]
             public float[] energies = { 30, 16, 10, 7, 5 };
             public int coins = 500;
             public bool dead;
@@ -243,7 +243,7 @@ namespace BlockPet.UI.TopBar
 
         public void SetEnergies(float[] energies) => evoBar?.SetEnergies(energies);
 
-        /// <summary>設定「今天想吃」的類別（美食、自然、城市、生活人物、運動戶外）。</summary>
+        /// <summary>設定「今天想吃」的類別（美食、自然、城市、生活人物、寵物）。</summary>
         public void SetWant(string category)
         {
             _want = category;

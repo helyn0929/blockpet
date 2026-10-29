@@ -157,6 +157,7 @@ public class SaveManager : MonoBehaviour
             PhotoMeta meta = new PhotoMeta(fileName, _globalData.avatarFileName);
             meta.category = category;
             meta.categoryConfidence = confidence;
+            if (!string.IsNullOrEmpty(category)) meta.categoryVersion = BlockPet.Vision.PhotoClassifier.Instance?.Version;
             data.photos.Add(meta);
             LastSavedPhotoMeta = meta;
             Save();

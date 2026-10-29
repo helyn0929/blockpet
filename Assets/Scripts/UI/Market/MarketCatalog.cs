@@ -54,7 +54,7 @@ namespace BlockPet.UI.Market
             Dec("dec_flower", "小紅花", "自然", 5, "餵 5 張花的照片就撿得到", 0xE3EED9),
             Dec("dec_cone", "三角錐", "城市", 5, "餵 5 張街道的照片就撿得到", 0xE3EAF9),
             Dec("dec_party", "派對帽", "生活人物", 6, "餵 6 張和朋友的合照就撿得到", 0xF6E3F4),
-            Dec("dec_band", "運動頭帶", "運動戶外", 5, "餵 5 張運動的照片就撿得到", 0xFBF0C8),
+            Dec("dec_band", "運動頭帶", "自然", 5, "餵 5 張戶外運動的照片就撿得到", 0xFBF0C8),
             Dec("dec_star", "金星星", "今日題目", 5, "今日題目連續 5 天集滿就撿得到（限定）", 0xFFF0D0),
 
             // 環境（2026-10-23「擴建」改名「環境」；id 沿用 exp_*，已買的不受影響）
@@ -99,7 +99,7 @@ namespace BlockPet.UI.Market
                 case "自然": return Hex(0x6FA45F);
                 case "城市": return Hex(0x6F8FE0);
                 case "生活人物": return Hex(0xD78AD0);
-                case "運動戶外": return Hex(0xE8C33A);
+                case "寵物": return Hex(0xE8C33A);
                 case "今日題目": return Hex(0xF6C945);
                 default: return Color.gray;
             }

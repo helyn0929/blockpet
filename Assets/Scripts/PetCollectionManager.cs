@@ -3,8 +3,10 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Randomized pet collection: 10 pet types. Pets 1–5 need 10 new photos; Pets 6–10 need 5 new photos.
-/// Progress is relative to startingPhotoCount. On completion, a new random pet is drawn and UI resets.
+/// 寵物進化進度（2026-10-29 定案）：集滿 <see cref="EvolveTarget"/> 張照片就「可進化」，
+/// 從空間的第一張照片開始算（空間裡每個人餵的都算），集滿後停在滿格，等進化系統（開發順序第 10 步）做好再處理。
+/// 以前的佔位寫法「集滿就隨機換一種寵物、進度歸零」已拿掉；房間裡舊的 startingPhotoCount 會被歸零（之前的照片要算）。
+/// startingPhotoCount 留著給之後進化／換寵物時用。
 /// </summary>
 public class PetCollectionManager : MonoBehaviour
 {
@@ -13,11 +15,10 @@ public class PetCollectionManager : MonoBehaviour
     static string PrefsPetIndex => $"PetCollection_PetIndex_{SaveManager.Instance?.CurrentRoomId ?? ""}";
     static string PrefsStartingCount => $"PetCollection_StartingCount_{SaveManager.Instance?.CurrentRoomId ?? ""}";
 
-    /// <summary>Pets 0–4 need 10 photos; pets 5–9 need 5 photos.</summary>
-    static int GetTargetAmountForPet(int petIndex)
-    {
-        return petIndex < 5 ? 10 : 5;
-    }
+    /// <summary>集滿幾張照片可以進化（每種寵物都一樣）。</summary>
+    public const int EvolveTarget = 100;
+
+    static int GetTargetAmountForPet(int petIndex) => EvolveTarget;
 
     [Header("UI")]
     [SerializeField] Slider progressSlider;
@@ -130,6 +131,7 @@ public class PetCollectionManager : MonoBehaviour
     {
         currentPetIndex = petIndex;
         startingPhotoCount = startingCount;
+        EnsureValidState();
         SaveToPlayerPrefs();
         RefreshAllUI();
     }
@@ -148,42 +150,18 @@ public class PetCollectionManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    /// <summary>Ensure we're not past target (e.g. after load) and complete pets until we're on a valid one.</summary>
+    /// <summary>
+    /// 進化系統做好之前，進度一律從空間的第一張照片算：舊的佔位邏輯留下的 startingPhotoCount 歸零，並寫回房間讓大家一致。
+    /// </summary>
     void EnsureValidState()
     {
-        int total = CurrentPhotoCount;
-        int progress = CurrentProgress;
-        int target = TargetAmount;
-
-        while (progress >= target && target > 0)
-        {
-            // Complete current pet and draw next
-            currentPetIndex = Random.Range(0, 10);
-            startingPhotoCount = total;
-            SaveToPlayerPrefs();
-            PublishToRoomIfShared();
-            progress = CurrentProgress;
-            target = TargetAmount;
-        }
+        if (startingPhotoCount == 0) return;
+        startingPhotoCount = 0;
+        SaveToPlayerPrefs();
+        PublishToRoomIfShared();
     }
 
-    void OnPhotoSaved()
-    {
-        int total = CurrentPhotoCount;
-        int progress = CurrentProgress;
-        int target = TargetAmount;
-
-        if (progress >= target && target > 0)
-        {
-            // Pet completed: random new pet, offset from current count
-            currentPetIndex = Random.Range(0, 10);
-            startingPhotoCount = total;
-            SaveToPlayerPrefs();
-            PublishToRoomIfShared();
-        }
-
-        RefreshAllUI();
-    }
+    void OnPhotoSaved() => RefreshAllUI();
 
     void PublishToRoomIfShared()
     {

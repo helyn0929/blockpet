@@ -624,7 +624,7 @@ namespace BlockPet.UI.Room
             var pets = PetCollectionManager.Instance;
             if (isCurrent && pets != null) return pets.EnergyByCategory(cats);
             var photos = SaveManager.Instance != null ? SaveManager.Instance.GetPhotosForRoom(r.roomId) : null;
-            return PetCollectionManager.EnergyFor(photos, r.startingPhotoCount, r.petIndex, cats);
+            return PetCollectionManager.EnergyFor(photos, 0, r.petIndex, cats); // 進化系統做好前都從第一張算
         }
 
         void UpdateHint()

@@ -136,7 +136,18 @@ namespace BlockPet.UI.Market
         {
             if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
             if (roomEditor == null) roomEditor = FindObjectOfType<RoomEditorController>(true);
+            HideOldMarket();
             Build();
+        }
+
+        /// <summary>
+        /// 舊商店頁的介面（TopBar、PetPreviewPanel、CategoryTabBar、ShopScrollView…）還掛在 MarketPage 底下，
+        /// 舊的腳本雖然關掉了，畫面元件還是開著，新版沒蓋滿時就會露出來。新版是自己的 Canvas，不在這底下，全部關掉即可（不刪除）。
+        /// </summary>
+        void HideOldMarket()
+        {
+            foreach (Transform child in transform)
+                if (child.gameObject.activeSelf) child.gameObject.SetActive(false);
         }
 
         void OnEnable()

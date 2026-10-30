@@ -256,6 +256,19 @@ namespace BlockPet.Decoration
             });
         }
 
+        // ─── Move ──────────────────────────────────────────────────────
+
+        /// <summary>佈置模式拖曳完放開時寫回新位置（本地已經先移好，其他成員收到 ChildChanged 跟著移）。</summary>
+        public void MoveDecoration(string decorId, Vector3 worldPos, Action<bool> onDone)
+        {
+            var data = new Dictionary<string, object> { { "x", worldPos.x }, { "y", worldPos.y } };
+            _decorRef.Child(decorId).UpdateChildrenAsync(data).ContinueWith(task =>
+            {
+                bool ok = !task.IsFaulted && !task.IsCanceled;
+                lock (_mainQueue) _mainQueue.Enqueue(() => onDone?.Invoke(ok));
+            });
+        }
+
         // ─── Remove ────────────────────────────────────────────────────
 
         public void RemoveDecoration(string decorId, Action<bool> onDone)

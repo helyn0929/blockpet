@@ -1,14 +1,25 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <Style src="DecorationPicker.uss" />
     <ui:VisualElement name="overlay" class="overlay" picking-mode="Ignore">
+        <ui:VisualElement name="action-bar" class="action-bar" picking-mode="Ignore">
+            <ui:Button name="action-main" text="放這裡" class="action-btn action-btn--main" />
+            <ui:Button name="action-alt" text="取消" class="action-btn" />
+        </ui:VisualElement>
         <ui:VisualElement name="picker-panel" class="picker-panel">
+            <ui:VisualElement class="picker-header">
+                <ui:VisualElement class="picker-titles">
+                    <ui:Label name="picker-title" text="佈置營地" class="picker-title" />
+                    <ui:Label name="picker-hint" text="挑一件家具新增・點已擺的家具可以拖曳或收回" class="picker-hint" />
+                </ui:VisualElement>
+                <ui:Button name="done-btn" text="完成" class="done-btn" />
+            </ui:VisualElement>
             <ui:ScrollView name="item-scroll" class="item-scroll"
                            horizontal-scrollbar-visibility="Hidden"
                            vertical-scrollbar-visibility="Hidden"
                            mode="Horizontal">
                 <ui:VisualElement name="item-container" class="item-container" />
             </ui:ScrollView>
-            <ui:Button name="done-btn" text="完成" class="done-btn" />
+            <ui:Label name="empty-hint" text="還沒有家具，去商城買一件吧" class="empty-hint" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

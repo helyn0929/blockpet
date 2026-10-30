@@ -43,15 +43,8 @@ namespace BlockPet.UI.Home
             if (_placingInputGuard) { _placingInputGuard = false; return; }
             if (!IsEditing) return;
 
-            if (_placingItem)
-            {
-                UpdatePreviewPosition();
-                HandlePlacementInput();
-            }
-            else
-            {
-                HandleDeleteInput();
-            }
+            HandlePointer();
+            UpdateActions();
         }
 
         // ─── Edit mode ─────────────────────────────────────────────────
@@ -108,6 +101,8 @@ namespace BlockPet.UI.Home
             if (!IsEditing) return;
 
             CancelPlacement();
+            Deselect();
+            _dragging = false;
             DecorationManager.Instance.ReleaseEditLock();
             DecorationManager.Instance.SetAllDecorationsEditMode(false);
             IsEditing = false;
@@ -122,6 +117,7 @@ namespace BlockPet.UI.Home
         public void OnItemSelected(DecorationItem item)
         {
             if (!IsEditing || item == null) return;
+            Deselect();
             _pendingItem       = item;
             _placingItem       = true;
             _placingInputGuard = true;
@@ -170,59 +166,172 @@ namespace BlockPet.UI.Home
         public void OnCancelEditModeButton() => ExitEditMode(false);
 
         // ─── Input ─────────────────────────────────────────────────────
+        // 手機上的操作：
+        // ・新家具：從下方挑一件 → 出現在畫面中央 → 手指在畫面任何地方拖曳都會帶著它走（不會被手指擋住）→ 按「放這裡」
+        // ・已擺好的家具：點一下選中（一閃一閃）→ 按住拖曳移動，放開就存 → 浮動按鈕「收回」或「好了」
+        // 按在下方家具列或浮動按鈕上的手勢不算在場景裡。
 
-        void HandlePlacementInput()
+        DecorationObject _selected;
+        Transform _dragTarget;
+        Vector3 _dragOffset;
+        Vector2 _downScreen;
+        bool _dragging, _dragMoved, _gestureIgnored;
+
+        const float DragThresholdPx = 12f;
+
+        void HandlePointer()
         {
-#if UNITY_EDITOR || UNITY_STANDALONE
-            if (Input.GetMouseButtonDown(0))
+            if (!ReadPointer(out bool down, out bool held, out bool up, out Vector2 screen)) return;
+
+            if (down)
             {
-                var pos = ScreenToWorld(Input.mousePosition);
-                OnPlacementConfirmed(pos);
+                _gestureIgnored = picker != null && picker.IsOverUI(screen);
+                if (_gestureIgnored) return;
+                _downScreen = screen;
+                _dragMoved = false;
+                Vector3 world = ScreenToWorld(screen);
+
+                if (_placingItem && placementPreview != null)
+                {
+                    // 新家具：拖哪裡都帶著預覽走（相對位移）
+                    BeginDrag(placementPreview.transform, world);
+                    return;
+                }
+
+                var hit = FindDecorAt(world);
+                if (hit != null)
+                {
+                    Select(hit);
+                    BeginDrag(hit.transform, world);
+                }
+                else
+                {
+                    Deselect();
+                }
+                return;
             }
-#else
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+
+            if (_gestureIgnored) { if (up) _gestureIgnored = false; return; }
+
+            if (held && _dragging && _dragTarget != null)
             {
-                var pos = ScreenToWorld(Input.GetTouch(0).position);
-                OnPlacementConfirmed(pos);
+                if (!_dragMoved && (screen - _downScreen).magnitude >= DragThresholdPx) _dragMoved = true;
+                if (_dragMoved) _dragTarget.position = ScreenToWorld(screen) + _dragOffset;
             }
-#endif
+
+            if (up)
+            {
+                // 拖完已擺好的家具：寫回新位置
+                if (_dragging && _dragMoved && _selected != null && _dragTarget == _selected.transform)
+                {
+                    DecorationManager.Instance.MoveDecoration(_selected.DecorId, _selected.transform.position, ok =>
+                    {
+                        if (!ok) Debug.Log("[RoomEditorController] 移動家具沒有存到（網路錯誤）。");
+                    });
+                }
+                _dragging = false;
+                _dragTarget = null;
+            }
         }
 
-        /// <summary>While in edit mode and not placing a new item, tapping an owned decoration deletes it.</summary>
-        void HandleDeleteInput()
+        void BeginDrag(Transform target, Vector3 world)
         {
-#if UNITY_EDITOR || UNITY_STANDALONE
-            if (Input.GetMouseButtonDown(0)) TryDeleteAt(Input.mousePosition);
-#else
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
-                TryDeleteAt(Input.GetTouch(0).position);
-#endif
+            _dragTarget = target;
+            _dragOffset = target.position - world;
+            _dragOffset.z = 0f;
+            _dragging = true;
         }
 
-        void TryDeleteAt(Vector3 screenPos)
+        /// <summary>只抓自己擺的家具（CanDelete）；疊在一起時抓排序最上面那件。</summary>
+        DecorationObject FindDecorAt(Vector3 worldPos)
         {
-            Vector3 worldPos = ScreenToWorld(screenPos);
-            var hits = Physics2D.OverlapPointAll(worldPos);
-            foreach (var hit in hits)
+            DecorationObject best = null;
+            int bestOrder = int.MinValue;
+            foreach (var hit in Physics2D.OverlapPointAll(worldPos))
             {
                 var decor = hit.GetComponent<DecorationObject>();
-                if (decor != null && decor.CanDelete)
-                {
-                    decor.RequestDelete();
-                    break;
-                }
+                if (decor == null || !decor.CanDelete) continue;
+                int order = decor.GetComponent<SpriteRenderer>().sortingOrder;
+                if (best == null || order > bestOrder) { best = decor; bestOrder = order; }
+            }
+            return best;
+        }
+
+        void Select(DecorationObject decor)
+        {
+            if (_selected == decor) return;
+            Deselect();
+            _selected = decor;
+            _selected.SetSelected(true);
+        }
+
+        void Deselect()
+        {
+            if (_selected != null) _selected.SetSelected(false);
+            _selected = null;
+        }
+
+        /// <summary>浮動按鈕跟著正在擺的新家具或選中的家具。</summary>
+        void UpdateActions()
+        {
+            if (picker == null) return;
+            if (_placingItem && placementPreview != null && placementPreview.enabled)
+            {
+                var b = placementPreview.bounds;
+                picker.ShowActions(new Vector3(b.center.x, b.max.y, 0f), worldCamera, true);
+            }
+            else if (_selected != null)
+            {
+                picker.ShowActions(_selected.TopCenter, worldCamera, false);
+            }
+            else
+            {
+                picker.HideActions();
             }
         }
 
-        void UpdatePreviewPosition()
-        {
-            if (placementPreview == null || !placementPreview.enabled) return;
+        // ─── Floating action buttons（DecorationPickerController 呼叫）──
 
+        /// <summary>「放這裡」：新家具擺在預覽目前的位置。</summary>
+        public void OnActionConfirm()
+        {
+            if (!_placingItem || placementPreview == null) return;
+            OnPlacementConfirmed(placementPreview.transform.position);
+        }
+
+        /// <summary>「取消」：不擺這件新家具。</summary>
+        public void OnActionCancel() => CancelPlacement();
+
+        /// <summary>「收回」：把選中的家具從營地拿掉。</summary>
+        public void OnActionRemove()
+        {
+            if (_selected == null) return;
+            var decor = _selected;
+            Deselect();
+            decor.RequestDelete();
+        }
+
+        /// <summary>「好了」：取消選取。</summary>
+        public void OnActionDone() => Deselect();
+
+        static bool ReadPointer(out bool down, out bool held, out bool up, out Vector2 pos)
+        {
 #if UNITY_EDITOR || UNITY_STANDALONE
-            placementPreview.transform.position = ScreenToWorld(Input.mousePosition);
+            down = Input.GetMouseButtonDown(0);
+            held = Input.GetMouseButton(0);
+            up = Input.GetMouseButtonUp(0);
+            pos = Input.mousePosition;
+            return down || held || up;
 #else
-            if (Input.touchCount > 0)
-                placementPreview.transform.position = ScreenToWorld(Input.GetTouch(0).position);
+            down = held = up = false;
+            pos = default;
+            if (Input.touchCount == 0) return false;
+            var t = Input.GetTouch(0);
+            pos = t.position;
+            down = t.phase == TouchPhase.Began;
+            held = t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary;
+            up = t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled;
+            return true;
 #endif
         }
 
@@ -239,7 +348,11 @@ namespace BlockPet.UI.Home
         {
             _placingItem = false;
             _pendingItem = null;
-            if (placementPreview != null) placementPreview.enabled = false;
+            if (placementPreview != null)
+            {
+                placementPreview.enabled = false;
+                if (_dragTarget == placementPreview.transform) { _dragging = false; _dragTarget = null; }
+            }
         }
 
         void SetFrozen(bool frozen)

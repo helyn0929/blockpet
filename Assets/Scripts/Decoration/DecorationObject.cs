@@ -37,6 +37,39 @@ namespace BlockPet.Decoration
             if (col == null) col = gameObject.AddComponent<BoxCollider2D>();
             col.isTrigger = true;
             col.size = sprite != null ? sprite.bounds.size : Vector2.one;
+            // 圖的 pivot 不一定在正中央（家具多半在底部），碰撞框要對齊圖本身
+            col.offset = sprite != null ? (Vector2)sprite.bounds.center : Vector2.zero;
+        }
+
+        /// <summary>世界座標裡圖的上緣中點（佈置模式的浮動按鈕放在這上面）。</summary>
+        public Vector3 TopCenter
+        {
+            get
+            {
+                var b = _sr.bounds;
+                return new Vector3(b.center.x, b.max.y, 0f);
+            }
+        }
+
+        // ─── Selection ─────────────────────────────────────────────────
+
+        bool _selected;
+        float _pulse;
+
+        /// <summary>佈置模式選中這件：一閃一閃並稍微放大，讓玩家知道正在移動哪一件。</summary>
+        public void SetSelected(bool selected)
+        {
+            _selected = selected;
+            _pulse = 0f;
+            if (!selected) _sr.color = Color.white;
+        }
+
+        void Update()
+        {
+            if (!_selected) return;
+            _pulse += Time.unscaledDeltaTime;
+            float k = 0.5f + 0.5f * Mathf.Sin(_pulse * 6f);
+            _sr.color = Color.Lerp(Color.white, new Color(1f, 0.92f, 0.6f, 1f), k);
         }
 
         // ─── Edit mode ─────────────────────────────────────────────────
@@ -52,6 +85,7 @@ namespace BlockPet.Decoration
             // Base implementation is intentionally empty — the delete button
             // lives on the prefab and can query CanDelete from here.
             CanDelete = editing && canDelete;
+            if (!editing) SetSelected(false);
         }
 
         public bool CanDelete { get; private set; }

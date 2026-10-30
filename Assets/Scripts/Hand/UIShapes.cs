@@ -12,13 +12,16 @@ namespace BlockPet.Hand
         const int Radius = 32;        // 圓角 sprite 的半徑（貼圖像素）
         const int RingRadius = 21;    // 外框 sprite 的半徑
         const int RingThickness = 6;  // 外框粗細（貼圖像素）
+        const int ThinRingRadius = 32;    // 細外框 sprite（快門圈圈用）
+        const int ThinRingThickness = 4;
         const int ShadowRadius = 16;
         const int ShadowBlur = 16;
 
-        static Sprite _rounded, _ring, _shadow;
+        static Sprite _rounded, _ring, _thinRing, _shadow;
 
         static Sprite Rounded => _rounded != null ? _rounded : (_rounded = Make(Radius, 0, 0));
         static Sprite Ring => _ring != null ? _ring : (_ring = Make(RingRadius, RingThickness, 0));
+        static Sprite ThinRing => _thinRing != null ? _thinRing : (_thinRing = Make(ThinRingRadius, ThinRingThickness, 0));
         static Sprite Shadow => _shadow != null ? _shadow : (_shadow = Make(ShadowRadius, 0, ShadowBlur));
 
         /// <summary>圓角實心矩形；radius 大於邊長一半時會自動變成膠囊／圓形。</summary>
@@ -39,6 +42,18 @@ namespace BlockPet.Hand
             img.sprite = Ring;
             img.type = Image.Type.Sliced;
             img.pixelsPerUnitMultiplier = (RingRadius + 1f) / Mathf.Max(0.5f, radius);
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>細的圓角外框（中空），粗細約為 radius 的 1/8。</summary>
+        public static Image AddThinRing(GameObject go, Color color, float radius)
+        {
+            var img = go.AddComponent<Image>();
+            img.sprite = ThinRing;
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = (ThinRingRadius + 1f) / Mathf.Max(0.5f, radius);
             img.color = color;
             img.raycastTarget = false;
             return img;

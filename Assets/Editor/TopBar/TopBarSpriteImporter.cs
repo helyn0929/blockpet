@@ -20,6 +20,10 @@ namespace BlockPet.EditorTools.TopBar
         public const string MarketFolder = "Assets/Art/UI/Market/Sprites/";
         /// <summary>聊天室 emoji（docs/chat/Tools/make_emoji_sprites.py 產生）</summary>
         public const string ChatFolder = "Assets/Art/UI/Chat/Sprites/";
+        /// <summary>相簿照片檢視（設計文件 5.14 ⑥；docs/photoview/photo_shutter_assets.json）</summary>
+        public const string PhotoViewFolder = "Assets/Art/UI/PhotoView/Sprites/";
+        /// <summary>分割畫面快門（設計文件 5.16 ⑤；同上 json）</summary>
+        public const string ShutterFolder = "Assets/Art/UI/Shutter/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -49,15 +53,23 @@ namespace BlockPet.EditorTools.TopBar
             { "ui_badge_new", new Vector4(24, 30, 24, 24) },
             { "ui_glass_pill", new Vector4(48, 48, 48, 48) },
             { "ui_pill_yellow", new Vector4(45, 45, 45, 45) },
+            // 照片檢視、快門（docs/photoview/photo_shutter_assets.json 的 9slice_px_at3x_LTRB）
+            { "photo_polaroid_frame", new Vector4(24, 24, 24, 24) },
+            { "photo_mask", new Vector4(12, 12, 12, 12) },
+            { "photo_dot_on", new Vector4(9, 9, 9, 9) },
+            { "photo_input_bar", new Vector4(6, 6, 6, 6) },
+            { "chat_input", new Vector4(63, 63, 63, 63) },
+            { "cam_toast_card", new Vector4(42, 42, 42, 42) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 5;
+        public override uint GetVersion() => 6;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
-            if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder))
+            if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
+                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -86,6 +98,8 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(Folder);
             ReimportFolder(IconsFolder);
             ReimportFolder(HandFolder);
+            ReimportFolder(PhotoViewFolder);
+            ReimportFolder(ShutterFolder);
         }
 
         public static void ReimportFolder(string folder)

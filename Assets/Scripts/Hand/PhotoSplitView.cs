@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using BlockPet.Feed;
 using BlockPet.UI.Chat;
 using BlockPet.UI.Room;
 using BlockPet.UI.TopBar;
@@ -16,7 +17,9 @@ namespace BlockPet.Hand
     /// - 頂部玻璃列：返回、照片縮圖疊（目前這張黃框，最多 4 張＋「+N」）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）、
     ///   最右邊聊天室入口（有未讀時右上角紅點數字）。
     /// - 中間大照片（346×346）：左右滑或兩側箭頭換張；下方疊最近 2 則留言與說明；底下留言框。
-    /// - 下方縮小的營地：寵物（愛心、進化條）看著照片說話。
+    /// - 下方縮小的營地：寵物（愛心、進化條）看著照片說話；右側中間半透明快門圈圈（設計稿 Camp8CamG 定案 G），
+    ///   點了大照片變成相機畫面（右上角翻轉鏡頭），再按一次快門拍下直接餵寵物，新照片排在最前面，左下角跳出結果（Camp8CamShot）；
+    ///   相機畫面時左上返回是關掉相機。拍照冷卻中圈圈變暗、中間顯示倒數。
     /// 留言就是聊天室裡回覆這張照片的訊息（照片的餵食貼文；舊照片沒有貼文時用 photo:{檔名} 當回覆對象），所以聊天室也看得到。
     /// 由「BlockPet/Build Split View」掛到手牌物件上並接好素材；沒有掛時，手牌的最新照片卡改開相簿。
     /// </summary>
@@ -97,6 +100,23 @@ namespace BlockPet.Hand
         TMP_Text _energy, _petSay;
         RectTransform _sayBubble;
 
+        // 營地右側的快門（拍照餵寵物）
+        RectTransform _shutter;
+        CanvasGroup _shutterGroup;
+        TMP_Text _shutterText;
+        RectTransform _camToast;
+        TMP_Text _camToastTitle, _camToastSub;
+        float _camToastUntil;
+        Image _shutterCore;
+
+        // 相機模式：大照片變成相機畫面
+        bool _camMode;
+        bool _camFront;
+        WebCamTexture _cam;
+        RawImage _camView;
+        RectTransform _flipBtn;
+        HandSwipe _swipe;
+
         // 圖
         readonly Dictionary<string, Texture> _big = new Dictionary<string, Texture>();
         readonly Dictionary<string, Texture> _thumbs = new Dictionary<string, Texture>();
@@ -134,6 +154,7 @@ namespace BlockPet.Hand
         public void Close()
         {
             if (!_open) return;
+            ExitCamera();
             _open = false;
             FirebaseManager.OnChatEntryAdded -= OnChat;
             FirebaseManager.OnChatEntryChanged -= OnChat;
@@ -156,6 +177,7 @@ namespace BlockPet.Hand
 
         void OnDestroy()
         {
+            StopCamera();
             foreach (var t in _big.Values) if (t != null) Destroy(t);
             foreach (var t in _thumbs.Values) if (t != null) Destroy(t);
             if (_blurred != null) { _blurred.Release(); Destroy(_blurred); }
@@ -185,7 +207,7 @@ namespace BlockPet.Hand
             _group.blocksRaycasts = _open;
             if (!_open && _openT <= 0f) { _canvas.gameObject.SetActive(false); return; }
 
-            if (_dirty) { _dirty = false; Show(_index); }
+            if (_dirty && !_camMode) { _dirty = false; Show(_index); }
 
             int unread = ChatScreenController.UnreadCount();
             if (unread != _shownUnread)
@@ -212,6 +234,8 @@ namespace BlockPet.Hand
                 _pet.anchoredPosition = new Vector2(52f, -90f);
                 _pet.localRotation = Quaternion.Euler(0f, 0f, -r);
             }
+
+            UpdateShutter();
 
             bool canSend = !string.IsNullOrWhiteSpace(_input.text);
             _sendBg.color = canSend ? Coral : new Color(Coral.r, Coral.g, Coral.b, 0.45f);
@@ -257,7 +281,7 @@ namespace BlockPet.Hand
         static string PhotoRef(PhotoMeta m) => "photo:" + m.fileName;
 
         /// <summary>聊天室裡這張照片的餵食貼文。</summary>
-        static ChatEntry PostOf(PhotoMeta m)
+        public static ChatEntry PostOf(PhotoMeta m)
         {
             var fb = FirebaseManager.Instance;
             if (fb == null) return null;
@@ -266,7 +290,7 @@ namespace BlockPet.Hand
         }
 
         /// <summary>這張照片的留言（回覆貼文、或回覆 photo:{檔名}），舊到新。</summary>
-        static List<ChatEntry> CommentsOf(PhotoMeta m)
+        public static List<ChatEntry> CommentsOf(PhotoMeta m)
         {
             var list = new List<ChatEntry>();
             var fb = FirebaseManager.Instance;
@@ -317,13 +341,202 @@ namespace BlockPet.Hand
             ((TMP_Text)_input.placeholder).text = s.mine ? "補一句話…" : "留言給 " + s.who + "…";
 
             // 營地：寵物看照片說話
-            _petSay.text = s.mine ? "咦，是我拍的耶！" : (s.who == "營地" ? "這是誰拍的呀？" : $"{s.who} 拍的！");
-            float sw = _petSay.GetPreferredValues(_petSay.text).x + 22f;
-            _sayBubble.sizeDelta = new Vector2(sw, 30f);
+            SetSay(s.mine ? "咦，是我拍的耶！" : (s.who == "營地" ? "這是誰拍的呀？" : $"{s.who} 拍的！"));
             RefreshPetStatus();
 
             if (_loader != null) StopCoroutine(_loader);
             _loader = StartCoroutine(LoadTextures());
+        }
+
+        void OpenPhotoView()
+        {
+            if (_camMode || _shots.Count == 0) return;
+            var metas = _shots.ConvertAll(x => x.meta);
+            BlockPet.UI.Album.PhotoViewScreen.Open(metas, _index, skin != null ? skin.font : null, background);
+        }
+
+        void SetSay(string text)
+        {
+            _petSay.text = text;
+            float sw = _petSay.GetPreferredValues(text).x + 22f;
+            _sayBubble.sizeDelta = new Vector2(sw, 30f);
+        }
+
+        // ─── 快門：拍一張直接餵寵物 ─────────────────────────────────────
+
+        /// <summary>快門：第一次按打開相機畫面，相機畫面時按就拍下並餵給寵物。</summary>
+        void Shoot()
+        {
+            if (_camMode) { CaptureAndFeed(); return; }
+            if (PhotoCooldown.IsActive) { SetSay("等一下再拍喔～"); return; }
+            if (WebCamTexture.devices.Length == 0) { SetSay("找不到相機…"); return; }
+            _camMode = true;
+            StartCamera();
+            _photo.enabled = false;
+            _overlay.gameObject.SetActive(false);
+            _newTag.gameObject.SetActive(false);
+            _prevBtn.gameObject.SetActive(false);
+            _nextBtn.gameObject.SetActive(false);
+            _swipe.enabled = false;
+            _camView.gameObject.SetActive(true);
+            _flipBtn.gameObject.SetActive(true);
+            SetSay("要拍什麼給我看？");
+        }
+
+        void StartCamera()
+        {
+            StopCamera();
+            string device = null;
+            foreach (var d in WebCamTexture.devices)
+                if (d.isFrontFacing == _camFront) { device = d.name; break; }
+            if (device == null && WebCamTexture.devices.Length > 0) device = WebCamTexture.devices[0].name;
+            _cam = device != null ? new WebCamTexture(device, 1280, 1280) : new WebCamTexture();
+            _camView.texture = _cam;
+            _cam.Play();
+        }
+
+        void StopCamera()
+        {
+            if (_cam == null) return;
+            _cam.Stop();
+            Destroy(_cam);
+            _cam = null;
+            if (_camView != null) _camView.texture = null;
+        }
+
+        void FlipCamera()
+        {
+            if (!_camMode) return;
+            _camFront = !_camFront;
+            StartCamera();
+        }
+
+        /// <summary>關掉相機畫面，回到原本的照片。</summary>
+        void ExitCamera()
+        {
+            if (!_camMode) return;
+            _camMode = false;
+            StopCamera();
+            _camView.gameObject.SetActive(false);
+            _flipBtn.gameObject.SetActive(false);
+            _overlay.gameObject.SetActive(true);
+            _prevBtn.gameObject.SetActive(true);
+            _nextBtn.gameObject.SetActive(true);
+            _swipe.enabled = true;
+            if (_open) Show(_index);
+        }
+
+        /// <summary>相機畫面跟著鏡頭轉向（手機的感光元件多半是橫的），等比填滿照片框；前鏡頭左右鏡像。</summary>
+        void UpdateCameraView()
+        {
+            if (!_camMode || _cam == null || _cam.width <= 16) return;
+            int angle = _cam.videoRotationAngle;
+            bool sideways = angle % 180 != 0;
+            float fw = PhotoSize, fh = _photoH;
+            var rt = _camView.rectTransform;
+            rt.sizeDelta = sideways ? new Vector2(fh, fw) : new Vector2(fw, fh);
+            rt.localRotation = Quaternion.AngleAxis(-angle, Vector3.forward);
+            // 縮放先套用、再旋轉：畫面轉了 90° 時，螢幕上的左右鏡像要翻原圖的 y
+            float sx = 1f, sy = _cam.videoVerticallyMirrored ? -1f : 1f;
+            if (_camFront) { if (sideways) sy = -sy; else sx = -sx; }
+            rt.localScale = new Vector3(sx, sy, 1f);
+            _camView.uvRect = ChatScreenController.AspectFill(_cam.width, _cam.height, rt.sizeDelta.x, rt.sizeDelta.y);
+        }
+
+        /// <summary>拍下（轉正）→ 餵給寵物（跟相機拍照餵食同一條路：辨識、存照片、結算、冷卻）→ 顯示新照片與結果。</summary>
+        void CaptureAndFeed()
+        {
+            if (_cam == null || _cam.width <= 16) return;
+            var photo = CaptureUpright(_cam);
+
+            FeedResult? result = null;
+            Action<FeedResult> grab = r => result = r;
+            FeedSettlement.OnSettled += grab;
+            var feed = FindObjectOfType<FeedController>(true);
+            if (feed != null) feed.FeedWithPhoto(photo);
+            else if (SaveManager.Instance != null)
+            {
+                var vision = BlockPet.Vision.PhotoClassifier.Instance != null ? BlockPet.Vision.PhotoClassifier.Instance.Classify(photo) : default;
+                SaveManager.Instance.SavePhoto(photo, vision.category, vision.confidence);
+            }
+            FeedSettlement.OnSettled -= grab;
+            PhotoCooldown.Start();
+
+            ExitCamera();
+            LoadShots();
+            Show(0);
+            if (result.HasValue) ShowShotResult(result.Value);
+        }
+
+        /// <summary>把鏡頭的原始畫面轉成正的照片（先處理上下鏡像，再依 videoRotationAngle 順時針轉）。</summary>
+        static Texture2D CaptureUpright(WebCamTexture cam)
+        {
+            int w = cam.width, h = cam.height;
+            var src = cam.GetPixels32();
+            if (cam.videoVerticallyMirrored)
+            {
+                for (int y = 0; y < h / 2; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int a = y * w + x, b = (h - 1 - y) * w + x;
+                        (src[a], src[b]) = (src[b], src[a]);
+                    }
+            }
+            int angle = ((cam.videoRotationAngle % 360) + 360) % 360;
+            int dw = angle % 180 != 0 ? h : w, dh = angle % 180 != 0 ? w : h;
+            var dst = angle == 0 ? src : new Color32[w * h];
+            if (angle != 0)
+            {
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int nx, ny;
+                        if (angle == 90) { nx = y; ny = w - 1 - x; }
+                        else if (angle == 180) { nx = w - 1 - x; ny = h - 1 - y; }
+                        else { nx = h - 1 - y; ny = x; }
+                        dst[ny * dw + nx] = src[y * w + x];
+                    }
+            }
+            var tex = new Texture2D(dw, dh, TextureFormat.RGBA32, false);
+            tex.SetPixels32(dst);
+            tex.Apply();
+            return tex;
+        }
+
+        void ShowShotResult(FeedResult r)
+        {
+            string title, sub, say;
+            Color color;
+            if (r.dead) { title = "……"; sub = "昏倒了，先喝復活藥水"; say = "……"; color = Muted; }
+            else if (r.hit) { title = "好好吃！"; sub = $"命中想吃・+{r.coins} 金幣"; say = "謝謝！好好吃～"; color = Hex(0xE0662E); }
+            else { title = "嗯…？"; sub = $"不是想吃的・+{r.coins} 金幣"; say = "嗯…這是什麼？"; color = Muted; }
+            _camToastTitle.text = title;
+            _camToastTitle.color = color;
+            _camToastSub.text = sub;
+            float w = Mathf.Max(_camToastTitle.GetPreferredValues(title).x, _camToastSub.GetPreferredValues(sub).x) + 24f;
+            _camToast.sizeDelta = new Vector2(w, 44f);
+            _camToastUntil = Time.unscaledTime + 2.2f;
+            SetSay(say);
+        }
+
+        void UpdateShutter()
+        {
+            UpdateCameraView();
+            bool cooling = PhotoCooldown.IsActive && !_camMode;
+            _shutterGroup.alpha = cooling ? 0.6f : 1f;
+            _shutterCore.color = new Color(1f, 1f, 1f, _camMode ? 0.95f : 0.6f); // 相機畫面時圈圈變實心，表示按下就拍
+            _shutterText.gameObject.SetActive(cooling);
+            if (cooling) _shutterText.text = PhotoCooldown.RemainingText;
+
+            // 結果泡泡：0.3 秒彈出（c5Pop），2.2 秒後收掉
+            float left = _camToastUntil - Time.unscaledTime;
+            bool show = left > 0f;
+            if (_camToast.gameObject.activeSelf != show) _camToast.gameObject.SetActive(show);
+            if (show)
+            {
+                float p = Mathf.Clamp01((2.2f - left) / 0.3f);
+                _camToast.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, 1f - (1f - p) * (1f - p));
+            }
         }
 
         void BuildStack()
@@ -484,22 +697,32 @@ namespace BlockPet.Hand
 
         void Send()
         {
-            string text = (_input.text ?? "").Trim();
-            var fb = FirebaseManager.Instance;
-            if (text.Length == 0 || fb == null || _shots.Count == 0) return;
+            if (_shots.Count == 0) return;
             var s = _shots[_index];
-            var post = PostOf(s.meta);
-            string caption = !string.IsNullOrEmpty(s.meta.caption) ? s.meta.caption : "餵了一張照片";
+            if (SendComment(s.meta, s.who, _input.text)) _input.text = "";
+        }
+
+        /// <summary>
+        /// 留言給一張照片：就是聊天室裡回覆這張照片的訊息（照片的餵食貼文；沒有貼文時回覆 photo:{檔名}），
+        /// 所以聊天室、分割畫面、相簿的照片檢視看到的是同一份留言。送出成功回傳 true。
+        /// </summary>
+        public static bool SendComment(PhotoMeta meta, string who, string text)
+        {
+            text = (text ?? "").Trim();
+            var fb = FirebaseManager.Instance;
+            if (text.Length == 0 || fb == null || meta == null) return false;
+            var post = PostOf(meta);
+            string caption = !string.IsNullOrEmpty(meta.caption) ? meta.caption : "餵了一張照片";
             var msg = new ChatMessage(fb.GetDisplayName(), text)
             {
                 senderId = fb.GetUserId(),
                 kind = "text",
-                replyToMessageId = post != null && !string.IsNullOrEmpty(post.msg.messageId) ? post.msg.messageId : PhotoRef(s.meta),
-                replyToDisplayName = s.who,
+                replyToMessageId = post != null && !string.IsNullOrEmpty(post.msg.messageId) ? post.msg.messageId : PhotoRef(meta),
+                replyToDisplayName = who,
                 replyToMessagePreview = "照片：" + caption,
             };
             fb.SendChatMessage(msg);
-            _input.text = "";
+            return true;
         }
 
         // ─── 版面 ──────────────────────────────────────────────────────
@@ -519,7 +742,7 @@ namespace BlockPet.Hand
             _screenH = h / _k;
             _design.localScale = Vector3.one * _k;
             _design.sizeDelta = new Vector2(DesignW, _screenH);
-            _design.anchoredPosition = new Vector2(0f, -_topInset);
+            _design.anchoredPosition = new Vector2(0f, -_topInset * _k); // _topInset 是設計單位，位移要換回畫布單位
             // 營地維持設計稿的 266；螢幕比較長時多的高度給大照片，比較短時先縮營地（最少 200）、再縮照片
             float room = _screenH - _topInset - _bottomInset - 14f;   // 營地底下留 14
             float campH = Mathf.Clamp(room - 492f, 200f, 266f);
@@ -597,7 +820,7 @@ namespace BlockPet.Hand
             chev.SetPoints(new Vector2(23f, 13f), new Vector2(23f, 27f), new Vector2(16f, 20f));
             var bb = back.gameObject.AddComponent<Button>();
             bb.targetGraphic = bbg;
-            bb.onClick.AddListener(Close);
+            bb.onClick.AddListener(() => { if (_camMode) ExitCamera(); else Close(); });
 
             _stack = Place(bar, "Stack", 48, 6, 120, 40);
             _title = Label(bar, 120, 9, 160, 18, "", 13, Ink, TextAlignmentOptions.Left);
@@ -642,10 +865,15 @@ namespace BlockPet.Hand
             _photo = Place(frame, "Img", 0, 0, PhotoSize, PhotoSize).gameObject.AddComponent<RawImage>();
             _photo.raycastTarget = false;
             // 左右滑換張（HandSwipe 只看水平方向）
-            var swipe = frame.gameObject.AddComponent<HandSwipe>();
+            var swipe = _swipe = frame.gameObject.AddComponent<HandSwipe>();
             swipe.space = _design;
             swipe.onEnd = dx => { if (dx < -40f) Show(_index + 1); else if (dx > 40f) Show(_index - 1); };
             frameBg.raycastTarget = true;
+            // 點大照片（沒有拖曳）：打開拍立得照片檢視（5.14 ⑥），關掉後回到這裡
+            var tap = frame.gameObject.AddComponent<Button>();
+            tap.targetGraphic = frameBg;
+            tap.transition = Selectable.Transition.None;
+            tap.onClick.AddListener(OpenPhotoView);
 
             _newTag = Place(frame, "NewTag", PhotoSize - 10f - 32f, 10, 32, 20);
             UIShapes.AddRounded(Place(_newTag, "Edge", 0, 2, 32, 20).gameObject, CoralEdge, 8).raycastTarget = false;
@@ -656,6 +884,34 @@ namespace BlockPet.Hand
             _nextBtn = Arrow(frame, PhotoSize - 6f - 44f, false);
 
             _overlay = Place(frame, "Overlay", 10, 10, PhotoSize - 20f, PhotoSize - 20f);
+
+            // 相機畫面（相機模式才顯示；置中，依鏡頭方向旋轉）
+            _camView = Place(frame, "Camera", 0, 0, PhotoSize, PhotoSize).gameObject.AddComponent<RawImage>();
+            _camView.rectTransform.anchorMin = _camView.rectTransform.anchorMax = _camView.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _camView.rectTransform.anchoredPosition = Vector2.zero;
+            _camView.raycastTarget = false;
+            _camView.color = Color.white;
+            _camView.gameObject.SetActive(false);
+
+            // 右上：翻轉鏡頭（深色半透明圓＋繞圈箭頭）
+            _flipBtn = Place(frame, "Flip", 0, 0, 44, 44);
+            _flipBtn.anchorMin = _flipBtn.anchorMax = _flipBtn.pivot = new Vector2(1f, 1f);
+            _flipBtn.anchoredPosition = new Vector2(-10f, -10f);
+            var fbg = UIShapes.AddRounded(_flipBtn.gameObject, new Color(Dark.r, Dark.g, Dark.b, 0.4f), 22);
+            UIShapes.AddThinRing(Place(_flipBtn, "Circle", 11, 11, 22, 22).gameObject, Color.white, 11);
+            // 兩個箭頭尖：右上往下、左下往上，看起來是繞一圈
+            var a1 = AddGraphic<UIPolygon>(Place(_flipBtn, "ArrowA", 0, 0, 44, 44));
+            a1.color = Color.white;
+            a1.raycastTarget = false;
+            a1.SetPoints(new Vector2(29f, 17f), new Vector2(37f, 17f), new Vector2(33f, 23f));
+            var a2 = AddGraphic<UIPolygon>(Place(_flipBtn, "ArrowB", 0, 0, 44, 44));
+            a2.color = Color.white;
+            a2.raycastTarget = false;
+            a2.SetPoints(new Vector2(7f, 27f), new Vector2(15f, 27f), new Vector2(11f, 21f));
+            var fb = _flipBtn.gameObject.AddComponent<Button>();
+            fb.targetGraphic = fbg;
+            fb.onClick.AddListener(FlipCamera);
+            _flipBtn.gameObject.SetActive(false);
 
             // 留言框
             var row = _commentRow = Place(card, "Comment", 8, 8 + PhotoSize + 8, PhotoSize, 40);
@@ -753,6 +1009,34 @@ namespace BlockPet.Hand
             _petSay = Label(_sayBubble, 0, 0, 0, 0, "", 13, Ink, TextAlignmentOptions.Center);
             StretchIn(_petSay.rectTransform);
             _petSay.enableWordWrapping = false;
+
+            // 右側中間：半透明快門圈圈（56，白色細外框＋中間 42 的白圓）
+            _shutter = Place(inner, "Shutter", 0, 0, 56, 56);
+            _shutter.anchorMin = _shutter.anchorMax = new Vector2(1f, 0.5f);
+            _shutter.pivot = new Vector2(1f, 0.5f);
+            _shutter.anchoredPosition = new Vector2(-9f, 0f); // 框的右邊 12（內框已縮 3）
+            _shutterGroup = _shutter.gameObject.AddComponent<CanvasGroup>();
+            UIShapes.AddShadow(_shutter, new Color(0, 0, 0, 0.2f), 28, 10, 3);
+            var disc = UIShapes.AddRounded(Place(_shutter, "Disc", 0, 0, 56, 56).gameObject, new Color(Dark.r, Dark.g, Dark.b, 0.15f), 28);
+            UIShapes.AddThinRing(Place(_shutter, "Ring", 0, 0, 56, 56).gameObject, new Color(1f, 1f, 1f, 0.8f), 28);
+            _shutterCore = UIShapes.AddRounded(Place(_shutter, "Core", 7, 7, 42, 42).gameObject, new Color(1f, 1f, 1f, 0.6f), 21);
+            _shutterCore.raycastTarget = false;
+            _shutterText = Label(_shutter, 0, 0, 56, 56, "", 12, Ink, TextAlignmentOptions.Center);
+            _shutterText.enableWordWrapping = false;
+            var shoot = _shutter.gameObject.AddComponent<Button>();
+            shoot.targetGraphic = disc;
+            shoot.onClick.AddListener(Shoot);
+
+            // 左下：拍完的結果
+            _camToast = Place(inner, "ShotResult", 0, 0, 160, 44);
+            _camToast.anchorMin = _camToast.anchorMax = _camToast.pivot = new Vector2(0f, 0f);
+            _camToast.anchoredPosition = new Vector2(9f, 11f);
+            UIShapes.AddShadow(_camToast, new Color(0, 0, 0, 0.22f), 14, 8, 3);
+            StretchIn(UIShapes.AddRounded(Place(_camToast, "Fill", 0, 0, 0, 0).gameObject, Card, 14).rectTransform);
+            _camToastTitle = Label(_camToast, 12, 5, 200, 20, "", 14, Hex(0xE0662E), TextAlignmentOptions.Left);
+            _camToastSub = Label(_camToast, 12, 24, 200, 16, "", 11, Muted, TextAlignmentOptions.Left);
+            _camToastTitle.enableWordWrapping = _camToastSub.enableWordWrapping = false;
+            _camToast.gameObject.SetActive(false);
         }
 
         TMP_InputField BuildInput(RectTransform parent, float x, float y, float w, float h)

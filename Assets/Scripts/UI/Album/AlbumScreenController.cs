@@ -15,7 +15,7 @@ namespace BlockPet.UI.Album
     /// - 照日期分組（今天／昨天／M/D（週）＋張數），兩欄照片卡：誰拍的、時間、說明、emoji 與留言數。
     /// - 上次打開之後的新照片有黃框與「新」。
     /// - 右上「篩選」：類別（照片辨識的結果）、誰拍的；「看 N 張」才套用，有篩選時按鈕變深色並顯示項目數。
-    /// - 右上聊天鈕顯示未讀數；點照片打開大圖（AlbumUIManager.OpenPhotoDetail）。
+    /// - 右上聊天鈕顯示未讀數；點照片打開拍立得照片檢視（PhotoViewScreen）。
     /// emoji 與留言數取自聊天室裡同一張照片的那則餵食訊息（FirebaseManager.ChatEntries）。
     /// 介面在執行時以 390 寬設計座標建立，依螢幕寬度等比縮放；照片縮圖逐張載入。
     /// 由「BlockPet/Build Chat And Album」掛到 AlbumPage，並關掉舊的相簿面板。
@@ -358,7 +358,15 @@ namespace BlockPet.UI.Album
             b.targetGraphic = bg;
             b.transition = Selectable.Transition.None;
             var meta = s.meta;
-            b.onClick.AddListener(() => AlbumUIManager.Resolve()?.OpenPhotoDetail(meta));
+            b.onClick.AddListener(() => OpenPhoto(meta));
+        }
+
+        /// <summary>點照片：打開拍立得照片檢視（5.14 ⑥），可以在目前篩選出來的照片之間左右滑。</summary>
+        void OpenPhoto(PhotoMeta meta)
+        {
+            var list = Filtered(_who, _cat);
+            var metas = list.ConvertAll(x => x.meta);
+            PhotoViewScreen.Open(metas, Mathf.Max(0, metas.IndexOf(meta)), skin != null ? skin.font : null, background);
         }
 
         static void SetThumb(RawImage img, Texture tex)

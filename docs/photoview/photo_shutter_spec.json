@@ -1,0 +1,31 @@
+{
+ "_note": "BlockPet 相簿照片檢視 A（設計稿 聊天室與相簿 → PhotoAltA）＋分割畫面快門 G（首頁 v8 照片分割 → Camp8CamG、Camp8CamShot）。@1x，畫框 390x772，原點左上。PNG 為 @3x，Pixels Per Unit 300；9-slice 見 photo_shutter_assets.json。完整規格見設計文件 5.14 ⑥、5.16 ⑤。",
+ "photo_view_A": {
+  "background": {"color": "#F7F0E2", "campImage": {"blur": 14, "opacity": 0.16}},
+  "close": {"rect": [12, 12, 44, 44], "sprite": "photo_btn_close"},
+  "polaroid": {"rect": [30, 60, 330, null], "padding": [12, 12, 14, 12], "sprite": "photo_polaroid_frame", "tiltDeg": {"odd": 1.5, "even": -1.5}, "enter": "0.3s 由下 8 淡入"},
+  "photo": {"size": [306, 306], "mask": "photo_mask"},
+  "tape": {"rect": [125, -12, 80, 24], "rotateDeg": -3, "sprite": "photo_tape"},
+  "caption": {"marginTop": 12, "font": "Huninn 21", "color": "#3A2E22"},
+  "byline": {"marginTop": 6, "avatar": 22, "text": "小美・今天 10:02", "font": "12 Black", "color": "#8A6A4E"},
+  "swipe": {"thresholdPx": 40, "left": "下一張", "right": "上一張", "loop": false, "tapZonesWidth": 90},
+  "dots": {"y": 470, "gap": 6, "off": "photo_dot", "on": "photo_dot_on"},
+  "comments": {"rect": [16, 492, 358, "到輸入列上方"], "gap": 14, "scroll": true,
+   "item": {"avatar": 36, "avatarGap": 10, "name": "14 Black（成員深色）", "time": "11 Bold #A8977F，名字後間距 8", "text": "14 Medium #3A2E22，行高 1.45，可換行"},
+   "nameColors": {"小美": "#C2577A", "阿哲": "#4F6FC4", "媽媽": "#4F8F45", "我": "#B07F12"},
+   "avatarColors": {"小美": "#E88AA8", "阿哲": "#6F8FE0", "媽媽": "#6FA45F", "我": "#D9A92C"},
+   "timeFormat": ["今天 10:15", "昨天 18:00", "10/20 18:30", "2025/12/3 18:30"],
+   "empty": "還沒有留言，說點什麼吧（13 Black #8A6A4E）"},
+  "inputBar": {"bottom": 0, "padding": [8, 12, 20, 12], "gap": 8, "sprite": "photo_input_bar", "input": {"h": 42, "sprite": "chat_input", "font": "15 Bold", "placeholder": "留言…"}, "send": {"size": 42, "on": "btn_send_on", "off": "btn_send_off"}}
+ },
+ "shutter_G": {
+  "parent": "分割畫面寵物框 (14, 492) 362 x 266，邊 3",
+  "rect_in_frame": {"right": 12, "top": 102, "w": 56, "h": 56, "note": "貼右側、垂直置中"},
+  "layers": ["btn_shutter_bg（毛玻璃 4）", "btn_shutter_ring（alpha 0.8）", "btn_shutter_core（42，alpha 0.6，置中）"],
+  "shadow": "0 3 10 rgba(0,0,0,0.2)",
+  "petSpeech": "寵物說話泡泡移到框內 (204, 62)，避開快門",
+  "tap": "開相機（同手牌拍照牌）→ 拍完直接餵寵物，照片排到照片疊最前面",
+  "toast": {"rect_in_frame": {"left": 12, "bottom": 14}, "sprite": "cam_toast_card", "padding": [6, 12], "pop": "0.3s", "hide": "2.2s",
+   "good": ["好好吃！ 14 Black #E0662E", "命中喜好・進化 +12 11 Bold #6B5D4E"], "miss": ["嗯…？", "想吃美食・進化 +3"]}
+ }
+}

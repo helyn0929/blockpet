@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80ab8fb834bb5406688f67b95766dc9e, type: 3}
+  m_Name: PhotoViewSkin
+  m_EditorClassIdentifier: 
+  close: {fileID: 21300000, guid: b1ce6e15aacc84d82a9e95bd6c5c84d6, type: 3}
+  polaroidFrame: {fileID: 21300000, guid: 7b42003e826d2451aacde57c9a736855, type: 3}
+  photoMask: {fileID: 21300000, guid: dadcca78efaf64b3f8374572a61f87f2, type: 3}
+  tape: {fileID: 21300000, guid: e474d3d16419948a6b1f2577c231d376, type: 3}
+  dot: {fileID: 21300000, guid: c6d63b727d7834bfbbcb562777871062, type: 3}
+  dotOn: {fileID: 21300000, guid: 4bf7e2ccfa00b4cbfbbd1be820b42167, type: 3}
+  avatar: {fileID: 21300000, guid: 43cbb5f1515d7463c8e00f82507904ba, type: 3}
+  inputBar: {fileID: 21300000, guid: 9190bac722f964e7ba53377bc765416d, type: 3}
+  chatInput: {fileID: 21300000, guid: 95d78ef454eeb431fbd6bc980265d5fd, type: 3}
+  sendOn: {fileID: 21300000, guid: db6e8ec7094b34d7a9973b4f82ca34ff, type: 3}
+  sendOff: {fileID: 21300000, guid: 4c74d9651cf924cd3b03cb6dc2bbe8ca, type: 3}

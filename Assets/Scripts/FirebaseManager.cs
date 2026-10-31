@@ -1133,31 +1133,52 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>讀某個空間最新的幾則聊天（舊到新），給選擇空間頁的留言彈幕用。callback 在主執行緒。</summary>
+    /// <summary>
+    /// 某個空間最新的 count 則文字留言（舊到新），給選空間頁的彈幕用。
+    /// 餵食照片的貼文多半沒有文字，所以往前多抓一些再挑有文字的（只抓最後 count 則時，常常全是照片貼文、一則都不剩）。
+    /// 還沒登入或查詢失敗時回傳 null（呼叫端不要快取，之後再查）。
+    /// </summary>
     public void GetRecentChat(string roomId, int count, Action<List<ChatMessage>> done)
     {
         if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(roomId))
         {
-            done?.Invoke(new List<ChatMessage>());
+            done?.Invoke(null);
             return;
         }
-        dbRef.Child("Rooms").Child(roomId).Child("Chat").OrderByChild("timestamp").LimitToLast(count)
+        // 目前空間的聊天室已經在監聽，直接用記憶體裡的（同一路徑再 GetValueAsync 會觸發桌面版 SDK 的斷言）
+        if (roomId == RoomId && _chatEntries.Count > 0)
+        {
+            var mine = new List<ChatMessage>();
+            foreach (var e in _chatEntries)
+                if (e?.msg != null && !string.IsNullOrWhiteSpace(e.msg.message)) mine.Add(e.msg);
+            mine.Sort((a, b) => a.timestamp.CompareTo(b.timestamp));
+            if (mine.Count > count) mine.RemoveRange(0, mine.Count - count);
+            done?.Invoke(mine);
+            return;
+        }
+        int scan = Mathf.Max(count * 8, 40);
+        dbRef.Child("Rooms").Child(roomId).Child("Chat").OrderByChild("timestamp").LimitToLast(scan)
             .GetValueAsync().ContinueWith(t =>
             {
-                var list = new List<ChatMessage>();
-                if (t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null)
+                if (t.IsFaulted || t.IsCanceled || t.Result == null)
                 {
-                    foreach (var child in t.Result.Children)
+                    Debug.LogWarning("[FirebaseManager] GetRecentChat failed: " + (t.Exception?.Flatten().InnerException?.Message ?? "canceled"));
+                    lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(null));
+                    return;
+                }
+                var list = new List<ChatMessage>();
+                foreach (var child in t.Result.Children)
+                {
+                    try
                     {
-                        try
-                        {
-                            string json = child.GetRawJsonValue();
-                            var msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
-                            if (msg != null && !string.IsNullOrEmpty(msg.message)) list.Add(msg);
-                        }
-                        catch { }
+                        string json = child.GetRawJsonValue();
+                        var msg = json != null ? JsonUtility.FromJson<ChatMessage>(json) : null;
+                        if (msg != null && !string.IsNullOrWhiteSpace(msg.message)) list.Add(msg);
                     }
+                    catch { }
                 }
                 list.Sort((a, b) => a.timestamp.CompareTo(b.timestamp));
+                if (list.Count > count) list.RemoveRange(0, list.Count - count);
                 lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(list));
             });
     }
@@ -1909,6 +1930,42 @@ public class FirebaseManager : MonoBehaviour
                 Debug.LogWarning("[FirebaseManager] UploadAvatarBase64 failed: " + t.Exception?.GetBaseException()?.Message);
             else
                 Debug.Log("[FirebaseManager] Avatar uploaded to Firebase.");
+        });
+    }
+
+    /// <summary>其他成員看的頭貼小縮圖（128px JPG）：Users/{uid}/avatarThumb。</summary>
+    public void UploadAvatarThumb(string base64)
+    {
+        string uid = GetUserId();
+        if (string.IsNullOrEmpty(uid) || dbRef == null || string.IsNullOrEmpty(base64)) return;
+        dbRef.Child(UsersNode).Child(uid).Child("avatarThumb").SetValueAsync(base64).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Debug.LogWarning("[FirebaseManager] UploadAvatarThumb failed: " + t.Exception?.GetBaseException()?.Message);
+        });
+    }
+
+    /// <summary>
+    /// 讀某個成員的頭貼（base64）：先讀小縮圖 avatarThumb；舊資料沒有縮圖時讀原本的備份 avatarBase64。
+    /// 沒有頭貼或讀不到回傳 null（主執行緒）。
+    /// </summary>
+    public void DownloadUserAvatar(string uid, System.Action<string> onResult)
+    {
+        if (string.IsNullOrEmpty(uid) || dbRef == null || auth?.CurrentUser == null) { onResult?.Invoke(null); return; }
+        var user = dbRef.Child(UsersNode).Child(uid);
+        user.Child("avatarThumb").GetValueAsync().ContinueWith(t =>
+        {
+            string thumb = !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists ? t.Result.Value as string : null;
+            if (!string.IsNullOrEmpty(thumb))
+            {
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onResult?.Invoke(thumb));
+                return;
+            }
+            user.Child("avatarBase64").GetValueAsync().ContinueWith(t2 =>
+            {
+                string full = !t2.IsFaulted && !t2.IsCanceled && t2.Result != null && t2.Result.Exists ? t2.Result.Value as string : null;
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onResult?.Invoke(full));
+            });
         });
     }
 

@@ -82,6 +82,7 @@ public class AvatarManager : MonoBehaviour
             if (tex.LoadImage(bytes))
             {
                 CurrentAvatar = tex;
+                SyncThumbOnce(tex);
             }
             else
             {
@@ -164,6 +165,9 @@ public class AvatarManager : MonoBehaviour
             // Back up to Firebase so avatar survives reinstall.
             if (FirebaseManager.Instance != null)
                 FirebaseManager.Instance.UploadAvatarBase64(Convert.ToBase64String(bytes));
+            // 其他成員看的小縮圖（相簿、聊天室、成員列表的圓形頭像）
+            UploadThumb(texture);
+            _thumbSynced = true;
         }
         catch (Exception e)
         {
@@ -284,6 +288,52 @@ public class AvatarManager : MonoBehaviour
         string oldPath = Path.Combine(avatarFolder, old);
         try { if (File.Exists(oldPath)) File.Delete(oldPath); }
         catch (Exception e) { Debug.LogWarning("[AvatarManager] Could not delete old avatar: " + e.Message); }
+    }
+
+    // ================================================================
+    //  其他成員看的小縮圖：置中裁成正方形 128px JPG，存在 Users/{uid}/avatarThumb
+    // ================================================================
+
+    const int ThumbSize = 128;
+    static bool _thumbSynced;
+
+    /// <summary>登入後補傳一次（之前設的頭貼沒有縮圖，其他成員才看得到）。</summary>
+    void SyncThumbOnce(Texture2D tex)
+    {
+        if (_thumbSynced || tex == null) return;
+        _thumbSynced = true;
+        UploadThumb(tex);
+    }
+
+    static void UploadThumb(Texture2D tex)
+    {
+        if (FirebaseManager.Instance == null || tex == null) return;
+        try
+        {
+            var bytes = MakeThumb(tex);
+            if (bytes != null) FirebaseManager.Instance.UploadAvatarThumb(Convert.ToBase64String(bytes));
+        }
+        catch (Exception e) { Debug.LogWarning("[AvatarManager] Avatar thumbnail failed: " + e.Message); }
+    }
+
+    static byte[] MakeThumb(Texture2D source)
+    {
+        int side = Mathf.Min(source.width, source.height);
+        if (side <= 0) return null;
+        var scale = new Vector2((float)side / source.width, (float)side / source.height);
+        var offset = new Vector2((1f - scale.x) / 2f, (1f - scale.y) / 2f);
+        var rt = RenderTexture.GetTemporary(ThumbSize, ThumbSize);
+        Graphics.Blit(source, rt, scale, offset);
+        var prev = RenderTexture.active;
+        RenderTexture.active = rt;
+        var thumb = new Texture2D(ThumbSize, ThumbSize, TextureFormat.RGB24, false);
+        thumb.ReadPixels(new Rect(0, 0, ThumbSize, ThumbSize), 0, 0);
+        thumb.Apply();
+        RenderTexture.active = prev;
+        RenderTexture.ReleaseTemporary(rt);
+        var bytes = thumb.EncodeToJPG(80);
+        Destroy(thumb);
+        return bytes;
     }
 
     /// <summary>Down-scale to maxSize on longest edge while preserving aspect ratio.</summary>

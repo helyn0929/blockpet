@@ -415,8 +415,10 @@ namespace BlockPet.UI.Chat
             {
                 var av = Place(row, "Avatar", SidePad, 16, 30, 30);
                 UIShapes.AddRounded(av.gameObject, Card, 15).raycastTarget = false;
-                UIShapes.AddRounded(Place(av, "Fill", 2, 2, 26, 26).gameObject, PersonColor(who, false), 13).raycastTarget = false;
+                var avFill = Place(av, "Fill", 2, 2, 26, 26);
+                UIShapes.AddRounded(avFill.gameObject, PersonColor(who, false), 13).raycastTarget = false;
                 Label(av, 0, 0, 30, 30, Initial(who, false), 12, Color.white, TextAlignmentOptions.Center);
+                AvatarPhoto.Attach(avFill, e.msg.senderId);
                 var name = Label(row, colX + 4f, 0, 200, 15, who, 11, Muted, TextAlignmentOptions.Left);
                 name.enableWordWrapping = false;
                 top = 18f;

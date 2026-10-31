@@ -383,6 +383,7 @@ namespace BlockPet.UI.Room
                 var av = Place(row, "Avatar", 14, 10, 36, 36);
                 UIShapes.AddRounded(av.gameObject, ChatScreenController.PersonColor(name, mine), 18).raycastTarget = false;
                 Label(av, 0, 0, 36, 36, ChatScreenController.Initial(name, mine), 14, Color.white, TextAlignmentOptions.Center);
+                AvatarPhoto.Attach(av, m.uid);
                 var n = Label(row, 62, 0, ContentW - 62f - 90f, 56, name, 15, Ink, TextAlignmentOptions.Left);
                 n.enableWordWrapping = false;
                 n.overflowMode = TextOverflowModes.Ellipsis;

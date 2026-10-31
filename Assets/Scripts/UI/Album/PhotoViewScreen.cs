@@ -14,6 +14,7 @@ namespace BlockPet.UI.Album
     /// 相簿點照片、分割畫面點大照片都打開這裡，從點的那張開始；左上關閉回到原本的畫面。
     /// - 拍立得：左右滑超過 40 換張（不循環），點左右兩側 90 寬也能換；換張 0.3 秒由下淡入；單數張、雙數張輕微反向傾斜。
     /// - 位置點、Discord 式留言列表（可捲動）、底部輸入列。
+    /// - 點拍立得中間：從下方滑出「儲存到相簿／分享／取消」（原始照片＋右下 BlockPet 浮水印，見 PhotoExport）。
     /// 留言就是聊天室裡回覆這張照片的訊息（與分割畫面共用 PhotoSplitView.CommentsOf／SendComment），所以三個地方看到的是同一份。
     /// 執行時自己建一個最上層的 Screen Space Overlay，390 設計寬度等比縮放；素材從 Resources 的 PhotoViewSkin 讀。
     /// </summary>
@@ -66,10 +67,22 @@ namespace BlockPet.UI.Album
         RenderTexture _blurred;
         TMP_Text _caption, _byline, _bylineInitial, _empty;
         Image _bylineAvatar, _send;
+        AvatarPhoto _bylinePhoto;
+        RectTransform _category;
+        Image _categoryDot;
+        TMP_Text _categoryText;
         Button _sendBtn;
         TMP_InputField _input;
         float _lastW = -1f, _lastH = -1f, _k = 1f;
         Rect _lastSafe;
+
+        // 儲存／分享選單
+        RectTransform _sheetLayer, _sheetPanel;
+        CanvasGroup _sheetGroup, _toastGroup;
+        TMP_Text _saveText, _shareText, _toastText;
+        RectTransform _toast;
+        bool _sheetOpen, _exporting;
+        float _sheetT, _toastUntil, _bottomInset;
 
         readonly Dictionary<string, Texture> _textures = new Dictionary<string, Texture>();
         Coroutine _loader;
@@ -114,6 +127,7 @@ namespace BlockPet.UI.Album
         {
             if (!_open) return;
             _open = false;
+            _sheetOpen = false;
             FirebaseManager.OnChatEntryAdded -= OnChat;
             FirebaseManager.OnChatEntryChanged -= OnChat;
             FirebaseManager.OnChatEntryRemoved -= OnChatRemoved;
@@ -156,6 +170,7 @@ namespace BlockPet.UI.Album
             }
 
             if (_commentsDirty) { _commentsDirty = false; BuildComments(); }
+            UpdateSheet(dt);
 
             bool hasText = !string.IsNullOrWhiteSpace(_input.text);
             if (_sendBtn.interactable != hasText || _send.sprite == null)
@@ -191,11 +206,13 @@ namespace BlockPet.UI.Album
             _polaroidGroup.alpha = animate ? 0f : 1f;
             _polaroid.anchoredPosition = new Vector2(30f + PolaroidW / 2f, -(60f + PolaroidH / 2f) - (animate ? 8f : 0f));
 
-            _caption.text = !string.IsNullOrEmpty(m.caption) ? m.caption : (mine ? "我餵的照片" : who + " 餵的照片");
+            _caption.text = m.caption ?? ""; // 沒寫說明就空著（不再放「我餵的照片」）
             DateTime.TryParse(m.timestamp, out var t);
             _byline.text = t == default ? who : who + "・" + FormatTime(t);
+            SetCategory(m.category);
             _bylineAvatar.color = mine ? MeAvatar : ChatScreenController.PersonColor(who, false);
             _bylineInitial.text = ChatScreenController.Initial(who, mine);
+            _bylinePhoto?.SetUser(m.takerUserId);
 
             _photo.texture = _textures.TryGetValue(m.fileName, out var tex) ? tex : null;
             _photo.enabled = _photo.texture != null;
@@ -207,6 +224,26 @@ namespace BlockPet.UI.Album
 
             if (_loader != null) StopCoroutine(_loader);
             _loader = StartCoroutine(LoadTextures());
+        }
+
+        /// <summary>拍立得右下的照片分類（照片辨識結果）；沒有分類就藏起來，誰拍的那一列用整排寬度。</summary>
+        void SetCategory(string category)
+        {
+            bool has = !string.IsNullOrEmpty(category);
+            _category.gameObject.SetActive(has);
+            float bylineW = PhotoSize - 28f;
+            if (has)
+            {
+                _categoryText.text = category;
+                _categoryDot.color = AlbumScreenController.CategoryColor(category);
+                float cw = Mathf.Ceil(_categoryText.GetPreferredValues(category).x) + 19f + 9f;
+                _categoryText.rectTransform.sizeDelta = new Vector2(cw - 19f, 22f);
+                _category.sizeDelta = new Vector2(cw, 22f);
+                _category.anchoredPosition = new Vector2(12f + PhotoSize - cw, _category.anchoredPosition.y);
+                bylineW -= cw + 8f;
+            }
+            _byline.rectTransform.sizeDelta = new Vector2(bylineW, 22f);
+            _byline.overflowMode = TextOverflowModes.Ellipsis;
         }
 
         void FitPhoto()
@@ -316,6 +353,7 @@ namespace BlockPet.UI.Album
                 avImg.raycastTarget = false;
                 if (avImg.sprite == null) { Destroy(avImg); UIShapes.AddRounded(av.gameObject, light, 18).raycastTarget = false; }
                 Label(av, 0, 0, 36, 36, ChatScreenController.Initial(name, mine), 14, Color.white, TextAlignmentOptions.Center);
+                AvatarPhoto.Attach(av, e.msg.senderId);
 
                 // 第一行：名字（成員深色）＋間距 8＋日期時間
                 var nameLabel = Label(_content, 46, y, TextW, 20, name, 14, dark, TextAlignmentOptions.Left);
@@ -407,6 +445,9 @@ namespace BlockPet.UI.Album
             _design.anchoredPosition = new Vector2(0f, -topInset * _k); // 位移是畫布單位
 
             // 輸入列貼底（含底部安全區），留言列表從 y 492 到輸入列上方
+            _bottomInset = bottomInset;
+            _sheetPanel.localScale = Vector3.one * _k;
+            _sheetPanel.sizeDelta = new Vector2(DesignW, SheetH + bottomInset);
             float barH = InputH + bottomInset;
             _inputBar.sizeDelta = new Vector2(DesignW, barH);
             var view = (RectTransform)_scroll.transform;
@@ -495,6 +536,7 @@ namespace BlockPet.UI.Album
             _empty = Label(view, 0, 16, 358, 24, "還沒有留言，說點什麼吧", 13, Byline, TextAlignmentOptions.Center);
 
             BuildInputBar();
+            BuildSheet();
             gameObject.SetActive(false);
         }
 
@@ -531,7 +573,16 @@ namespace BlockPet.UI.Album
             _bylineAvatar.sprite = _skin?.avatar;
             _bylineAvatar.raycastTarget = false;
             _bylineInitial = Label(av, 0, 0, 22, 22, "", 10, Color.white, TextAlignmentOptions.Center);
+            _bylinePhoto = AvatarPhoto.Attach(av, null);
             _byline = Label(_polaroid, 40, by, PhotoSize - 28f, 22, "", 12, Byline, TextAlignmentOptions.Left);
+
+            // 照片分類：誰拍的那一列最右邊，膠囊（底 #F2E9D8）＋類別色圓點＋類別名
+            _category = Place(_polaroid, "Category", 0, by, 80, 22);
+            UIShapes.AddRounded(_category.gameObject, Hex(0xF2E9D8), 11).raycastTarget = false;
+            _categoryDot = UIShapes.AddRounded(Place(_category, "Dot", 8, 7.5f, 7, 7).gameObject, Color.white, 3.5f);
+            _categoryDot.raycastTarget = false;
+            _categoryText = Label(_category, 19, 0, 80, 22, "", 11, Ink, TextAlignmentOptions.Left);
+            _categoryText.enableWordWrapping = false;
             _byline.enableWordWrapping = false;
 
             // 膠帶：上緣中間 (125, −12) 80 × 24，轉 −3°（逆時針）
@@ -550,6 +601,13 @@ namespace BlockPet.UI.Album
             swipe.onEnd = dx => { if (dx < -40f) Go(1); else if (dx > 40f) Go(-1); };
             TapZone(0f, -1);
             TapZone(PolaroidW - 90f, 1);
+
+            // 中間：打開儲存／分享選單
+            var mid = Place(_polaroid, "MenuZone", 90, 0, PolaroidW - 180f, PolaroidH);
+            mid.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+            var mb = mid.gameObject.AddComponent<Button>();
+            mb.transition = Selectable.Transition.None;
+            mb.onClick.AddListener(OpenSheet);
         }
 
         void TapZone(float x, int delta)
@@ -604,6 +662,132 @@ namespace BlockPet.UI.Album
             _sendBtn.onClick.AddListener(Send);
             _sendBtn.interactable = false;
             _send.sprite = null; // 第一次 Update 套用 on／off
+        }
+
+        // ─── 儲存／分享 ────────────────────────────────────────────────
+
+        const float SheetH = 16f + 22f + 12f + 50f + 10f + 50f + 10f + 44f + 12f;
+
+        void OpenSheet()
+        {
+            if (_exporting || _photos.Count == 0) return;
+            _sheetOpen = true;
+            _sheetLayer.gameObject.SetActive(true);
+        }
+
+        void CloseSheet()
+        {
+            if (!_exporting) _sheetOpen = false;
+        }
+
+        void UpdateSheet(float dt)
+        {
+            _sheetT = Mathf.MoveTowards(_sheetT, _sheetOpen ? 1f : 0f, dt / 0.22f);
+            float e = 1f - (1f - _sheetT) * (1f - _sheetT);
+            _sheetGroup.alpha = e;
+            _sheetGroup.blocksRaycasts = _sheetOpen;
+            _sheetPanel.anchoredPosition = new Vector2(0f, -(1f - e) * (SheetH + _bottomInset) * _k);
+            if (!_sheetOpen && _sheetT <= 0f && _sheetLayer.gameObject.activeSelf) _sheetLayer.gameObject.SetActive(false);
+            _saveText.text = _exporting ? "處理中…" : "儲存到相簿";
+            _shareText.text = _exporting ? "處理中…" : "分享";
+
+            _toastGroup.alpha = Mathf.MoveTowards(_toastGroup.alpha, Time.unscaledTime < _toastUntil ? 1f : 0f, dt / 0.2f);
+        }
+
+        void Export(bool share)
+        {
+            if (_exporting || _photos.Count == 0) return;
+            StartCoroutine(ExportRoutine(_photos[_index], share));
+        }
+
+        IEnumerator ExportRoutine(PhotoMeta meta, bool share)
+        {
+            _exporting = true;
+            yield return null; // 先讓「處理中…」顯示出來（讀大圖、加浮水印要一點時間）
+            Action<bool, string> done = (ok, msg) =>
+            {
+                _exporting = false;
+                _sheetOpen = false;
+                if (!string.IsNullOrEmpty(msg)) ShowToast(msg);
+            };
+            if (share) PhotoExport.Share(meta, done);
+            else PhotoExport.Save(meta, done);
+        }
+
+        void ShowToast(string msg)
+        {
+            _toastText.text = msg;
+            float w = Mathf.Min(DesignW - 40f, _toastText.GetPreferredValues(msg).x + 32f);
+            _toast.sizeDelta = new Vector2(w, 40f);
+            _toastUntil = Time.unscaledTime + 2.2f;
+        }
+
+        void BuildSheet()
+        {
+            // 全畫面暗底（點了關閉）＋貼底的面板（390 設計寬度，依螢幕寬縮放）
+            _sheetLayer = Stretch(_root, "Sheet");
+            _sheetGroup = _sheetLayer.gameObject.AddComponent<CanvasGroup>();
+            var dim = Stretch(_sheetLayer, "Dim");
+            var dimImg = dim.gameObject.AddComponent<Image>();
+            dimImg.color = new Color(20f / 255f, 24f / 255f, 14f / 255f, 0.45f);
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(CloseSheet);
+
+            _sheetPanel = new GameObject("Panel", typeof(RectTransform)).GetComponent<RectTransform>();
+            _sheetPanel.SetParent(_sheetLayer, false);
+            _sheetPanel.anchorMin = _sheetPanel.anchorMax = new Vector2(0.5f, 0f);
+            _sheetPanel.pivot = new Vector2(0.5f, 0f);
+            _sheetPanel.sizeDelta = new Vector2(DesignW, SheetH);
+            UIShapes.AddShadow(_sheetPanel, new Color(0, 0, 0, 0.18f), 24, 14, -4);
+            var bg = Stretch(_sheetPanel, "Fill");
+            UIShapes.AddRounded(bg.gameObject, Cream, 24);
+            // 下緣的圓角蓋掉（面板貼底）
+            var flat = Place(_sheetPanel, "Flat", 0, 0, DesignW, 30);
+            flat.anchorMin = flat.anchorMax = flat.pivot = new Vector2(0f, 0f);
+            flat.anchoredPosition = Vector2.zero;
+            flat.gameObject.AddComponent<Image>().color = Cream;
+            flat.GetComponent<Image>().raycastTarget = false;
+
+            var content = Place(_sheetPanel, "Content", 0, 0, DesignW, SheetH);
+            Label(content, 20, 16, DesignW - 40f, 22, "這張照片", 15, Ink, TextAlignmentOptions.Center);
+            float y = 16f + 22f + 12f;
+            _saveText = SheetButton(content, y, Hex(0xF6C945), Hex(0xD9A92C), () => Export(false));
+            y += 50f + 10f;
+            _shareText = SheetButton(content, y, Hex(0xF2E9D8), Hex(0xE2D6C0), () => Export(true));
+            y += 50f + 10f;
+            var cancel = Place(content, "Cancel", 20, y, DesignW - 40f, 44);
+            var cimg = cancel.gameObject.AddComponent<Image>();
+            cimg.color = new Color(0, 0, 0, 0);
+            Label(cancel, 0, 0, DesignW - 40f, 44, "取消", 15, Byline, TextAlignmentOptions.Center);
+            cancel.gameObject.AddComponent<Button>().onClick.AddListener(CloseSheet);
+
+            _sheetLayer.gameObject.SetActive(false);
+
+            // 結果提示（例：已存到相簿）：畫面中間偏下的深色膠囊
+            _toast = Place(_design, "Toast", 0, 430, 200, 40);
+            _toast.anchorMin = _toast.anchorMax = new Vector2(0.5f, 1f);
+            _toast.pivot = new Vector2(0.5f, 1f);
+            _toast.anchoredPosition = new Vector2(0f, -430f);
+            _toastGroup = _toast.gameObject.AddComponent<CanvasGroup>();
+            _toastGroup.alpha = 0f;
+            _toastGroup.blocksRaycasts = false;
+            var tbg = Stretch(_toast, "Fill");
+            UIShapes.AddRounded(tbg.gameObject, new Color(Ink.r, Ink.g, Ink.b, 0.88f), 20).raycastTarget = false;
+            _toastText = Label(_toast, 0, 0, 0, 0, "", 13, Color.white, TextAlignmentOptions.Center);
+            var trt = _toastText.rectTransform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.offsetMin = trt.offsetMax = Vector2.zero;
+        }
+
+        TMP_Text SheetButton(RectTransform parent, float y, Color fill, Color edge, UnityEngine.Events.UnityAction onClick)
+        {
+            float w = DesignW - 40f;
+            var b = Place(parent, "Button", 20, y, w, 50);
+            UIShapes.AddRounded(Place(b, "Edge", 0, 3, w, 50).gameObject, edge, 15).raycastTarget = false;
+            var face = UIShapes.AddRounded(Place(b, "Fill", 0, 0, w, 50).gameObject, fill, 15);
+            var label = Label(b, 0, 0, w, 50, "", 16, Ink, TextAlignmentOptions.Center);
+            var btn = b.gameObject.AddComponent<Button>();
+            btn.targetGraphic = face;
+            btn.onClick.AddListener(onClick);
+            return label;
         }
 
         // ─── UI helpers（與其他新版頁面相同的設計座標寫法）────────────

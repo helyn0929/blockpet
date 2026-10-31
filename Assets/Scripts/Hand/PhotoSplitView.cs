@@ -14,9 +14,9 @@ namespace BlockPet.Hand
     /// <summary>
     /// 分割畫面（設計稿首頁 v8「2 分割畫面：大照片＋留言＋縮小的營地」Camp8Photo，頂部用 A 版）：
     /// 點手牌最右邊的營地最新照片打開（從最新一張開始）；聊天室點餵食貼文的照片也會打開（從那一張開始，蓋在聊天室上面，返回就回聊天室）。
-    /// - 頂部玻璃列：返回、照片縮圖疊（目前這張黃框，最多 4 張＋「+N」）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）、
+    /// - 頂部玻璃列：返回、成員頭貼疊（目前這張的拍攝者金框在最前，最多 4 人＋「+N」，點了跳到他最近拍的那張）、「誰 的照片／多久前」、「新 N」（還沒看的新照片）、
     ///   最右邊聊天室入口（有未讀時右上角紅點數字）。
-    /// - 中間大照片（346×346）：左右滑或兩側箭頭換張；下方疊最近 2 則留言與說明；底下留言框。
+    /// - 中間大照片（346×346）：左右滑或兩側箭頭換張；下方疊最新 3 則留言（有寫說明時再加說明）；底下留言框。
     /// - 下方縮小的營地：寵物（愛心、進化條）看著照片說話；右側中間半透明快門圈圈（設計稿 Camp8CamG 定案 G），
     ///   點了大照片變成相機畫面（右上角翻轉鏡頭），再按一次快門拍下直接餵寵物，新照片排在最前面，左下角跳出結果（Camp8CamShot）；
     ///   相機畫面時左上返回是關掉相機。拍照冷卻中圈圈變暗、中間顯示倒數。
@@ -86,6 +86,11 @@ namespace BlockPet.Hand
         // 大照片
         RawImage _photo;
         RectTransform _newTag, _overlay;
+        // 大照片右上角：拍的人的頭貼（有頭貼顯示照片，沒有就是顏色＋首字）
+        RectTransform _taker;
+        Image _takerFill;
+        TMP_Text _takerInitial;
+        AvatarPhoto _takerPhoto;
         RectTransform _card, _cardFill, _frame, _commentRow, _prevBtn, _nextBtn;
         float _photoH = PhotoSize;   // 大照片的高度：螢幕比設計稿長時，多出來的高度給照片（營地維持 266）
         TMP_InputField _input;
@@ -337,6 +342,10 @@ namespace BlockPet.Hand
             _photo.enabled = _photo.texture != null;
             FitPhoto();
             _newTag.gameObject.SetActive(s.isNew);
+            _taker.gameObject.SetActive(true);
+            _takerFill.color = ChatScreenController.PersonColor(s.who, s.mine);
+            _takerInitial.text = ChatScreenController.Initial(s.who, s.mine);
+            _takerPhoto?.SetUser(s.meta.takerUserId);
             BuildOverlay(s);
             ((TMP_Text)_input.placeholder).text = s.mine ? "補一句話…" : "留言給 " + s.who + "…";
 
@@ -375,6 +384,7 @@ namespace BlockPet.Hand
             _photo.enabled = false;
             _overlay.gameObject.SetActive(false);
             _newTag.gameObject.SetActive(false);
+            _taker.gameObject.SetActive(false);
             _prevBtn.gameObject.SetActive(false);
             _nextBtn.gameObject.SetActive(false);
             _swipe.enabled = false;
@@ -539,44 +549,55 @@ namespace BlockPet.Hand
             }
         }
 
+        /// <summary>
+        /// 上方 bar 的圓圈：營地成員的頭貼疊在一起（設計稿 Camp8 方案 C）。最前面（最左、最上層、金框 38）是目前這張的拍攝者，
+        /// 後面依每個人最近一次拍照排（32、白框，每個往右重疊 12）；超過 4 人最後加「+N」。點某個成員 → 跳到他最近拍的那張。
+        /// 成員取自營地照片的拍攝者（還沒拍過照的成員不會出現）。
+        /// </summary>
         void BuildStack()
         {
             foreach (Transform c in _stack) Destroy(c.gameObject);
-            int n = Mathf.Min(4, _shots.Count);
+
+            // 每個拍攝者最近的一張（_shots 已經新到舊）
+            var people = new List<int>();
+            var seen = new HashSet<string>();
+            string Key(Shot sh) => !string.IsNullOrEmpty(sh.meta.takerUserId) ? sh.meta.takerUserId : sh.who;
+            if (_index < _shots.Count) { seen.Add(Key(_shots[_index])); people.Add(_index); }
+            for (int i = 0; i < _shots.Count; i++)
+                if (seen.Add(Key(_shots[i]))) people.Add(i);
+
+            int n = Mathf.Min(4, people.Count);
             float x = 0f;
-            // 目前這張在最前面，後面接著下幾張
             for (int k = 0; k < n; k++)
             {
-                int qi = (_index + k) % _shots.Count;
+                var sh = _shots[people[k]];
                 float size = k == 0 ? 38f : 32f;
                 if (k > 0) x -= 12f;
-                var b = Place(_stack, "Thumb", x, (40f - size) / 2f, size, size);
+                var b = Place(_stack, "Member", x, (40f - size) / 2f, size, size);
                 b.SetSiblingIndex(0); // 前面的蓋在後面的上面
-                var ring = UIShapes.AddRounded(b.gameObject, k == 0 ? Yellow : Card, size / 2f);
+                UIShapes.AddShadow(b, new Color(0, 0, 0, 0.22f), size / 2f, 5, 2);
+                var ring = UIShapes.AddRounded(Place(b, "Ring", 0, 0, size, size).gameObject, k == 0 ? Yellow : Card, size / 2f);
                 float bw = k == 0 ? 2.5f : 2f;
-                var frame = Place(b, "Frame", bw, bw, size - bw * 2f, size - bw * 2f);
-                UIShapes.AddRounded(frame.gameObject, Dark, size / 2f - bw).raycastTarget = false;
-                frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-                var img = Place(frame, "Img", 0, 0, size - bw * 2f, size - bw * 2f).gameObject.AddComponent<RawImage>();
-                img.raycastTarget = false;
-                string file = _shots[qi].meta.fileName;
-                if (_thumbs.TryGetValue(file, out var t) && t != null) { img.texture = t; img.uvRect = ChatScreenController.AspectFill(t.width, t.height, 1f, 1f); }
-                else img.enabled = false;
+                var fill = Place(b, "Fill", bw, bw, size - bw * 2f, size - bw * 2f);
+                UIShapes.AddRounded(fill.gameObject, ChatScreenController.PersonColor(sh.who, sh.mine), size / 2f - bw).raycastTarget = false;
+                var ini = Label(b, 0, 0, size, size, ChatScreenController.Initial(sh.who, sh.mine), k == 0 ? 14 : 12, Color.white, TextAlignmentOptions.Center);
+                ini.enableWordWrapping = false;
+                AvatarPhoto.Attach(fill, sh.meta.takerUserId);
                 var btn = b.gameObject.AddComponent<Button>();
                 btn.targetGraphic = ring;
                 btn.transition = Selectable.Transition.None;
-                int target = qi;
+                int target = people[k];
                 btn.onClick.AddListener(() => Show(target));
                 x += size;
             }
-            if (_shots.Count > 4)
+            if (people.Count > 4)
             {
                 x -= 12f;
                 var more = Place(_stack, "More", x, 5, 30, 30);
                 more.SetSiblingIndex(0);
                 UIShapes.AddRounded(more.gameObject, Card, 15).raycastTarget = false;
                 UIShapes.AddRounded(Place(more, "Fill", 2, 2, 26, 26).gameObject, Ink, 13).raycastTarget = false;
-                Label(more, 0, 0, 30, 30, "+" + (_shots.Count - 4), 10, Color.white, TextAlignmentOptions.Center);
+                Label(more, 0, 0, 30, 30, "+" + (people.Count - 4), 10, Color.white, TextAlignmentOptions.Center);
                 x += 30f;
             }
             _stack.sizeDelta = new Vector2(x, 40f);
@@ -594,9 +615,9 @@ namespace BlockPet.Hand
             foreach (Transform c in _overlay) Destroy(c.gameObject);
             float w = PhotoSize - 20f;
             var items = new List<RectTransform>();
-            // 最近 2 則留言（深色玻璃）
+            // 最新 3 則留言（深色玻璃）
             var comments = CommentsOf(s.meta);
-            for (int i = Mathf.Max(0, comments.Count - 2); i < comments.Count; i++)
+            for (int i = Mathf.Max(0, comments.Count - 3); i < comments.Count; i++)
             {
                 var e = comments[i];
                 string who = ChatMessage.GetBestDisplayName(e.msg);
@@ -605,16 +626,19 @@ namespace BlockPet.Hand
                 var pill = Place(_overlay, "Comment", 0, 0, w, 30);
                 var bg = UIShapes.AddRounded(pill.gameObject, new Color(Dark.r, Dark.g, Dark.b, 0.55f), 15);
                 bg.raycastTarget = false;
-                UIShapes.AddRounded(Place(pill, "Avatar", 4, 4, 22, 22).gameObject, ChatScreenController.PersonColor(who, mine), 11).raycastTarget = false;
+                var av = Place(pill, "Avatar", 4, 4, 22, 22);
+                UIShapes.AddRounded(av.gameObject, ChatScreenController.PersonColor(who, mine), 11).raycastTarget = false;
                 Label(pill, 4, 4, 22, 22, ChatScreenController.Initial(who, mine), 10, Color.white, TextAlignmentOptions.Center);
+                AvatarPhoto.Attach(av, e.msg.senderId);
                 var t = Label(pill, 32, 0, w - 42f, 30, text, 12, Color.white, TextAlignmentOptions.Left);
                 t.enableWordWrapping = false;
                 t.overflowMode = TextOverflowModes.Ellipsis;
                 pill.sizeDelta = new Vector2(Mathf.Min(w, 32f + t.GetPreferredValues(text).x + 10f), 30f);
                 items.Add(pill);
             }
-            // 說明（米白膠囊）
-            string caption = !string.IsNullOrEmpty(s.meta.caption) ? s.meta.caption : (s.mine ? "我餵的照片" : s.who + " 餵的照片");
+            // 說明（米白膠囊）：只在拍的人有寫說明時才放（不再放「我餵的照片」）
+            string caption = s.meta.caption;
+            if (string.IsNullOrWhiteSpace(caption)) { StackOverlay(items); return; }
             var cap = Place(_overlay, "Caption", 0, 0, w, 32);
             UIShapes.AddShadow(cap, new Color(0, 0, 0, 0.25f), 16, 8, 3);
             UIShapes.AddRounded(Place(cap, "Fill", 0, 0, 0, 0).gameObject, Card, 16).raycastTarget = false;
@@ -624,8 +648,12 @@ namespace BlockPet.Hand
             ct.overflowMode = TextOverflowModes.Ellipsis;
             cap.sizeDelta = new Vector2(Mathf.Min(w, ct.GetPreferredValues(caption).x + 28f), 32f);
             items.Add(cap);
+            StackOverlay(items);
+        }
 
-            // 由下往上疊（間距 6）
+        /// <summary>留言、說明由下往上疊（間距 6）。</summary>
+        void StackOverlay(List<RectTransform> items)
+        {
             float y = 0f;
             for (int i = items.Count - 1; i >= 0; i--)
             {
@@ -674,22 +702,6 @@ namespace BlockPet.Hand
                 if (tex != null) FitPhoto();
                 yield return null;
             }
-            bool changed = false;
-            for (int k = 1; k < Mathf.Min(4, _shots.Count); k++)
-            {
-                var m = _shots[(_index + k) % _shots.Count].meta;
-                if (_thumbs.ContainsKey(m.fileName)) continue;
-                var full = SaveManager.Instance != null ? SaveManager.Instance.LoadPhoto(m) : null;
-                if (full != null)
-                {
-                    _thumbs[m.fileName] = ChatScreenController.Downscale(full, ThumbTexW);
-                    Destroy(full);
-                    changed = true;
-                }
-                yield return null;
-            }
-            _ = changed;
-            BuildStack(); // 縮圖讀好了，重畫縮圖疊
             _loader = null;
         }
 
@@ -875,7 +887,18 @@ namespace BlockPet.Hand
             tap.transition = Selectable.Transition.None;
             tap.onClick.AddListener(OpenPhotoView);
 
-            _newTag = Place(frame, "NewTag", PhotoSize - 10f - 32f, 10, 32, 20);
+            // 右上角：拍的人的頭貼 40 圓（白邊 2.5、陰影）；「新」放在頭貼左邊、垂直置中
+            _taker = Place(frame, "Taker", PhotoSize - 10f - 40f, 10, 40, 40);
+            UIShapes.AddShadow(_taker, new Color(0, 0, 0, 0.3f), 20, 8, 2);
+            UIShapes.AddRounded(Place(_taker, "Border", 0, 0, 40, 40).gameObject, Card, 20).raycastTarget = false;
+            var takerFill = Place(_taker, "Fill", 2.5f, 2.5f, 35, 35);
+            _takerFill = UIShapes.AddRounded(takerFill.gameObject, Coral, 17.5f);
+            _takerFill.raycastTarget = false;
+            _takerInitial = Label(_taker, 0, 0, 40, 40, "", 15, Color.white, TextAlignmentOptions.Center);
+            _takerInitial.enableWordWrapping = false;
+            _takerPhoto = AvatarPhoto.Attach(takerFill, null);
+
+            _newTag = Place(frame, "NewTag", PhotoSize - 10f - 40f - 6f - 32f, 20, 32, 20);
             UIShapes.AddRounded(Place(_newTag, "Edge", 0, 2, 32, 20).gameObject, CoralEdge, 8).raycastTarget = false;
             UIShapes.AddRounded(Place(_newTag, "Fill", 0, 0, 32, 20).gameObject, Coral, 8).raycastTarget = false;
             Label(_newTag, 0, 0, 32, 20, "新", 12, Color.white, TextAlignmentOptions.Center);

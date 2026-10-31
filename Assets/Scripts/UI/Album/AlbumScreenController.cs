@@ -307,15 +307,17 @@ namespace BlockPet.UI.Album
             shade.raycastTarget = false;
             var av = Place(frame, "Avatar", 6, PhotoH - 28f, 22, 22);
             UIShapes.AddRounded(av.gameObject, Color.white, 11).raycastTarget = false;
-            UIShapes.AddRounded(Place(av, "Fill", 1.5f, 1.5f, 19, 19).gameObject, ChatScreenController.PersonColor(s.who, s.mine), 9.5f).raycastTarget = false;
+            var avFill = Place(av, "Fill", 1.5f, 1.5f, 19, 19);
+            UIShapes.AddRounded(avFill.gameObject, ChatScreenController.PersonColor(s.who, s.mine), 9.5f).raycastTarget = false;
             Label(av, 0, 0, 22, 22, ChatScreenController.Initial(s.who, s.mine), 10, Color.white, TextAlignmentOptions.Center);
+            AvatarPhoto.Attach(avFill, s.meta.takerUserId); // 有頭貼就蓋上照片
             var who = Label(frame, 33, PhotoH - 28f, pw - 80f, 22, s.who, 11, Color.white, TextAlignmentOptions.Left);
             who.enableWordWrapping = false;
             who.overflowMode = TextOverflowModes.Ellipsis;
             Label(frame, pw - 50f, PhotoH - 26f, 43, 18, s.time == default ? "" : s.time.ToString("HH:mm"), 10, Color.white, TextAlignmentOptions.Right);
 
             // 說明
-            string caption = string.IsNullOrEmpty(s.meta.caption) ? (s.mine ? "我餵的照片" : s.who + " 餵的照片") : s.meta.caption;
+            string caption = s.meta.caption ?? ""; // 沒寫說明就空著（不再放「我餵的照片」）
             var cap = Label(card, 8, 5 + PhotoH + 6f, CardW - 16f, 17, caption, 12, Ink, TextAlignmentOptions.Left);
             cap.enableWordWrapping = false;
             cap.overflowMode = TextOverflowModes.Ellipsis;
@@ -502,8 +504,10 @@ namespace BlockPet.UI.Album
                 group.alpha = on || (_draftWho == null && id == null) ? 1f : 0.55f;
                 var ring = UIShapes.AddRounded(Place(chip, "Ring", 2, 0, 46, 46).gameObject, on ? Ink : Card, 23);
                 Color c = id == null ? Hex(0xB9AC96) : ChatScreenController.PersonColor(name, mine);
-                UIShapes.AddRounded(Place(chip, "Fill", 5, 3, 40, 40).gameObject, c, 20).raycastTarget = false;
+                var chipFill = Place(chip, "Fill", 5, 3, 40, 40);
+                UIShapes.AddRounded(chipFill.gameObject, c, 20).raycastTarget = false;
                 Label(chip, 2, 0, 46, 46, id == null ? "全" : ChatScreenController.Initial(name, mine), 14, Color.white, TextAlignmentOptions.Center);
+                if (id != null) AvatarPhoto.Attach(chipFill, id);
                 var n = Label(chip, -5, 50, 60, 16, name, 11, Ink, TextAlignmentOptions.Center);
                 n.enableWordWrapping = false;
                 n.overflowMode = TextOverflowModes.Ellipsis;

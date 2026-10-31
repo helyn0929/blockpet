@@ -280,7 +280,7 @@ PlayerSettings:
   AndroidIsGame: 1
   AndroidEnableTango: 0
   androidEnableBanner: 1
-  androidUseLowAccuracyLocation: 0
+  androidUseLowAccuracyLocation: 1
   androidUseCustomKeystore: 0
   m_AndroidBanners:
   - width: 320
@@ -564,7 +564,7 @@ PlayerSettings:
   enableCrashReportAPI: 0
   cameraUsageDescription: This app uses the camera to take pet photos and create
     your in-game album.
-  locationUsageDescription: 
+  locationUsageDescription: "BlockPet \u7528\u4F60\u7684\u5927\u6982\u4F4D\u7F6E\u67E5\u7576\u5730\u5929\u6C23\uFF0C\u8B93\u71DF\u5730\u8DDF\u8457\u4E0B\u96E8\u4E0B\u96EA\u3002\u4F4D\u7F6E\u53EA\u7559\u5728\u624B\u6A5F\u4E0A\uFF0C\u4E0D\u6703\u4E0A\u50B3\u6216\u7D66\u5176\u4ED6\u6210\u54E1\u770B\u3002"
   microphoneUsageDescription: 
   bluetoothUsageDescription: 
   macOSTargetOSVersion: 11.0

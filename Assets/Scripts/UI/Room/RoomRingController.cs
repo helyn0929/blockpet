@@ -11,10 +11,12 @@ namespace BlockPet.UI.Room
 {
     /// <summary>
     /// 選擇寵物空間（設計稿「選擇寵物空間」E 角落轉盤，RoomsRing*.dc.html）：
-    /// - 右下四分之一環：每格一個空間（最近照片當底圖），點格子或拖曳轉動，選中的格子轉到中間的金框。
+    /// （設計文件 5.8；2026-10-31 改：轉盤加大、中心按鈕改搖桿、沒照片的格子放場景圖）
+    /// - 右下四分之一環：每格一個空間（最近照片當底圖；沒有照片放營地場景圖＋小寵物），點格子或拖曳轉動，選中的格子轉到中間放大、金框。
     /// - 左上：選中空間的名稱＋幾天大、愛心、進化條與寵物；肚子餓（愛心 ≤ TopBarConfig.lowHeartsThreshold）顯示紅色提醒。
     /// - 寵物右邊：這個空間最新幾則聊天，像彈幕一樣由右往左飄過。
-    /// - 右下大圓鈕：「進去」進入空間；轉到「＋ 新增」或空位時變「新增」，打開新增空間面板（建立新空間／邀請碼加入）。
+    /// - 轉盤中心的搖桿：繞圈轉動換寵物（每 45° 一隻），往左上方（轉盤）推到位再放開就進去；
+    ///   轉到「＋ 新增」或空位時是「新增」，打開新增空間面板（建立新空間／邀請碼加入）。換寵物、進去時輕震動。
     /// - 輸入邀請碼後先在轉盤上預覽朋友的空間（藍色「邀請」），按「加入」才真的加入。
     /// 介面在執行時以 390×772 設計座標建立：上半（標題、資訊、寵物）貼齊安全區頂端，轉盤與按鈕貼齊畫面底部，依螢幕寬度等比縮放。
     /// 由「BlockPet/Build Room Ring」掛到 RoomPage，並關掉舊的 UI Toolkit 選房頁（RoomUIController）。
@@ -24,16 +26,17 @@ namespace BlockPet.UI.Room
         const float DesignW = 390f;
         const float DesignH = 772f;
         static readonly Vector2 Center = new Vector2(390f, 772f);
-        const float R1 = 172f, R2 = 352f, Mid = 225f, SegGap = 0.8f, WindowHalf = 45f;
-        const float BigR1 = R1 - 18f, BigR2 = R2 + 30f;
+        const float R1 = 196f, R2 = 410f, Mid = 225f, SegGap = 0.8f, WindowHalf = 45f;
+        // 選中的格子放大：角度寬＝每格 × 1.51、半徑 190～436（往內外各凸出一截）
+        const float BigR1 = R1 - 6f, BigR2 = R2 + 26f, BigScale = 0.755f;
         const int SlotCount = 11;
         // 設計稿 E-7：4 格以上每格 22.5°（窗內看到 4 格）；比較少時每格變大填滿 90° 的窗，不留空白，
-        // 不到 3 格補「可以再養一隻」的空位。中間金框固定 60°（2026-10-28：比設計稿大，左右各露一點鄰居）。
+        // 不到 3 格補「可以再養一隻」的空位。
         const float FullStep = 22.5f;
         const int MinItems = 3;
         const float NameH = 64f;   // 38 號字行高 56.25：框至少要這麼高
         float Step = FullStep;
-        const float BigHalf = 30f;
+        float BigHalf => Step * BigScale;
 
         static readonly Color Ink = Hex(0x3A2E22);
         static readonly Color Cream = Hex(0xFFFCF4);
@@ -101,6 +104,8 @@ namespace BlockPet.UI.Room
             public Image badgeBg;
             public Image badgeEdge;
             public TMP_Text badgeText;
+            public Image pet;          // 沒照片的空間：格子中間的小寵物
+            public RectTransform plus; // 「＋ 新增」和空位：白色虛線圓＋
             public int k = int.MinValue;
             public float rot = float.NaN;
             public bool selected;
@@ -161,11 +166,23 @@ namespace BlockPet.UI.Room
         static readonly Color[] DanColors = { Hex(0xE88AA8), Hex(0x6F8FE0), Hex(0x6FA45F), Hex(0xD78AD0), Hex(0xF29A3A) };
 
         TMP_Text _hint;
+        AvatarPhoto _meAvatar;
         string _toast;
         float _toastUntil;
 
         // 大圓鈕
-        TMP_Text _ctaText;
+        // 搖桿（5.8 ⑥）
+        RectTransform _joyKnob, _joyNotch, _joyArrow;
+        Image _joyArrowL, _joyArrowR, _joyGlow;
+        TMP_Text _joyText;
+        Vector2 _joyPos;            // 搖桿頭離中心的位移（設計座標，y 向下）
+        bool _joyActive, _joyReady;
+        float? _joyRefAngle;
+        RectTransform _enterLayer;
+        CanvasGroup _enterGroup;
+        TMP_Text _enterText;
+        bool _entering;
+        const float JoyMax = 26f, JoyTurnRadius = 14f, JoyTurnStep = 45f, JoyPushRadius = 22f;
 
         // 新增空間面板
         RectTransform _sheetLayer;
@@ -208,6 +225,7 @@ namespace BlockPet.UI.Room
             FirebaseManager.OnLoginSuccess += OnLogin;
             StartRoomsListener();
             CloseSheet(instant: true);
+            ResetJoystick();
             Reload();
         }
 
@@ -258,6 +276,7 @@ namespace BlockPet.UI.Room
             _info.anchoredPosition = new Vector2(18f, -22f - 8f * (1f - k));
 
             AnimatePet();
+            AnimateJoystick(dt);
             AnimateDan();
             AnimateSheet(dt);
 
@@ -289,6 +308,7 @@ namespace BlockPet.UI.Room
 
         void Reload()
         {
+            _meAvatar?.SetUser(FirebaseManager.Instance != null ? FirebaseManager.Instance.GetUserId() : null);
             _chatCache.Clear();
             _danRoomId = null;
             var fb = FirebaseManager.Instance;
@@ -432,7 +452,7 @@ namespace BlockPet.UI.Room
                 {
                     s.k = k;
                     s.selected = selected;
-                    s.sector.SetTexture(item.photo);
+                    s.sector.SetTexture(TextureFor(item));
                     s.sector.color = SectorColor(item, selected);
                     SetSlotLabel(s, item, selected);
                 }
@@ -458,8 +478,8 @@ namespace BlockPet.UI.Room
         static Color SectorColor(Item item, bool selected)
         {
             Color c;
-            if (item.photo != null && (item.kind == Kind.Room || item.kind == Kind.Join))
-                c = item.Hungry ? new Color(0.82f, 0.8f, 0.78f, 1f) : Color.white;
+            if (item.kind == Kind.Room || item.kind == Kind.Join)
+                c = item.Hungry ? new Color(0.82f, 0.8f, 0.78f, 1f) : Color.white; // 照片或場景圖
             else if (item.kind == Kind.Add) c = new Color(1f, 0.973f, 0.925f, 0.35f);
             else if (item.kind == Kind.Nest) c = new Color(1f, 0.973f, 0.925f, 0.2f);
             else c = Grass;
@@ -475,8 +495,20 @@ namespace BlockPet.UI.Room
             s.tagBg.color = add ? new Color(1f, 0.973f, 0.925f, 0.92f) : Ink;
             string badge = BadgeOf(item, out var bg, out var fg, out var edge);
             bool hasBadge = !string.IsNullOrEmpty(badge) && !selected;
-            // 名字＋徽章整組以格子中心置中（gap 3）
-            float top = hasBadge ? -19.5f : -10f;
+            // 沒照片的空間：小寵物 50 × 43；新增／空位：虛線圓 44（設計稿 10-31）
+            bool showPet = !selected && item.photo == null && (item.kind == Kind.Room || item.kind == Kind.Join);
+            bool showPlus = !selected && add;
+            if (showPet) s.pet.sprite = PetSprite(item.petIndex);
+            s.pet.gameObject.SetActive(showPet && s.pet.sprite != null);
+            s.plus.gameObject.SetActive(showPlus);
+            float iconH = s.pet.gameObject.activeSelf ? 43f : (showPlus ? 44f : 0f);
+
+            // 圖示＋名字＋徽章整組以格子中心置中（gap 3）
+            float total = (iconH > 0f ? iconH + 3f : 0f) + 20f + (hasBadge ? 3f + 16f : 0f);
+            float top = -total / 2f;
+            if (s.pet.gameObject.activeSelf) SetSize(s.pet.rectTransform, 50f, 43f, -25f, top);
+            if (showPlus) SetSize(s.plus, 44f, 44f, -22f, top);
+            if (iconH > 0f) top += iconH + 3f;
             float w = s.tag.GetPreferredValues(s.tag.text).x + 18f;
             SetSize(s.tagBg.rectTransform, w, 20f, -w / 2f, top);
 
@@ -510,8 +542,8 @@ namespace BlockPet.UI.Room
             bool isJoin = item.kind == Kind.Join;
 
             // 中間的大格子
-            _big.SetTexture(isNew ? null : item.photo);
-            _big.color = isNew ? new Color(1f, 0.973f, 0.925f, 0.85f) : (item.photo != null ? (item.Hungry ? new Color(0.82f, 0.8f, 0.78f) : Color.white) : Grass);
+            _big.SetTexture(isNew ? null : TextureFor(item));
+            _big.color = isNew ? new Color(1f, 0.973f, 0.925f, 0.85f) : (item.Hungry ? new Color(0.82f, 0.8f, 0.78f) : Color.white);
             _bigLabelText.text = isNew ? "＋ 新增" : item.name;
             float lw = _bigLabelText.GetPreferredValues(_bigLabelText.text).x + 22f;
             SetSize((RectTransform)_bigLabelText.transform.parent, lw, 22f, -lw / 2f, -11f);
@@ -560,8 +592,15 @@ namespace BlockPet.UI.Room
             _petImage.enabled = _petImage.sprite != null;
             _petImage.color = isNew ? new Color(1f, 1f, 1f, 0.35f) : (item.Hungry ? new Color(0.78f, 0.78f, 0.76f) : Color.white);
 
-            _ctaText.text = isNew ? "新增" : (isJoin ? "加入" : "進去");
+            _joyText.text = isNew ? "新增" : (isJoin ? "加入" : "進去");
             UpdateHint();
+        }
+
+        /// <summary>格子底圖：空間的最新照片；沒有照片時用營地場景圖（5.8 ⑤，10-31）。新增／空位沒有底圖。</summary>
+        Texture TextureFor(Item item)
+        {
+            if (item.kind != Kind.Room && item.kind != Kind.Join) return null;
+            return item.photo != null ? item.photo : background;
         }
 
         Sprite PetSprite(int index)
@@ -629,10 +668,8 @@ namespace BlockPet.UI.Room
 
         void UpdateHint()
         {
-            if (_toast != null) { _hint.text = _toast; return; }
-            var item = ItemAt(_sel);
-            _hint.text = item.kind == Kind.Join ? "加入後，" + item.name + " 會留在你的轉盤上"
-                : (_items.FindAll(i => i.kind == Kind.Room).Count <= 1 ? "之後的寵物會排在轉盤上" : "點轉盤換寵物");
+            // 整頁不放操作提示（10-31）；只在有錯誤或結果訊息時短暫顯示
+            _hint.text = _toast ?? "";
         }
 
         void Toast(string message, float seconds = 3f)
@@ -664,7 +701,7 @@ namespace BlockPet.UI.Room
         void BuildDan()
         {
             // 寵物右邊 190×188，左邊 28px 淡出；最多 5 條軌道
-            _dan = Place(_top, "Comments", 200, 212, DanW, DanH);
+            _dan = Place(_top, "Comments", 200, 150, DanW, DanH);
             var mask = _dan.gameObject.AddComponent<RectMask2D>();
             mask.softness = new Vector2Int(28, 0);
         }
@@ -682,6 +719,12 @@ namespace BlockPet.UI.Room
             fb.GetRecentChat(roomId, 5, list =>
             {
                 if (this == null) return;
+                if (list == null)
+                {
+                    // 還沒登入或查詢失敗：不快取，下次轉回這格（或登入後 Reload）再查
+                    if (_danRoomId == roomId) _danRoomId = null;
+                    return;
+                }
                 _chatCache[roomId] = list;
                 if (_danRoomId == roomId) BuildDanPills(list);
             });
@@ -713,9 +756,11 @@ namespace BlockPet.UI.Room
                 UIShapes.AddShadow(rt, new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.2f), 15, 8, 3);
                 UIShapes.AddRounded(Place(rt, "Fill", 0, 0, 0, 0).gameObject, new Color(1f, 0.988f, 0.957f, 0.88f), 15).raycastTarget = false;
                 StretchIn((RectTransform)rt.GetChild(1));
-                UIShapes.AddRounded(Place(rt, "Avatar", 3, 3, 24, 24).gameObject, bg, 12).raycastTarget = false;
+                var av = Place(rt, "Avatar", 3, 3, 24, 24);
+                UIShapes.AddRounded(av.gameObject, bg, 12).raycastTarget = false;
                 var iniText = Label(rt, 3, 3, 24, 24, ini, 11, Color.white, TextAlignmentOptions.Center);
                 iniText.enableWordWrapping = false;
+                AvatarPhoto.Attach(av, m.senderId);
                 var t = Label(rt, 33, 0, 200, 30, text, 12, Ink, TextAlignmentOptions.Left);
                 t.enableWordWrapping = false;
                 float w = 33f + t.GetPreferredValues(text).x + 11f;
@@ -774,6 +819,97 @@ namespace BlockPet.UI.Room
                 _sel = Mathf.RoundToInt((a - Mid - _rot) / Step);
             }
             else _sel = Mathf.RoundToInt(-_rot / Step);
+        }
+
+        // ─── 搖桿 ──────────────────────────────────────────────────────
+
+        void ResetJoystick()
+        {
+            _joyActive = _joyReady = false;
+            _joyRefAngle = null;
+            _joyPos = Vector2.zero;
+            _entering = false;
+            if (_enterLayer != null) _enterLayer.gameObject.SetActive(false);
+        }
+
+        /// <summary>手指位移 v（設計座標，y 向下）：搖桿頭最多離中心 26；離中心 14 以上繞圈每 45° 換一隻；往左上 185°～265° 推到 22 以上算推到位。</summary>
+        void JoyMove(Vector2 v)
+        {
+            float d = v.magnitude;
+            _joyPos = d > JoyMax ? v / d * JoyMax : v;
+            float a = Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg;
+            if (a < 0f) a += 360f;
+            bool ready = d >= JoyPushRadius && a >= 185f && a <= 265f;
+
+            if (d >= JoyTurnRadius)
+            {
+                if (_joyRefAngle == null) _joyRefAngle = a;
+                float delta = Mathf.DeltaAngle(_joyRefAngle.Value, a);
+                if (Mathf.Abs(delta) >= JoyTurnStep)
+                {
+                    // 畫面座標 y 向下：delta > 0 是順時針 → 轉盤也順時針轉到上一隻
+                    _sel += delta > 0f ? -1 : 1;
+                    _joyRefAngle = a;
+                    ready = false;
+                    Haptics.Light();
+                }
+            }
+            if (ready && !_joyReady) Haptics.Medium();
+            _joyReady = ready;
+        }
+
+        void JoyUp()
+        {
+            bool go = _joyReady && _joyActive && isActiveAndEnabled;
+            _joyActive = _joyReady = false;
+            _joyRefAngle = null;
+            if (go) Enter();
+        }
+
+        /// <summary>推到位放開：寵物、邀請 → 過場後進去；新增／空位 → 滑出新增空間面板。</summary>
+        void Enter()
+        {
+            var item = ItemAt(_sel);
+            if (item.kind != Kind.Room && item.kind != Kind.Join) { OpenSheet(); return; }
+            Haptics.Medium();
+            _entering = true;
+            _enterText.text = (item.kind == Kind.Join ? "加入 " : "進去 ") + item.name + " 的空間…";
+            _enterGroup.alpha = 0f;
+            _enterLayer.gameObject.SetActive(true);
+            StartCoroutine(EnterAfterFade());
+        }
+
+        System.Collections.IEnumerator EnterAfterFade()
+        {
+            float t = 0f;
+            while (t < 0.25f)
+            {
+                t += Time.unscaledDeltaTime;
+                _enterGroup.alpha = Mathf.Clamp01(t / 0.25f);
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(0.35f);
+            OnCta();
+            // 進不去（例：加入失敗）就收起過場；成功的話頁面已經換掉，OnEnable 會重設
+            yield return new WaitForSecondsRealtime(1.5f);
+            if (this != null && isActiveAndEnabled) { _entering = false; _enterLayer.gameObject.SetActive(false); }
+        }
+
+        void AnimateJoystick(float dt)
+        {
+            if (_joyKnob == null) return;
+            // 放開後 0.2 秒彈回中心
+            if (!_joyActive) _joyPos = Vector2.MoveTowards(_joyPos, Vector2.zero, dt * JoyMax / 0.2f);
+            _joyKnob.anchoredPosition = new Vector2(56f + _joyPos.x, -56f - _joyPos.y);
+            if (_joyPos.sqrMagnitude > 1f)
+                _joyNotch.localRotation = Quaternion.Euler(0f, 0f, -(Mathf.Atan2(_joyPos.y, _joyPos.x) * Mathf.Rad2Deg + 90f));
+            _joyGlow.enabled = _joyReady;
+
+            // 箭頭：推到位變金色；平常 1.6 秒放大縮小提示（按住時不動）
+            var col = _joyReady ? Yellow : Cream;
+            _joyArrowL.color = _joyArrowR.color = col;
+            float pulse = _joyActive ? 1f : 1f + 0.18f * (0.5f - 0.5f * Mathf.Cos(Time.unscaledTime / 1.6f * Mathf.PI * 2f));
+            _joyArrow.localScale = Vector3.one * pulse;
         }
 
         void OnCta()
@@ -966,6 +1102,7 @@ namespace BlockPet.UI.Room
             // 面板內容 322 + 底部留白 26，再加上 Home 指示條的安全區
             _sheet.sizeDelta = new Vector2(DesignW, SheetContentH + 26f + bottomInset / k);
             _ctaRoot.anchoredPosition = new Vector2(0f, bottomInset / k);
+            _enterText.rectTransform.parent.localScale = Vector3.one * k;
         }
 
         const float SheetContentH = 322f;
@@ -996,11 +1133,10 @@ namespace BlockPet.UI.Room
             _bottom = DesignRoot("Bottom", top: false);
             _top = DesignRoot("Top", top: true);
 
-            // 兩個柔光圓：寵物後面亮、轉盤後面暗
-            var glow = Place(_top, "PetGlow", -16, 248, 240, 240);
+            // 寵物背後柔光（轉盤後面的暗圈 10-31 拿掉）
+            var glow = Place(_top, "PetGlow", -16, 168, 240, 240);
             UIShapes.AddShadow(glow, new Color(1f, 0.973f, 0.925f, 0.45f), 120, 50, 0);
             UIShapes.AddRounded(Place(glow, "Disc", 0, 0, 240, 240).gameObject, new Color(1f, 0.973f, 0.925f, 0.42f), 120).raycastTarget = false;
-            UIShapes.AddRounded(Place(_bottom, "RingShade", 210, 592, 360, 360).gameObject, new Color(36f / 255f, 48f / 255f, 26f / 255f, 0.35f), 180).raycastTarget = false;
 
             BuildRing();
             BuildPet();
@@ -1008,7 +1144,8 @@ namespace BlockPet.UI.Room
             BuildHeader();
             BuildInfo();
             BuildHint();
-            BuildCta();
+            BuildJoystick();
+            BuildEnterLayer();
             BuildSheet();
             Relayout();
         }
@@ -1054,6 +1191,12 @@ namespace BlockPet.UI.Room
                 StretchIn(s.badgeBg.rectTransform);
                 s.badgeText = Label(s.badge, 0, 0, 0, 0, "", 10, Color.white, TextAlignmentOptions.Center);
                 StretchIn(s.badgeText.rectTransform);
+
+                s.pet = Place(s.label, "Pet", 0, 0, 50, 43).gameObject.AddComponent<Image>();
+                s.pet.preserveAspect = true;
+                s.pet.raycastTarget = false;
+                s.pet.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.35f);
+                s.plus = BuildPlusCircle(s.label);
             }
 
             // 接收點擊／拖曳的透明扇形（只在轉盤視窗內）
@@ -1092,10 +1235,7 @@ namespace BlockPet.UI.Room
             bigStroke.raycastTarget = false;
             bigStroke.Set(Mid - BigHalf, Mid + BigHalf, 0f);
 
-            var tick = AddGraphic<UIPolygon>(Place(_bottom, "Tick", 0, 0, DesignW, DesignH));
-            tick.color = Yellow;
-            tick.raycastTarget = false;
-            tick.SetPoints(Pt(BigR1 - 3f, Mid), Pt(BigR1 - 18f, Mid - 5f), Pt(BigR1 - 18f, Mid + 5f));
+            // 選中格子內側的金色指示三角 10-31 拿掉
 
             var lab = Pt(BigR2 - 24f, Mid);
             var labRoot = Place(_bottom, "BigLabel", lab.x, lab.y, 0, 0);
@@ -1127,7 +1267,9 @@ namespace BlockPet.UI.Room
 
         void BuildPet()
         {
-            var host = Place(_top, "Pet", 4, 250, 200, 200);
+            var host = Place(_top, "Pet", 4, 170, 200, 200);
+            // 腳下陰影 120 × 20 橢圓
+            UIShapes.AddRounded(Place(host, "Shadow", 42, 168, 120, 20).gameObject, new Color(30f / 255f, 45f / 255f, 20f / 255f, 0.3f), 10).raycastTarget = false;
             _pet = Place(host, "Sprite", 6, 0, 192, 180);
             _petImage = _pet.gameObject.AddComponent<Image>();
             _petImage.preserveAspect = true;
@@ -1139,9 +1281,12 @@ namespace BlockPet.UI.Room
             var btn = Place(_top, "Me", DesignW - 14 - 44, 20, 44, 44);
             UIShapes.AddShadow(btn, new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.3f), 22, 10, 4);
             var ring = UIShapes.AddRounded(Place(btn, "Border", 0, 0, 44, 44).gameObject, Paper, 22);
-            var fill = UIShapes.AddRounded(Place(btn, "Fill", 2.5f, 2.5f, 39, 39).gameObject, Orange, 19.5f);
+            var fillRt = Place(btn, "Fill", 2.5f, 2.5f, 39, 39);
+            var fill = UIShapes.AddRounded(fillRt.gameObject, Orange, 19.5f);
             fill.raycastTarget = false;
             Label(btn, 0, 0, 44, 44, "我", 15, Color.white, TextAlignmentOptions.Center);
+            // 自己的頭貼（設定裡換了會馬上更新）；還沒登入時 Reload 再補上 uid
+            _meAvatar = AvatarPhoto.Attach(fillRt, FirebaseManager.Instance != null ? FirebaseManager.Instance.GetUserId() : null);
             var b = btn.gameObject.AddComponent<Button>();
             b.targetGraphic = ring;
             b.onClick.AddListener(OnSettings);
@@ -1201,43 +1346,121 @@ namespace BlockPet.UI.Room
             _newText = Label(_info, 0, 72, 260, 40, "", 13, Color.white, TextAlignmentOptions.TopLeft, onScene: true);
         }
 
+        /// <summary>短暫的結果／錯誤訊息（例：加入失敗、已建立）。平常不顯示操作提示（10-31）。</summary>
         void BuildHint()
         {
-            var host = Place(_top, "Hint", 16, 466, 300, 22);
-            var arc = AddGraphic<RingSectorGraphic>(Place(host, "Icon", 0, 0, 22, 22));
-            // 對應 svg：r=8、粗 2.2 的圓弧（0°→309°）＋右上的直角箭頭；22px 圖示、原 24 單位
-            float u = 22f / 24f;
-            arc.center = new Vector2(12f, 12f) * u;
-            arc.r1 = (8f - 1.1f) * u;
-            arc.r2 = (8f + 1.1f) * u;
-            arc.color = Color.white;
-            arc.raycastTarget = false;
-            arc.Set(0f, 309f, 0f);
-            var v = Place(host, "ArrowV", (17f - 1.1f) * u, 2.5f * u, 2.2f * u, 3.8f * u).gameObject.AddComponent<Image>();
-            var h = Place(host, "ArrowH", 13.2f * u, (6.3f - 1.1f) * u, 3.8f * u + 1.1f * u, 2.2f * u).gameObject.AddComponent<Image>();
-            v.raycastTarget = h.raycastTarget = false;
-            _hint = Label(host, 28, 2, 280, 18, "", 12, Color.white, TextAlignmentOptions.Left, onScene: true);
+            _hint = Label(_top, 16, 388, 300, 18, "", 12, Color.white, TextAlignmentOptions.Left, onScene: true);
             _hint.enableWordWrapping = false;
         }
 
-        void BuildCta()
+        /// <summary>白色虛線圓 44＋「+」（新增、空位格子用）：邊 2.5 虛線、底白 30%。</summary>
+        RectTransform BuildPlusCircle(RectTransform parent)
+        {
+            var rt = Place(parent, "Plus", 0, 0, 44, 44);
+            UIShapes.AddRounded(rt.gameObject, new Color(1f, 0.973f, 0.925f, 0.3f), 22).raycastTarget = false;
+            for (int i = 0; i < 12; i++)
+            {
+                var dash = AddGraphic<RingSectorGraphic>(Place(rt, "Dash", 0, 0, 44, 44));
+                dash.center = new Vector2(22f, 22f);
+                dash.r1 = 22f - 2.5f;
+                dash.r2 = 22f;
+                dash.color = new Color(1f, 0.988f, 0.957f, 0.95f);
+                dash.raycastTarget = false;
+                dash.Set(i * 30f, i * 30f + 18f, 0f);
+            }
+            var plus = Label(rt, 0, -1, 44, 44, "+", 24, Color.white, TextAlignmentOptions.Center, onScene: true);
+            plus.enableWordWrapping = false;
+            return rt;
+        }
+
+        /// <summary>
+        /// 搖桿（5.8 ⑥）：底座 (270, 652) 112 圓（邊 4 奶油色、深色半透明底、虛線圓 84），左上推進去箭頭；
+        /// 金色搖桿頭 66（邊 3、下緣 0 4 0 #D9A92C、刻痕跟著推的方向轉），中間「進去／新增／加入」14。
+        /// </summary>
+        void BuildJoystick()
         {
             _ctaRoot = Place(_bottom, "CtaRoot", 0, 0, DesignW, DesignH);
-            var btn = Place(_ctaRoot, "Cta", 270, 652, 112, 112);
-            UIShapes.AddShadow(btn, new Color(0, 0, 0, 0.35f), 56, 20, 10);
-            UIShapes.AddRounded(Place(btn, "Edge", 0, 4, 112, 112).gameObject, YellowEdge, 56).raycastTarget = false;
-            var border = UIShapes.AddRounded(Place(btn, "Border", 0, 0, 112, 112).gameObject, Cream, 56);
-            UIShapes.AddRounded(Place(btn, "Fill", 4, 4, 104, 104).gameObject, Yellow, 52).raycastTarget = false;
-            var icon = AddGraphic<UIPolygon>(Place(btn, "Play", 41, 29, 30, 30));
-            float s = 30f / 24f;
-            icon.color = Ink;
-            icon.raycastTarget = false;
-            icon.SetPoints(new Vector2(8f, 5.5f) * s, new Vector2(18f, 12f) * s, new Vector2(8f, 18.5f) * s);
-            _ctaText = Label(btn, 0, 61, 112, 22, "進去", 16, Ink, TextAlignmentOptions.Center);
-            var b = btn.gameObject.AddComponent<Button>();
-            b.targetGraphic = border;
-            b.onClick.AddListener(OnCta);
-            btn.gameObject.AddComponent<ButtonScalePress>();
+            var b = Place(_ctaRoot, "Joystick", 270, 652, RoomJoystick.Size, RoomJoystick.Size);
+            UIShapes.AddShadow(b, new Color(0, 0, 0, 0.35f), 56, 20, 10);
+            var border = UIShapes.AddRounded(Place(b, "Border", 0, 0, 112, 112).gameObject, Cream, 56);
+            UIShapes.AddRounded(Place(b, "Fill", 4, 4, 104, 104).gameObject, new Color(27f / 255f, 23f / 255f, 18f / 255f, 0.42f), 52).raycastTarget = false;
+            UIShapes.AddRounded(Place(b, "Inner", 4, 4, 104, 104).gameObject, new Color(0f, 0f, 0f, 0.12f), 52).raycastTarget = false;
+            for (int i = 0; i < 24; i++)
+            {
+                var dash = AddGraphic<RingSectorGraphic>(Place(b, "Dash", 14, 14, 84, 84));
+                dash.center = new Vector2(42f, 42f);
+                dash.r1 = 40f;
+                dash.r2 = 42f;
+                dash.color = new Color(1f, 0.988f, 0.957f, 0.45f);
+                dash.raycastTarget = false;
+                dash.Set(i * 15f, i * 15f + 8f, 0f);
+            }
+
+            // 推進去箭頭：底座左上 (16, 16) 22，朝左上（轉盤）；兩條線組成的「^」轉 −45°
+            _joyArrow = Place(b, "Arrow", 16, 16, 22, 22);
+            _joyArrow.pivot = new Vector2(0.5f, 0.5f);
+            _joyArrow.anchoredPosition = new Vector2(16f + 11f, -(16f + 11f));
+            _joyArrow.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            _joyArrowL = ArrowStroke(_joyArrow, 45f);
+            _joyArrowR = ArrowStroke(_joyArrow, -45f);
+
+            // 搖桿頭
+            _joyKnob = Place(b, "Knob", 0, 0, 66, 66);
+            _joyKnob.pivot = new Vector2(0.5f, 0.5f);
+            _joyGlow = UIShapes.AddShadow(_joyKnob, new Color(246f / 255f, 201f / 255f, 69f / 255f, 0.95f), 33, 22, 0);
+            _joyGlow.enabled = false;
+            UIShapes.AddShadow(_joyKnob, new Color(0, 0, 0, 0.35f), 33, 14, 8);
+            UIShapes.AddRounded(Place(_joyKnob, "Edge", 0, 4, 66, 66).gameObject, YellowEdge, 33).raycastTarget = false;
+            UIShapes.AddRounded(Place(_joyKnob, "Border", 0, 0, 66, 66).gameObject, Cream, 33).raycastTarget = false;
+            UIShapes.AddRounded(Place(_joyKnob, "Fill", 3, 3, 60, 60).gameObject, Yellow, 30).raycastTarget = false;
+            // 球體亮面（左上）與暗面（右下）近似 radial-gradient #FFE68A → #F6C945 → #E2B232
+            UIShapes.AddRounded(Place(_joyKnob, "Shade", 15, 15, 48, 48).gameObject, new Color(226f / 255f, 178f / 255f, 50f / 255f, 0.55f), 24).raycastTarget = false;
+            UIShapes.AddRounded(Place(_joyKnob, "Body", 3, 3, 52, 52).gameObject, Yellow, 26).raycastTarget = false;
+            UIShapes.AddRounded(Place(_joyKnob, "Light", 10, 8, 30, 26).gameObject, new Color(1f, 230f / 255f, 138f / 255f, 0.85f), 14).raycastTarget = false;
+            // 刻痕：跟著推的方向轉
+            _joyNotch = Place(_joyKnob, "Notch", 0, 0, 66, 66);
+            _joyNotch.pivot = new Vector2(0.5f, 0.5f);
+            _joyNotch.anchoredPosition = new Vector2(33f, -33f);
+            var notch = Place(_joyNotch, "Mark", 31, 3, 4, 8).gameObject.AddComponent<Image>();
+            notch.color = new Color(140f / 255f, 100f / 255f, 20f / 255f, 0.6f);
+            notch.raycastTarget = false;
+            _joyText = Label(_joyKnob, 0, 0, 66, 66, "進去", 14, Ink, TextAlignmentOptions.Center);
+            _joyText.enableWordWrapping = false;
+
+            var joy = b.gameObject.AddComponent<RoomJoystick>();
+            border.raycastTarget = true;
+            joy.onDown = v => { if (_busy || _entering || _sheetOpen) return; _joyActive = true; _joyRefAngle = null; JoyMove(v); };
+            joy.onMove = v => { if (_joyActive) JoyMove(v); };
+            joy.onUp = JoyUp;
+            ResetJoystick();
+        }
+
+        Image ArrowStroke(RectTransform parent, float angle)
+        {
+            // 「^」的一邊（設計稿 24 單位的 M5 15l7-7 7 7、粗 3.2，縮到 22）：從頂點 (11, 7.3) 往下斜，長 9.1、粗 2.9
+            var rt = Place(parent, "Stroke", 0, 0, 9.1f, 2.9f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(11f, -7.3f);
+            rt.localRotation = Quaternion.Euler(0f, 0f, -90f + angle);
+            var img = UIShapes.AddRounded(rt.gameObject, Cream, 1.45f);
+            img.raycastTarget = false;
+            img.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.4f);
+            return img;
+        }
+
+        /// <summary>進去的過場：畫面淡成奶油色，中間「進去 BowBow 的空間…」。</summary>
+        void BuildEnterLayer()
+        {
+            _enterLayer = Stretch(_root, "Entering");
+            _enterGroup = _enterLayer.gameObject.AddComponent<CanvasGroup>();
+            _enterLayer.gameObject.AddComponent<Image>().color = new Color(1f, 0.973f, 0.925f, 0.85f);
+            var center = new GameObject("Text", typeof(RectTransform)).GetComponent<RectTransform>();
+            center.SetParent(_enterLayer, false);
+            center.anchorMin = center.anchorMax = center.pivot = new Vector2(0.5f, 0.5f);
+            center.sizeDelta = new Vector2(DesignW, 60f);
+            _enterText = Label(center, 0, 0, DesignW, 60, "", 22, Ink, TextAlignmentOptions.Center);
+            _enterText.enableWordWrapping = false;
+            _enterLayer.gameObject.SetActive(false);
         }
 
         void BuildSheet()

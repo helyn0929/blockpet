@@ -20,6 +20,8 @@ public class iOSWidgetPostBuild
     const string TeamId = "9A62SU769D";            // 同 iOSPostBuildSigning
     const string MinIOS = "15.0";                  // 同專案最低 iOS；containerBackground 在 Swift 裡依版本判斷
     const string SwiftVersion = "5.0";
+    /// <summary>App 和小工具共用資料的 App Group（同 WidgetSync.AppGroupId、BlockPetWidget.swift 的 appGroupId）</summary>
+    const string AppGroup = "group.com.linnTech.blockpet";
 
     [PostProcessBuild(1000)]
     public static void OnPostProcessBuild(BuildTarget target, string buildPath)
@@ -61,6 +63,7 @@ public class iOSWidgetPostBuild
             string assets = proj.AddFile(TargetName + "/Assets.xcassets", TargetName + "/Assets.xcassets");
             proj.AddFileToBuild(ext, assets);
             proj.AddFile(TargetName + "/Info.plist", TargetName + "/Info.plist"); // 只放進專案，不加進 build
+            proj.AddFile(TargetName + "/BlockPetWidget.entitlements", TargetName + "/BlockPetWidget.entitlements");
 
             proj.AddFrameworkToProject(ext, "WidgetKit.framework", false);
             proj.AddFrameworkToProject(ext, "SwiftUI.framework", false);
@@ -88,8 +91,29 @@ public class iOSWidgetPostBuild
         proj.SetBuildProperty(ext, "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS", "NO");
         proj.SetBuildProperty(ext, "ENABLE_USER_SCRIPT_SANDBOXING", "NO");
         proj.SetBuildProperty(ext, "ALWAYS_SEARCH_USER_PATHS", "NO");
+        proj.SetBuildProperty(ext, "CODE_SIGN_ENTITLEMENTS", TargetName + "/BlockPetWidget.entitlements");
+
+        // Unity 的 Swift 外掛（Assets/Plugins/iOS/BlockPetWidgetReload.swift）編在 UnityFramework
+        string framework = proj.GetUnityFrameworkTargetGuid();
+        if (string.IsNullOrEmpty(proj.GetBuildPropertyForAnyConfig(framework, "SWIFT_VERSION")))
+            proj.SetBuildProperty(framework, "SWIFT_VERSION", SwiftVersion);
 
         proj.WriteToFile(pbxPath);
+
+        // 主 App 也要有同一個 App Group（iOSPostBuildSigning 已經建好 entitlements 檔，這裡只加這一項）
+        AddAppGroup(Path.Combine(buildPath, "Unity-iPhone", "Unity-iPhone.entitlements"));
+    }
+
+    static void AddAppGroup(string entitlementsPath)
+    {
+        var doc = new PlistDocument();
+        if (File.Exists(entitlementsPath)) doc.ReadFromFile(entitlementsPath);
+        var groups = doc.root["com.apple.security.application-groups"] as PlistElementArray
+                     ?? doc.root.CreateArray("com.apple.security.application-groups");
+        foreach (var v in groups.values)
+            if (v.AsString() == AppGroup) return;
+        groups.AddString(AppGroup);
+        doc.WriteToFile(entitlementsPath);
     }
 
     /// <summary>

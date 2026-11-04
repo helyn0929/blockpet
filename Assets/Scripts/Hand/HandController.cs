@@ -26,6 +26,8 @@ namespace BlockPet.Hand
         const string PrefsPlayedIds = "BlockPet.Hand.PlayedIds";
         const int MaxPlayedIds = 100;
         const float CollapseShift = 320f;   // 收起時手牌往左移多少（移出畫面）
+        const string PrefsLatestPos = "BlockPet.Hand.LatestPos";
+        const string PrefsLatestFolded = "BlockPet.Hand.LatestFolded";
         const float SwipeThreshold = 50f;   // 滑多遠才算收起／展開
         const float FlightTime = 0.6f;      // 照片飛向寵物的時間
         const int AlbumPhotoMaxSize = 1280; // 存進相簿的照片最長邊
@@ -127,6 +129,18 @@ namespace BlockPet.Hand
         int _latestCountValue = -1;
         float _latestTime;
         float _nextLatestPoll;
+        // 最新照片卡可以拖到任何地方、拖出右邊收起（左上角位置，設計座標 y 向下）
+        static readonly Vector2 LatestHome = new Vector2(258f, 560f);     // 設計稿：手牌展開時
+        static readonly Vector2 LatestHomeDock = new Vector2(258f, 440f); // 收牌後：放在相簿／拍照／聊天上面，不擋聊天
+        const float LatestW = 124f, LatestH = 182f;                        // 含後面疊的兩張
+        bool _latestHasUserPos;
+        Vector2 _latestUserPos;
+        bool _latestFolded;
+        bool _latestDragging;
+        Vector2 _latestDragFrom;
+        Vector2 _latestCur = LatestHome;
+        RectTransform _latestTab;
+        RawImage _latestTabThumb;
 
         // 空狀態
         RectTransform _empty;
@@ -188,6 +202,10 @@ namespace BlockPet.Hand
             BuildCameraCard();
             BuildLatest();
             BuildDock();
+            // 最新照片卡要蓋在相簿／拍照／聊天上面（收牌後也看得到、拖得到）
+            _latest.SetAsLastSibling();
+            _latestTab.SetAsLastSibling();
+            LoadLatestPlacement();
             BuildPopup();
             BuildPetLine();
             LayoutCards(snap: true);
@@ -780,8 +798,12 @@ namespace BlockPet.Hand
                 if (_latestTexture != null) Destroy(_latestTexture);
                 _latestTexture = last != null ? SaveManager.Instance.LoadPhoto(last) : null;
                 _latestPhoto.texture = _latestTexture;
+                _latestTabThumb.texture = _latestTexture;
                 if (_latestTexture != null)
+                {
                     _latestPhoto.uvRect = AspectFillUv(_latestTexture.width, _latestTexture.height, 110f, 110f);
+                    _latestTabThumb.uvRect = AspectFillUv(_latestTexture.width, _latestTexture.height, 24f, 24f);
+                }
                 _latestPoster.text = "營";
                 _latestPosterBg.color = Hex(0x6FA45F);
             }
@@ -795,6 +817,7 @@ namespace BlockPet.Hand
 
             bool show = last != null && _latestTexture != null;
             if (_latest.gameObject.activeSelf != show) _latest.gameObject.SetActive(show);
+            if (!show && _latestTab.gameObject.activeSelf) _latestTab.gameObject.SetActive(false);
         }
 
         static string Ago(string timestamp)
@@ -811,10 +834,20 @@ namespace BlockPet.Hand
         void AnimateLatest()
         {
             if (_latest == null || !_latest.gameObject.activeSelf) return;
-            // 手牌展開時才出現（設計稿 handOpen）
-            float target = DockVisible ? 0f : 1f;
-            _latestGroup.alpha = Mathf.MoveTowards(_latestGroup.alpha, target, Time.unscaledDeltaTime / 0.3f);
-            _latestGroup.blocksRaycasts = !DockVisible;
+            float dt = Time.unscaledDeltaTime;
+
+            // 位置：拖曳中跟著手指；平常滑向目標（收起時滑出右邊）
+            if (!_latestDragging)
+                _latestCur = Vector2.Lerp(_latestCur, LatestTarget(), 1f - Mathf.Exp(-dt * 12f));
+            _latest.anchoredPosition = new Vector2(_latestCur.x, -_latestCur.y);
+
+            // 手牌收起、出牌後都一直顯示；只有自己收起來時淡出
+            float target = _latestFolded && !_latestDragging ? 0f : 1f;
+            _latestGroup.alpha = Mathf.MoveTowards(_latestGroup.alpha, target, dt / 0.25f);
+            _latestGroup.blocksRaycasts = !_latestFolded || _latestDragging;
+
+            bool tab = _latestFolded && !_latestDragging;
+            if (_latestTab.gameObject.activeSelf != tab) _latestTab.gameObject.SetActive(tab);
 
             // 金框發光 c5Glow、「新」c5Pulse：1.8 秒一次
             _latestTime += Time.unscaledDeltaTime;
@@ -822,6 +855,88 @@ namespace BlockPet.Hand
             if (_latestGlowLo != null) _latestGlowLo.color = new Color(1f, 1f, 1f, 1f - k);
             if (_latestGlowHi != null) _latestGlowHi.color = new Color(1f, 1f, 1f, k);
             if (_latestBadge != null) _latestBadge.localScale = Vector3.one * Mathf.Lerp(1f, 1.18f, k);
+        }
+
+        /// <summary>沒收起時卡片停的位置：拖過就停在那裡，否則依手牌展開／收牌放預設位置。</summary>
+        Vector2 LatestRestPos() => ClampLatest(_latestHasUserPos ? _latestUserPos : (DockVisible ? LatestHomeDock : LatestHome));
+
+        const float LatestFoldedX = -LatestW - 16f; // 收起：滑出左邊（跟手牌一樣往左收）
+        const float LatestFlick = 900f;             // 往左甩多快就收起（設計 px／秒）
+
+        Vector2 LatestTarget()
+        {
+            var rest = LatestRestPos();
+            return _latestFolded ? new Vector2(LatestFoldedX, rest.y) : rest;
+        }
+
+        /// <summary>整張卡留在畫面裡（上面留給狀態欄）。</summary>
+        Vector2 ClampLatest(Vector2 p)
+        {
+            float scale = _design.localScale.x > 0f ? _design.localScale.x : 1f;
+            float visibleH = _overlay.rect.height > 0f ? _overlay.rect.height / scale : DesignH;
+            float top = DesignH - visibleH + 110f;
+            float bottom = DesignH - LatestH - 4f;
+            return new Vector2(Mathf.Clamp(p.x, 4f, DesignW - LatestW - 6f), Mathf.Clamp(p.y, Mathf.Min(top, bottom), bottom));
+        }
+
+        void OnLatestDragBegin()
+        {
+            _latestDragging = true;
+            _latestDragFrom = _latestCur;
+        }
+
+        void OnLatestDrag(Vector2 d) => _latestCur = _latestDragFrom + d;
+
+        void OnLatestDragEnd(Vector2 d, Vector2 velocity)
+        {
+            _latestDragging = false;
+            _latestCur = _latestDragFrom + d;
+            // 跟手牌一樣往左收：往左甩一下，或把卡片拖過左邊邊緣放開 → 收起，左邊留一個小標籤
+            bool flick = velocity.x < -LatestFlick && Mathf.Abs(velocity.x) > Mathf.Abs(velocity.y) * 1.5f;
+            if (flick || _latestCur.x + LatestW / 2f < 24f)
+            {
+                _latestFolded = true;
+                Haptics.Light();
+            }
+            else
+            {
+                _latestHasUserPos = true;
+                _latestUserPos = ClampLatest(_latestCur);
+            }
+            SaveLatestPlacement();
+        }
+
+        void UnfoldLatest()
+        {
+            if (!_latestFolded) return;
+            _latestFolded = false;
+            _latestCur = new Vector2(LatestFoldedX, LatestRestPos().y);
+            SaveLatestPlacement();
+        }
+
+        void LoadLatestPlacement()
+        {
+            _latestFolded = PlayerPrefs.GetInt(PrefsLatestFolded, 0) == 1;
+            string pos = PlayerPrefs.GetString(PrefsLatestPos, "");
+            var parts = pos.Split(',');
+            if (parts.Length == 2
+                && float.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x)
+                && float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float y))
+            {
+                _latestHasUserPos = true;
+                _latestUserPos = new Vector2(x, y);
+            }
+            _latestCur = _latestFolded ? new Vector2(LatestFoldedX, (_latestHasUserPos ? _latestUserPos : LatestHome).y)
+                                       : (_latestHasUserPos ? _latestUserPos : LatestHome);
+        }
+
+        void SaveLatestPlacement()
+        {
+            PlayerPrefs.SetInt(PrefsLatestFolded, _latestFolded ? 1 : 0);
+            if (_latestHasUserPos)
+                PlayerPrefs.SetString(PrefsLatestPos, _latestUserPos.x.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+                                                      + "," + _latestUserPos.y.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+            PlayerPrefs.Save();
         }
 
         void UpdateDockState(bool cooling)
@@ -1104,8 +1219,29 @@ namespace BlockPet.Hand
             btn.targetGraphic = bg;
             btn.onClick.AddListener(OnLatestClicked);
 
+            // 按住拖曳移動；往左甩或拖過左邊邊緣放開就收起
+            var drag = _latest.gameObject.AddComponent<LatestCardDrag>();
+            drag.space = _design;
+            drag.canDrag = () => _selected == null;
+            drag.onBegin = OnLatestDragBegin;
+            drag.onDrag = OnLatestDrag;
+            drag.onEnd = OnLatestDragEnd;
+
             _latestGroup.alpha = 0f;
             _latest.gameObject.SetActive(false);
+
+            // 收起後左邊的小標籤（跟「手牌 ›」一樣，放在它上面）：點一下或往右滑叫回來
+            _latestTab = Place(_design, "LatestTab", -16, 532, 96, 40);
+            var tabImg = Fill(_latestTab, Skin(s => s.glassPill), true, Glass, 20);
+            _latestTabThumb = MaskedPhoto(_latestTab, 22, 8, 24, 24, Skin(s => s.maskR3), 4, null);
+            Label(_latestTab, 50, 0, 46, 40, "營地 ›", 12, Ink, TextAlignmentOptions.Left);
+            var tb = _latestTab.gameObject.AddComponent<Button>();
+            tb.targetGraphic = tabImg;
+            tb.onClick.AddListener(UnfoldLatest);
+            var tabSwipe = _latestTab.gameObject.AddComponent<HandSwipe>();
+            tabSwipe.space = _design;
+            tabSwipe.onEnd = dx => { if (dx >= SwipeThreshold) UnfoldLatest(); };
+            _latestTab.gameObject.SetActive(false);
         }
 
         void BackCard(RectTransform rt, float rot)

@@ -1,0 +1,30 @@
+{
+ "_note": "BlockPet 圖鑑（設計稿頁面「圖鑑」→ DexHome／DexDetail／DexLocked／DexNew）。@1x，畫框 390x772，原點左上。PNG 為 @3x，Pixels Per Unit 300；9-slice 見 dex_assets.json。完整規格見設計文件 5.23。",
+ "rules": {"owner": "營地共用", "series": "一個品種一個系列（含季節限定、場景限定）", "cellsPerSeries": ["主廚方", "森林方", "霓虹方", "派對方", "毛孩方", "彩虹型", "極致型"], "recordAt": "進化那一刻", "repeat": "每一代都記，格子顯示 ×N，詳細可左右切換", "reward": {"newCell": "全營地 +100 金幣（暫定）", "seriesComplete": "送一顆該系列的蛋（暫定）"}},
+ "home": {
+  "bg": "#F7F0E2",
+  "header": {"rect": [0, 0, 390, 112], "sprite": "dex_header_bg", "back": {"rect": [12, 14, 44, 44], "sprite": "dex_btn_back"}, "title": {"pos": [68, 14], "text": "圖鑑", "font": "Huninn 24"}, "subtitle": {"text": "家人營地・大家一起收集", "font": "12 Bold #8A6A4E"}, "total": {"right": 14, "top": 16, "font": "Huninn 22 / 分母 14 #8A6A4E", "label": "已收集 10 Black"}},
+  "tabs": {"top": 74, "left": 14, "gap": 8, "h": 28, "font": "12 Black", "off": "dex_tab", "on": "dex_tab_on", "items": ["全部", "BowBow 3/7", "貓咪 1/7", "兔子 0/7", "萬聖節 0/7"]},
+  "list": {"top": 126, "side": 14, "gap": 14, "scroll": "vertical"},
+  "seriesCard": {"sprite": "dex_series_card", "padding": [14, 12, 12, 12], "shadow": "0 4 12 rgba(30,30,20,0.08)",
+   "icon": {"size": 40, "bg": "dex_series_icon_bg", "egg": "dex_egg + dex_egg_zigzag", "colors": {"BowBow": ["#FCE7A6", "#F29A3A"], "貓咪": ["#F6E2F4", "#D78AD0"], "兔子": ["#E3EED9", "#6FA45F"], "萬聖節": ["#FFE3C7", "#E86B4F"]}},
+   "name": "16 Black", "seasonTag": "dex_tag_season + 10 Black 白字", "progress": {"h": 6, "track": "dex_progress_track", "fill": "dex_progress_fill", "text": "12 Black「3 / 7」"},
+   "note": {"marginTop": 8, "font": "11 Bold #8A6A4E"}},
+  "grid": {"cols": 4, "gap": 8, "cellH": 104},
+  "cell": {
+   "got": {"sprite": "dex_cell", "pet": [66, 57], "name": "11 Black #3A2E22", "countBadge": "dex_badge_count 右上 (6,6)"},
+   "empty": {"sprite": "dex_cell", "pet": "剪影：寵物圖上色 #000000 alpha 0.14", "name": "11 Black #A8977F", "hint": {"font": "9 Bold #A8977F", "text": {"主廚方": "多拍美食", "森林方": "多拍自然", "霓虹方": "多拍城市", "派對方": "多拍生活人物", "毛孩方": "多拍寵物"}}},
+   "rareEmpty": {"sprite": "dex_cell_rare_empty", "text": "？？？ Huninn 18 #B9AC96", "rareLabel": "稀有 10 Black #B8891F 左上 (6,6)"},
+   "rainbowGot": {"sprite": "dex_cell_rainbow"}, "extremeGot": {"sprite": "dex_cell_extreme"}
+  },
+  "noBreedYet": {"sprite": "dex_shop_cell", "icon": "icon_shop_bag", "text": "去商店抽兔子蛋 10 Black #8A6A4E", "tap": "商店抽蛋（5.11）"}
+ },
+ "detail": {"dim": "dim 0.5", "panel": {"sprite": "dex_sheet_panel", "padding": [12, 18, 26, 18], "enter": "0.3s 由下滑入", "grabber": "dex_sheet_grabber", "close": "dex_btn_close 右上 (14,12)"},
+  "series": "12 Black #8A6A4E", "title": "Huninn 26", "hero": {"h": 200, "mask": "dex_photo_mask", "bg": "營地底圖", "pet": [160, 148], "gen": "dex_gen_pill 左上 (10,10) 11 Black", "arrows": "dex_arrow_btn 左右 (8, 78)"},
+  "info": {"boxes": ["進化日期", "養了幾天才進化"], "sprite": "dex_info_box", "label": "10 Black #8A6A4E", "value": "15 Black"},
+  "palette": {"label": "進化時的調色盤（100 張照片）", "bar": {"h": 12, "mask": "dex_palette_mask"}, "legend": "dex_dot + 11 Bold「自然 46%」", "colors": ["#F29A3A", "#6FA45F", "#6F8FE0", "#D78AD0", "#E8C33A"]},
+  "pages": {"off": "dex_page_dot", "on": "dex_page_dot_on", "gap": 6}},
+ "locked": {"dim": "dim 0.5", "card": {"rect": [30, 230, 330, null], "sprite": "dex_popup_card", "padding": [20, 18, 18, 18], "pop": "0.3s"}, "silhouette": [120, 104], "label": "還沒收到 12 Black #8A6A4E", "name": "Huninn 24", "how": "13 Bold #6B5D4E", "rareHow": "稀有：怎麼養才會出現，要自己找找看喔。", "button": {"sprite": "btn_primary", "text": "知道了"}},
+ "new": {"dim": "dim 0.7", "rays": {"rect": [45, 150, 300, 300], "sprite": "dex_new_rays", "spin": "12s 一圈"}, "tag": {"sprite": "dex_new_tag", "text": "圖鑑新增！ 13 Black 白"}, "pet": [220, 196], "line1": "BowBow 系列・第 4 格 13 Black", "name": "Huninn 34 白", "reward": {"sprite": "dex_reward_pill", "icon": "icon_coin", "text": "全營地 +100 金幣 14 Black"}, "line2": "BowBow 系列 4 / 7・收滿送一顆 BowBow 蛋 12 Bold", "button": {"sprite": "btn_primary_lg", "rect": "左右 40、下 44、高 54", "text": "看圖鑑"},
+  "when": "進化動畫播完後；收到已經有的格子不跳；收滿系列改成「BowBow 系列收滿了！」＋送蛋；其他成員下次打開也補看"}
+}

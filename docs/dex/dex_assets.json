@@ -1,0 +1,584 @@
+[
+ {
+  "file": "dex_btn_back",
+  "size_1x": [
+   44,
+   44
+  ],
+  "png_px": [
+   132,
+   132
+  ],
+  "use": "左上返回（含底）"
+ },
+ {
+  "file": "dex_header_bg",
+  "size_1x": [
+   12,
+   12
+  ],
+  "png_px": [
+   36,
+   36
+  ],
+  "use": "頂部底（下緣線 1；拉伸到 390 × 112）",
+  "9slice_px_at3x_LTRB": [
+   6,
+   6,
+   6,
+   6
+  ]
+ },
+ {
+  "file": "dex_tab",
+  "size_1x": [
+   40,
+   28
+  ],
+  "png_px": [
+   120,
+   84
+  ],
+  "use": "系列分頁（沒選）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "dex_tab_on",
+  "size_1x": [
+   40,
+   28
+  ],
+  "png_px": [
+   120,
+   84
+  ],
+  "use": "系列分頁（選中）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "dex_series_card",
+  "size_1x": [
+   60,
+   60
+  ],
+  "png_px": [
+   180,
+   180
+  ],
+  "use": "系列卡底（陰影 0 4 12 另加）",
+  "9slice_px_at3x_LTRB": [
+   66,
+   66,
+   66,
+   66
+  ]
+ },
+ {
+  "file": "dex_series_icon_bg",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "品種圖示方塊（白，上色：BowBow #FCE7A6、貓咪 #F6E2F4、兔子 #E3EED9、萬聖節 #FFE3C7）"
+ },
+ {
+  "file": "dex_egg",
+  "size_1x": [
+   24,
+   27
+  ],
+  "png_px": [
+   72,
+   81
+  ],
+  "use": "品種蛋（底）"
+ },
+ {
+  "file": "dex_egg_zigzag",
+  "size_1x": [
+   24,
+   27
+  ],
+  "png_px": [
+   72,
+   81
+  ],
+  "use": "蛋上的鋸齒線（白，上色品種色，疊在 dex_egg 上）"
+ },
+ {
+  "file": "dex_progress_track",
+  "size_1x": [
+   12,
+   6
+  ],
+  "png_px": [
+   36,
+   18
+  ],
+  "use": "系列進度條軌道",
+  "9slice_px_at3x_LTRB": [
+   9,
+   9,
+   9,
+   9
+  ]
+ },
+ {
+  "file": "dex_progress_fill",
+  "size_1x": [
+   12,
+   6
+  ],
+  "png_px": [
+   36,
+   18
+  ],
+  "use": "系列進度條填滿（寬＝收到格數 / 7）",
+  "9slice_px_at3x_LTRB": [
+   9,
+   9,
+   9,
+   9
+  ]
+ },
+ {
+  "file": "dex_tag_season",
+  "size_1x": [
+   40,
+   16
+  ],
+  "png_px": [
+   120,
+   48
+  ],
+  "use": "「季節限定」標籤底",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   24
+  ]
+ },
+ {
+  "file": "dex_cell",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "格子底（收到／一般沒收到；高 104）",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ },
+ {
+  "file": "dex_cell_rare_empty",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "稀有格（還沒收到）：金色虛線框",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ },
+ {
+  "file": "dex_cell_extreme",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "收到極致型：金框",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ },
+ {
+  "file": "dex_cell_rainbow",
+  "size_1x": [
+   78,
+   104
+  ],
+  "png_px": [
+   234,
+   312
+  ],
+  "use": "收到彩虹型：淡五色漸層底（一格 78 × 104）（只有 PNG，漸層 SVG 不好轉）"
+ },
+ {
+  "file": "dex_badge_count",
+  "size_1x": [
+   24,
+   16
+  ],
+  "png_px": [
+   72,
+   48
+  ],
+  "use": "「×2」次數標籤底（字 TMP 白 10 Black）",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   24
+  ]
+ },
+ {
+  "file": "dex_shop_cell",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "「去商店抽蛋」格（虛線）",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ },
+ {
+  "file": "icon_shop_bag",
+  "size_1x": [
+   20,
+   20
+  ],
+  "png_px": [
+   60,
+   60
+  ],
+  "use": "購物袋圖示"
+ },
+ {
+  "file": "dex_sheet_panel",
+  "size_1x": [
+   60,
+   60
+  ],
+  "png_px": [
+   180,
+   180
+  ],
+  "use": "詳細面板底（上方圓角 26）",
+  "9slice_px_at3x_LTRB": [
+   84,
+   84,
+   84,
+   0
+  ]
+ },
+ {
+  "file": "dex_sheet_grabber",
+  "size_1x": [
+   40,
+   5
+  ],
+  "png_px": [
+   120,
+   15
+  ],
+  "use": "拖曳把手"
+ },
+ {
+  "file": "dex_btn_close",
+  "size_1x": [
+   44,
+   44
+  ],
+  "png_px": [
+   132,
+   132
+  ],
+  "use": "右上關閉（含底）"
+ },
+ {
+  "file": "dex_photo_mask",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "大圖圓角 20 遮罩（354 × 200）",
+  "9slice_px_at3x_LTRB": [
+   60,
+   60,
+   60,
+   60
+  ]
+ },
+ {
+  "file": "dex_gen_pill",
+  "size_1x": [
+   40,
+   20
+  ],
+  "png_px": [
+   120,
+   60
+  ],
+  "use": "「第 2 代」膠囊",
+  "9slice_px_at3x_LTRB": [
+   30,
+   30,
+   30,
+   30
+  ]
+ },
+ {
+  "file": "dex_arrow_btn",
+  "size_1x": [
+   44,
+   44
+  ],
+  "png_px": [
+   132,
+   132
+  ],
+  "use": "上一代箭頭（下一代水平翻轉）"
+ },
+ {
+  "file": "dex_info_box",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "資訊框（進化日期、養了幾天、調色盤）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "dex_palette_mask",
+  "size_1x": [
+   40,
+   12
+  ],
+  "png_px": [
+   120,
+   36
+  ],
+  "use": "調色盤五色條遮罩（色段用白色方塊上色）",
+  "9slice_px_at3x_LTRB": [
+   18,
+   18,
+   18,
+   18
+  ]
+ },
+ {
+  "file": "dex_dot",
+  "size_1x": [
+   8,
+   8
+  ],
+  "png_px": [
+   24,
+   24
+  ],
+  "use": "調色盤圖例圓點（8，白，上色）"
+ },
+ {
+  "file": "dex_page_dot",
+  "size_1x": [
+   6,
+   6
+  ],
+  "png_px": [
+   18,
+   18
+  ],
+  "use": "第幾代位置點（其他）"
+ },
+ {
+  "file": "dex_page_dot_on",
+  "size_1x": [
+   18,
+   6
+  ],
+  "png_px": [
+   54,
+   18
+  ],
+  "use": "第幾代位置點（目前）",
+  "9slice_px_at3x_LTRB": [
+   9,
+   9,
+   9,
+   9
+  ]
+ },
+ {
+  "file": "dex_popup_card",
+  "size_1x": [
+   60,
+   60
+  ],
+  "png_px": [
+   180,
+   180
+  ],
+  "use": "還沒收到小卡底（陰影 0 16 40 另加）",
+  "9slice_px_at3x_LTRB": [
+   72,
+   72,
+   72,
+   72
+  ]
+ },
+ {
+  "file": "btn_primary",
+  "size_1x": [
+   40,
+   51
+  ],
+  "png_px": [
+   120,
+   153
+  ],
+  "use": "「知道了」黃色按鈕（高 48；含下緣 3）",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   54,
+   57
+  ]
+ },
+ {
+  "file": "btn_primary_lg",
+  "size_1x": [
+   40,
+   58
+  ],
+  "png_px": [
+   120,
+   174
+  ],
+  "use": "「看圖鑑」黃色大按鈕（高 54；含下緣 4）",
+  "9slice_px_at3x_LTRB": [
+   57,
+   57,
+   63,
+   66
+  ]
+ },
+ {
+  "file": "dim",
+  "size_1x": [
+   4,
+   4
+  ],
+  "png_px": [
+   12,
+   12
+  ],
+  "use": "遮罩（拉滿畫面；新增畫面用 0.7）"
+ },
+ {
+  "file": "dex_new_rays",
+  "size_1x": [
+   300,
+   300
+  ],
+  "png_px": [
+   900,
+   900
+  ],
+  "use": "寵物後面的金色光芒（12 秒轉一圈）（只有 PNG，漸層 SVG 不好轉）"
+ },
+ {
+  "file": "dex_new_tag",
+  "size_1x": [
+   40,
+   26
+  ],
+  "png_px": [
+   120,
+   78
+  ],
+  "use": "「圖鑑新增！」紅色標籤（含下緣 2）",
+  "9slice_px_at3x_LTRB": [
+   36,
+   36,
+   36,
+   42
+  ]
+ },
+ {
+  "file": "dex_reward_pill",
+  "size_1x": [
+   40,
+   32
+  ],
+  "png_px": [
+   120,
+   96
+  ],
+  "use": "「全營地 +100 金幣」膠囊",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ },
+ {
+  "file": "icon_coin",
+  "size_1x": [
+   18,
+   18
+  ],
+  "png_px": [
+   54,
+   54
+  ],
+  "use": "金幣"
+ }
+]

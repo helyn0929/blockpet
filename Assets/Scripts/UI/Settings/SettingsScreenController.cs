@@ -275,7 +275,15 @@ namespace BlockPet.UI.Settings
         void OnChangeAvatar()
         {
             if (AvatarManager.Instance == null) return;
-            AvatarManager.Instance.PickAvatarFromGallery(ok => { if (ok) RefreshAvatar(); });
+            if (_busy) return;
+            _busy = true;
+            AvatarManager.Instance.PickAvatarFromGallery(ok =>
+            {
+                _busy = false;
+                if (!ok) return;
+                RefreshAvatar();
+                Toast("頭貼已更新");
+            });
         }
 
         void OpenName()
@@ -718,7 +726,11 @@ namespace BlockPet.UI.Settings
             // 頭像：自訂照片，沒有就用寵物圖；右下鉛筆換頭像
             var av = Place(row, "Avatar", 0, 0, 68, 68);
             UIShapes.AddShadow(av, new Color(30f / 255f, 30f / 255f, 20f / 255f, 0.15f), 34, 10, 4);
-            UIShapes.AddRounded(Place(av, "Border", 0, 0, 68, 68).gameObject, Card, 34).raycastTarget = false;
+            // 點整個頭像就能換（原本只有右下小小的「換」）
+            var avBorder = UIShapes.AddRounded(Place(av, "Border", 0, 0, 68, 68).gameObject, Card, 34);
+            var avBtn = av.gameObject.AddComponent<Button>();
+            avBtn.targetGraphic = avBorder;
+            avBtn.onClick.AddListener(OnChangeAvatar);
             var disc = Place(av, "Disc", 3, 3, 62, 62);
             UIShapes.AddRounded(disc.gameObject, Hex(0xFCE7A6), 31).raycastTarget = false;
             disc.gameObject.AddComponent<Mask>().showMaskGraphic = true;

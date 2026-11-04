@@ -15,7 +15,7 @@ namespace BlockPet.UI.Room
     /// - 邀請朋友一起養：6 格邀請碼（＝空間 id）、複製、分享給朋友（手機分享面板，見 <see cref="ShareText"/>）。
     /// - 成員：自己標「你」、建立者標「建立者」；最後一列「邀請朋友」。
     /// - 寵物與空間：寵物名字、空間名稱（點了從下方改名，10 字，所有成員都看得到）、生日。
-    /// - 離開這個空間：再確認一次；寵物留給其他成員。只剩自己一個人時不能離開（要先邀請朋友加入）。
+    /// - 離開這個空間：再確認一次；寵物留給其他成員。只剩自己一個人時離開＝整個空間刪除（寵物、照片、聊天，無法復原）。
     /// 介面在執行時以 390 寬設計座標建立，依螢幕寬度等比縮放，內容可上下捲動。
     /// 由「BlockPet/Build Room Info」掛到 PetSettingPage，並關掉舊的 UI Toolkit 頁面。
     /// </summary>
@@ -276,17 +276,17 @@ namespace BlockPet.UI.Room
         {
             _lastMember = _members.Count <= 1;
             string pet = string.IsNullOrEmpty(_petName) ? "寵物" : _petName;
-            // 只剩自己一個人：不能離開（不然寵物就沒人養了），只有「知道了」
-            _leaveTitle.text = _lastMember ? "現在還不能離開" : $"確定要離開{_roomName}？";
+            // 只剩自己一個人也能離開：空間整個刪除（2026-11-04 定案），要講清楚無法復原
+            _leaveTitle.text = _lastMember ? $"離開並刪除{_roomName}？" : $"確定要離開{_roomName}？";
             _leaveBody.text = _lastMember
-                ? $"・你是這個空間唯一的成員，離開後 {pet} 就沒人養了。\n・先用上方的「邀請朋友一起養」找朋友加入，之後就能離開。"
+                ? $"・你是這個空間唯一的成員，離開後空間會整個刪除。\n・{pet}、營地照片和聊天都會一起刪掉，無法復原。\n・手機相簿裡的原始照片不會被刪。"
                 : $"・{pet} 會留給其他成員繼續養。\n・你餵過的照片會留在營地相簿。\n・想回來的話，請成員再給你一次邀請碼。";
-            _keepText.text = _lastMember ? "知道了" : "先不要";
-            _leaveCard.Find("Leave").gameObject.SetActive(!_lastMember);
+            _keepText.text = "先不要";
+            _leaveCard.Find("Leave").gameObject.SetActive(true);
             float th = Mathf.Ceil(_leaveBody.GetPreferredValues(_leaveBody.text, _leaveBody.rectTransform.rect.width, 0f).y);
             ((RectTransform)_leaveBody.transform.parent).sizeDelta = new Vector2(((RectTransform)_leaveBody.transform.parent).sizeDelta.x, th + 24f);
             _leaveBody.rectTransform.sizeDelta = new Vector2(_leaveBody.rectTransform.sizeDelta.x, th);
-            _leaveButtonText.text = "離開空間";
+            _leaveButtonText.text = _lastMember ? "刪除並離開" : "離開空間";
             LayoutLeave();
             _leaveOpen = true;
             _leaveLayer.gameObject.SetActive(true);
@@ -295,10 +295,11 @@ namespace BlockPet.UI.Room
         void ConfirmLeave()
         {
             var fb = FirebaseManager.Instance;
-            if (fb == null || _busy || string.IsNullOrEmpty(_roomId) || _lastMember) return;
+            if (fb == null || _busy || string.IsNullOrEmpty(_roomId)) return;
             _busy = true;
             _leaveButtonText.text = "處理中…";
             string room = _roomId;
+            string idleText = _lastMember ? "刪除並離開" : "離開空間";
             Action<bool, string> done = (ok, err) =>
             {
                 _busy = false;
@@ -306,7 +307,7 @@ namespace BlockPet.UI.Room
                 if (!ok)
                 {
                     Debug.LogWarning("[RoomInfo] leave failed: " + err);
-                    _leaveButtonText.text = "離開空間";
+                    _leaveButtonText.text = idleText;
                     Toast("離開失敗，請再試一次");
                     return;
                 }
@@ -316,7 +317,16 @@ namespace BlockPet.UI.Room
                 if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
                 pageManager?.ShowRoomPage();
             };
-            fb.LeaveRoom(room, done);
+            // 刪除前再確認一次成員數：剛好有人加入的話只離開、不刪除
+            fb.GetRoomMembers(room, list =>
+            {
+                if (list == null || list.Count == 0) { done(false, "讀不到成員"); return; }
+                bool alone = list.Count <= 1 && list[0].uid == fb.GetUserId();
+                if (!alone) { fb.LeaveRoom(room, done); return; }
+                // 先停掉這個空間的監聽再刪，避免監聽收到「資料消失」又把寵物狀態寫回去
+                if (fb.RoomId == room) fb.SetRoomId("");
+                fb.DeleteRoom(room, done);
+            });
         }
 
         void Toast(string msg)
@@ -378,7 +388,10 @@ namespace BlockPet.UI.Room
             foreach (var m in list)
             {
                 bool mine = m.uid == me;
-                string name = mine ? "我" : (string.IsNullOrEmpty(m.nickname) ? "成員" : m.nickname);
+                // 名字；沒有名字顯示帳號（自己的也一樣，旁邊有「你」標籤）
+                string name = m.Label;
+                if (mine && FirebaseManager.Instance != null && FirebaseManager.Instance.HasDisplayName)
+                    name = FirebaseManager.Instance.GetDisplayName();
                 var row = Place(_membersCard, "Member", 0, y, ContentW, 56);
                 var av = Place(row, "Avatar", 14, 10, 36, 36);
                 UIShapes.AddRounded(av.gameObject, ChatScreenController.PersonColor(name, mine), 18).raycastTarget = false;

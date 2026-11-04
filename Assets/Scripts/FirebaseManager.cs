@@ -84,6 +84,7 @@ public class FirebaseManager : MonoBehaviour
 #endif
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
+        OnLoginSuccess += PublishProfileOnLogin;
 
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task => {
             if (task.IsFaulted) {
@@ -269,6 +270,7 @@ public class FirebaseManager : MonoBehaviour
 
     void OnDestroy()
     {
+        if (Instance == this) OnLoginSuccess -= PublishProfileOnLogin;
         if (auth != null) auth.StateChanged -= OnAuthStateChanged;
         if (enableCloudPhotoSync && SaveManager.Instance != null)
             SaveManager.OnPhotoSavedMeta -= HandleLocalPhotoSaved;
@@ -502,6 +504,51 @@ public class FirebaseManager : MonoBehaviour
 
     public string GetEmail() => auth?.CurrentUser?.Email;
 
+    // ─── 給其他成員看的名字／帳號 ────────────────────────────────────
+
+    void PublishProfileOnLogin(bool ok)
+    {
+        if (ok) PublishProfile();
+    }
+
+    /// <summary>
+    /// 登入後把「其他成員看得到的資料」寫到 Users/{uid}：
+    /// - account：帳號的顯示文字（Email 只留前 3 個字＋網域，例如 nay***@gmail.com；Apple 隱藏信箱、沒有 Email 顯示「Apple 帳號」等；訪客「訪客」）。
+    /// - nickname：Auth 有名字但資料庫還沒有時補上（例：Google 登入）。
+    /// 空間資訊頁的成員列表沒有名字時顯示 account。
+    /// </summary>
+    public void PublishProfile()
+    {
+        var user = auth?.CurrentUser;
+        if (user == null || dbRef == null) return;
+        var node = dbRef.Child(UsersNode).Child(user.UserId);
+        node.Child("account").SetValueAsync(AccountLabel()).ContinueWith(t =>
+        {
+            if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] 寫入 account 失敗：" + t.Exception?.GetBaseException()?.Message);
+        });
+        if (!string.IsNullOrEmpty(user.DisplayName))
+            node.Child("nickname").SetValueAsync(user.DisplayName.Trim());
+    }
+
+    string AccountLabel()
+    {
+        string provider = GetSignInProvider();
+        if (provider == null || provider == "anonymous") return "訪客";
+        string email = GetEmail();
+        if (string.IsNullOrEmpty(email))
+        {
+            foreach (var info in auth.CurrentUser.ProviderData)
+                if (!string.IsNullOrEmpty(info?.Email)) { email = info.Email; break; }
+        }
+        if (string.IsNullOrEmpty(email) || email.EndsWith("privaterelay.appleid.com", StringComparison.OrdinalIgnoreCase))
+            return provider == "apple.com" ? "Apple 帳號" : provider == "google.com" ? "Google 帳號" : "帳號";
+        int at = email.IndexOf('@');
+        if (at <= 0) return email;
+        string local = email.Substring(0, at);
+        string keep = local.Length <= 3 ? local.Substring(0, 1) : local.Substring(0, 3);
+        return keep + "***" + email.Substring(at);
+    }
+
     /// <summary>登入方式："password"（Email）、"apple.com"、"google.com"；訪客回傳 "anonymous"；未登入回傳 null。</summary>
     public string GetSignInProvider()
     {
@@ -703,6 +750,29 @@ public class FirebaseManager : MonoBehaviour
 
     /// <summary>Returns the current user's rooms node in the same database instance used by this manager.</summary>
     public DatabaseReference GetUserRoomsRef() => UserRoomsRoot();
+
+    /// <summary>
+    /// 我還在不在這個空間（Users/{uid}/rooms/{roomId} 存在）。開遊戲直接回上次的空間前用，空間被刪掉就不要進去。
+    /// 用一次性的監聽而不是 GetValueAsync（選空間頁可能正在聽 rooms，同一路徑再 Get 會觸發 desktop SDK 斷言）；
+    /// 有離線快取時馬上回答。回傳在主執行緒；還沒登入回傳 false。
+    /// </summary>
+    public void CheckMyRoom(string roomId, Action<bool> done)
+    {
+        var rooms = UserRoomsRoot();
+        if (rooms == null || string.IsNullOrWhiteSpace(roomId)) { done?.Invoke(false); return; }
+        var r = rooms.Child(roomId.Trim());
+        bool answered = false;
+        EventHandler<ValueChangedEventArgs> h = null;
+        h = (sender, e) =>
+        {
+            if (answered) return;
+            answered = true;
+            r.ValueChanged -= h;
+            bool ok = e.DatabaseError == null && e.Snapshot != null && e.Snapshot.Exists;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        };
+        r.ValueChanged += h;
+    }
 
     /// <summary>Creates a room (meta + membership). Callback runs on main thread.</summary>
     public void CreateRoom(string roomId, string roomName, Action<bool, string> done)
@@ -1189,7 +1259,12 @@ public class FirebaseManager : MonoBehaviour
     public class RoomMemberInfo
     {
         public string uid;
+        /// <summary>名字；沒有設定或讀不到是 null。</summary>
         public string nickname;
+        /// <summary>帳號顯示文字（已遮掉部分 Email）；舊帳號還沒寫過是 null。</summary>
+        public string account;
+        /// <summary>列表要顯示的名字：名字 → 帳號 → 「成員」。</summary>
+        public string Label => !string.IsNullOrEmpty(nickname) ? nickname : !string.IsNullOrEmpty(account) ? account : "成員";
     }
 
     /// <summary>Reads Rooms/{roomId}/members, fetches each member's nickname, returns on main thread.</summary>
@@ -1225,37 +1300,54 @@ public class FirebaseManager : MonoBehaviour
         });
     }
 
+    /// <summary>每個成員讀 Users/{uid}/nickname 和 account（Firebase 規則要允許登入的人讀這兩個欄位）。</summary>
     void FetchMemberNicknames(List<string> uids, Action<List<RoomMemberInfo>> done)
     {
+        var results = new List<RoomMemberInfo>();
+        int remaining = uids.Count;
+        foreach (string uid in uids)
         {
-            var results  = new List<RoomMemberInfo>();
-            int remaining = uids.Count;
-
-            foreach (string uid in uids)
+            var info = new RoomMemberInfo { uid = uid };
+            var user = dbRef.Child(UsersNode).Child(uid);
+            int parts = 2;
+            void Part()
             {
-                string capturedUid = uid;
-                dbRef.Child(UsersNode).Child(capturedUid).Child("nickname").GetValueAsync().ContinueWith(tNick =>
+                if (System.Threading.Interlocked.Decrement(ref parts) != 0) return;
+                lock (results)
                 {
-                    string nick = "?";
-                    try
+                    results.Add(info);
+                    if (System.Threading.Interlocked.Decrement(ref remaining) == 0)
                     {
-                        if (tNick.IsCompleted && !tNick.IsFaulted && tNick.Result != null && tNick.Result.Exists)
-                            nick = tNick.Result.Value?.ToString() ?? "?";
+                        var final = new List<RoomMemberInfo>(results);
+                        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(final));
                     }
-                    catch { }
+                }
+            }
+            user.Child("nickname").GetValueAsync().ContinueWith(t =>
+            {
+                info.nickname = ReadString(t);
+                Part();
+            });
+            user.Child("account").GetValueAsync().ContinueWith(t =>
+            {
+                info.account = ReadString(t);
+                Part();
+            });
+        }
+    }
 
-                    lock (results)
-                    {
-                        results.Add(new RoomMemberInfo { uid = capturedUid, nickname = nick });
-                        if (System.Threading.Interlocked.Decrement(ref remaining) == 0)
-                        {
-                            var final = new List<RoomMemberInfo>(results);
-                            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(final));
-                        }
-                    }
-                });
+    static string ReadString(System.Threading.Tasks.Task<DataSnapshot> t)
+    {
+        try
+        {
+            if (t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists)
+            {
+                string v = t.Result.Value?.ToString()?.Trim();
+                return string.IsNullOrEmpty(v) ? null : v;
             }
         }
+        catch { }
+        return null;
     }
 
     // 發送訊息到資料庫 (legacy signature)
@@ -1946,26 +2038,37 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 讀某個成員的頭貼（base64）：先讀小縮圖 avatarThumb；舊資料沒有縮圖時讀原本的備份 avatarBase64。
-    /// 沒有頭貼或讀不到回傳 null（主執行緒）。
+    /// 一直聽某個成員的頭貼小縮圖（Users/{uid}/avatarThumb，base64）：一開始回傳目前的值，之後對方換頭貼會再回傳（主執行緒）。
+    /// 沒有縮圖回傳 null。回傳的 Action 呼叫後停止聽；還沒登入時回傳 null（等登入後再呼叫）。
     /// </summary>
-    public void DownloadUserAvatar(string uid, System.Action<string> onResult)
+    public Action ListenUserAvatarThumb(string uid, Action<string> onValue)
     {
-        if (string.IsNullOrEmpty(uid) || dbRef == null || auth?.CurrentUser == null) { onResult?.Invoke(null); return; }
-        var user = dbRef.Child(UsersNode).Child(uid);
-        user.Child("avatarThumb").GetValueAsync().ContinueWith(t =>
+        if (string.IsNullOrEmpty(uid) || dbRef == null || auth?.CurrentUser == null) return null;
+        var r = dbRef.Child(UsersNode).Child(uid).Child("avatarThumb");
+        bool warned = false;
+        EventHandler<ValueChangedEventArgs> h = (sender, e) =>
         {
-            string thumb = !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists ? t.Result.Value as string : null;
-            if (!string.IsNullOrEmpty(thumb))
+            if (e.DatabaseError != null)
             {
-                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onResult?.Invoke(thumb));
+                if (!warned) Debug.LogWarning($"[FirebaseManager] 讀不到成員頭貼 {uid}（Firebase 規則要允許登入的人讀 Users/*/avatarThumb）：{e.DatabaseError.Message}");
+                warned = true;
                 return;
             }
-            user.Child("avatarBase64").GetValueAsync().ContinueWith(t2 =>
-            {
-                string full = !t2.IsFaulted && !t2.IsCanceled && t2.Result != null && t2.Result.Exists ? t2.Result.Value as string : null;
-                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onResult?.Invoke(full));
-            });
+            string v = e.Snapshot != null && e.Snapshot.Exists ? e.Snapshot.Value as string : null;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onValue?.Invoke(v));
+        };
+        r.ValueChanged += h;
+        return () => r.ValueChanged -= h;
+    }
+
+    /// <summary>舊資料（還沒有小縮圖）的頭貼備份 Users/{uid}/avatarBase64；沒有回傳 null（主執行緒）。</summary>
+    public void DownloadUserAvatarBackup(string uid, Action<string> onResult)
+    {
+        if (string.IsNullOrEmpty(uid) || dbRef == null || auth?.CurrentUser == null) { onResult?.Invoke(null); return; }
+        dbRef.Child(UsersNode).Child(uid).Child("avatarBase64").GetValueAsync().ContinueWith(t =>
+        {
+            string v = !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists ? t.Result.Value as string : null;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => onResult?.Invoke(v));
         });
     }
 

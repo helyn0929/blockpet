@@ -37,12 +37,25 @@ public class AvatarManager : MonoBehaviour
         avatarFolder = Path.Combine(Application.persistentDataPath, "avatars");
         if (!Directory.Exists(avatarFolder))
             Directory.CreateDirectory(avatarFolder);
+
+        // 登入（含自動登入）後自己讀頭貼：原本靠 LoginUIHandler，但它在 LoginPanel 底下，
+        // 自動登入時 LoginPanel 沒開，事件收不到 → 重開遊戲頭貼就不見
+        FirebaseManager.OnLoginSuccess += OnLogin;
     }
 
     void OnDestroy()
     {
+        FirebaseManager.OnLoginSuccess -= OnLogin;
         if (Instance == this) Instance = null;
     }
+
+    void OnLogin(bool ok)
+    {
+        if (ok) LoadAvatarFromSave();
+    }
+
+    /// <summary>目前登入的帳號（頭貼檔記在手機全域存檔，換帳號時不能拿上一個人的）。</summary>
+    static string CurrentUid => FirebaseManager.Instance != null ? FirebaseManager.Instance.GetUserId() : null;
 
     // ================================================================
     //  Load existing avatar from disk (call after login / save loaded)
@@ -60,6 +73,14 @@ public class AvatarManager : MonoBehaviour
         }
 
         string fileName = SaveManager.Instance.AvatarFileName;
+        string owner = SaveManager.Instance.AvatarOwnerUid;
+        string uid = CurrentUid;
+        // 手機上存的是別的帳號的頭貼：不要用，改從這個帳號的雲端備份讀
+        if (!string.IsNullOrEmpty(fileName) && !string.IsNullOrEmpty(owner) && !string.IsNullOrEmpty(uid) && owner != uid)
+        {
+            Debug.Log("[AvatarManager] Local avatar belongs to another account — trying Firebase backup.");
+            fileName = null;
+        }
         if (string.IsNullOrEmpty(fileName))
         {
             Debug.Log("[AvatarManager] No local avatarFileName — trying Firebase backup.");
@@ -104,11 +125,18 @@ public class AvatarManager : MonoBehaviour
     //  Restore avatar from Firebase backup (after reinstall)
     // ================================================================
 
+    bool _restoring;
+
     void TryRestoreFromFirebase()
     {
         if (FirebaseManager.Instance == null) { OnAvatarChanged?.Invoke(); return; }
+        if (_restoring) return;
+        _restoring = true;
+        string uid = CurrentUid;
         FirebaseManager.Instance.DownloadAvatarBase64(b64 =>
         {
+            _restoring = false;
+            if (uid != CurrentUid) return; // 讀的途中換了帳號
             if (string.IsNullOrEmpty(b64)) { OnAvatarChanged?.Invoke(); return; }
             try
             {
@@ -119,9 +147,11 @@ public class AvatarManager : MonoBehaviour
                     // Save locally so future loads skip Firebase.
                     string fileName = "avatar_" + Guid.NewGuid().ToString("N") + ".png";
                     File.WriteAllBytes(Path.Combine(avatarFolder, fileName), bytes);
+                    DeleteOldAvatar();
                     if (SaveManager.Instance != null)
-                        SaveManager.Instance.AvatarFileName = fileName;
+                        SaveManager.Instance.SetAvatarFile(fileName, uid);
                     CurrentAvatar = tex;
+                    SyncThumbOnce(tex);
                     Debug.Log("[AvatarManager] Avatar restored from Firebase.");
                 }
                 else { Destroy(tex); }
@@ -154,9 +184,7 @@ public class AvatarManager : MonoBehaviour
             DeleteOldAvatar();
 
             if (SaveManager.Instance != null)
-            {
-                SaveManager.Instance.AvatarFileName = fileName;
-            }
+                SaveManager.Instance.SetAvatarFile(fileName, CurrentUid);
 
             CurrentAvatar = texture;
             Debug.Log($"[AvatarManager] Avatar saved: {fileName}, CurrentAvatar set ({texture.width}x{texture.height})");
@@ -182,6 +210,7 @@ public class AvatarManager : MonoBehaviour
     public void ClearAvatar()
     {
         CurrentAvatar = null;
+        _thumbSynced = false; // 下一個登入的帳號也要補傳一次縮圖
         OnAvatarChanged?.Invoke();
     }
 

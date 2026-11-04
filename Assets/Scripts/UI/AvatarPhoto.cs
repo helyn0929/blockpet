@@ -6,16 +6,16 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 成員頭貼快取：自己的用 AvatarManager（手機裡的那張，換頭貼馬上更新）；
-/// 其他成員的從 Firebase 讀小縮圖（Users/{uid}/avatarThumb，舊資料退回 avatarBase64），每次開 App 讀一次、存在記憶體。
-/// 沒有頭貼的成員記下來，這次開 App 不再重查。
+/// 其他成員的一直聽 Firebase 的小縮圖（Users/{uid}/avatarThumb），對方換頭貼這邊會跟著換；
+/// 對方還沒有縮圖（舊資料）時退回讀一次備份 avatarBase64。登出時全部停掉、清掉。
 /// </summary>
 public static class AvatarCache
 {
     const int MaxSize = 128;
 
     static readonly Dictionary<string, Texture2D> _textures = new Dictionary<string, Texture2D>();
-    static readonly HashSet<string> _loading = new HashSet<string>();
-    static readonly HashSet<string> _none = new HashSet<string>();
+    static readonly Dictionary<string, Action> _listeners = new Dictionary<string, Action>();
+    static readonly HashSet<string> _backupTried = new HashSet<string>();
     static bool _hooked;
 
     /// <summary>某個成員的頭貼讀好了／換了（uid）。</summary>
@@ -23,27 +23,50 @@ public static class AvatarCache
 
     static string MyId => FirebaseManager.Instance != null ? FirebaseManager.Instance.GetUserId() : null;
 
-    /// <summary>成員的頭貼；還沒讀到或沒有頭貼回傳 null（讀到時會發 OnChanged）。</summary>
+    /// <summary>成員的頭貼；還沒讀到或沒有頭貼回傳 null（讀到、換了時會發 OnChanged）。</summary>
     public static Texture2D Get(string uid)
     {
         Hook();
         if (string.IsNullOrEmpty(uid)) return null;
         if (uid == MyId) return AvatarManager.Instance != null ? AvatarManager.Instance.CurrentAvatar : null;
-        if (_textures.TryGetValue(uid, out var tex)) return tex;
-        if (_none.Contains(uid) || _loading.Contains(uid)) return null;
+        Listen(uid);
+        return _textures.TryGetValue(uid, out var tex) ? tex : null;
+    }
 
+    static void Listen(string uid)
+    {
+        if (_listeners.ContainsKey(uid)) return;
         var fb = FirebaseManager.Instance;
-        if (fb == null) return null;
-        _loading.Add(uid);
-        fb.DownloadUserAvatar(uid, b64 =>
+        if (fb == null) return;
+        var stop = fb.ListenUserAvatarThumb(uid, b64 => OnThumb(uid, b64));
+        if (stop != null) _listeners[uid] = stop; // 還沒登入：下次 Get 再試
+    }
+
+    static void OnThumb(string uid, string b64)
+    {
+        if (!_listeners.ContainsKey(uid)) return; // 已經停掉（登出）
+        if (string.IsNullOrEmpty(b64))
         {
-            _loading.Remove(uid);
-            var t = Decode(b64);
-            if (t == null) { _none.Add(uid); return; }
-            _textures[uid] = t;
-            OnChanged?.Invoke(uid);
-        });
-        return null;
+            // 還沒有縮圖：舊資料讀一次大圖備份
+            if (_backupTried.Add(uid) && FirebaseManager.Instance != null)
+                FirebaseManager.Instance.DownloadUserAvatarBackup(uid, full =>
+                {
+                    if (!_listeners.ContainsKey(uid) || _textures.ContainsKey(uid)) return;
+                    var bt = Decode(full);
+                    if (bt != null) Set(uid, bt);
+                });
+            else if (_textures.ContainsKey(uid)) Set(uid, null); // 對方拿掉頭貼
+            return;
+        }
+        var t = Decode(b64);
+        if (t != null) Set(uid, t);
+    }
+
+    static void Set(string uid, Texture2D tex)
+    {
+        if (_textures.TryGetValue(uid, out var old) && old != null && old != tex) UnityEngine.Object.Destroy(old);
+        if (tex != null) _textures[uid] = tex; else _textures.Remove(uid);
+        OnChanged?.Invoke(uid);
     }
 
     static void Hook()
@@ -51,8 +74,16 @@ public static class AvatarCache
         if (_hooked) return;
         _hooked = true;
         AvatarManager.OnAvatarChanged += () => { var me = MyId; if (!string.IsNullOrEmpty(me)) OnChanged?.Invoke(me); };
-        // 換空間（可能換帳號）時清掉，下次重讀
-        FirebaseManager.OnRoomChanged += () => { _none.Clear(); };
+        FirebaseManager.OnLogout += Reset;
+    }
+
+    static void Reset()
+    {
+        foreach (var stop in _listeners.Values) stop?.Invoke();
+        _listeners.Clear();
+        _backupTried.Clear();
+        foreach (var t in _textures.Values) if (t != null) UnityEngine.Object.Destroy(t);
+        _textures.Clear();
     }
 
     static Texture2D Decode(string b64)

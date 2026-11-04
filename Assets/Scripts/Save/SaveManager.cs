@@ -35,6 +35,15 @@ public class SaveManager : MonoBehaviour
         set { _globalData.avatarFileName = value; SaveGlobal(); }
     }
 
+    public string AvatarOwnerUid => _globalData.avatarOwnerUid;
+
+    public void SetAvatarFile(string fileName, string ownerUid)
+    {
+        _globalData.avatarFileName = fileName;
+        _globalData.avatarOwnerUid = ownerUid;
+        SaveGlobal();
+    }
+
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }

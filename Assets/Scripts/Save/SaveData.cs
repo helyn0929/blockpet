@@ -17,4 +17,6 @@ public class SaveData
 public class GlobalSaveData
 {
     public string avatarFileName;
+    /// <summary>這個頭貼檔是哪個帳號的（換帳號時不拿上一個人的）。舊存檔是空的＝不檢查。</summary>
+    public string avatarOwnerUid;
 }

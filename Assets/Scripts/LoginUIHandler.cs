@@ -211,8 +211,7 @@ public class LoginUIHandler : MonoBehaviour
         if (!success) return;
 
         if (statusText != null) statusText.text = "Login Successful!";
-        if (AvatarManager.Instance != null)
-            AvatarManager.Instance.LoadAvatarFromSave();
+        // 頭貼由 AvatarManager 自己在登入時讀（這裡在 LoginPanel 底下，自動登入時收不到事件）
 
         // The login screen handles the nickname step and calls StartGameFlow()
         // once the login UI is fully dismissed. Only bypass if there is no login screen.
@@ -268,6 +267,41 @@ public class LoginUIHandler : MonoBehaviour
             mainRoomBackground.SetActive(false);
         ResolveHudManagers();
         SetGameplayHudVisible(false);
+        // 上次待的空間還在 → 直接進去（不要每次都從選空間頁進，會錯過拍照時機）
+        var fb = FirebaseManager.Instance;
+        string lastRoom = fb != null ? fb.RoomId : "";
+        if (pageManager != null && !string.IsNullOrEmpty(lastRoom) && !string.IsNullOrEmpty(fb.GetUserId()))
+        {
+            pageManager.StartCoroutine(EnterLastRoomOrPick(pageManager, lastRoom));
+            yield break;
+        }
+
+        ShowRoomPick(pageManager);
+    }
+
+    /// <summary>確認還是上次空間的成員就直接進首頁；空間不在了（或 3 秒沒回應又沒快取）就去選空間頁。</summary>
+    IEnumerator EnterLastRoomOrPick(PageManager pageManager, string roomId)
+    {
+        var fb = FirebaseManager.Instance;
+        bool? member = null;
+        fb.CheckMyRoom(roomId, ok => member = ok);
+        float until = Time.realtimeSinceStartup + 3f;
+        while (member == null && Time.realtimeSinceStartup < until) yield return null;
+
+        // 沒網路又沒快取（3 秒沒回應）也直接進：寧可先進去拍照，不要卡在選空間頁
+        if (member != false && fb != null && fb.RoomId == roomId && !GameplayHudReleased)
+        {
+            Debug.Log($"[LoginUIHandler] Post-login: entering last room {roomId}");
+            fb.SetRoomId(roomId);
+            EnterMainGame();
+            pageManager.ShowHomePage();
+            yield break;
+        }
+        if (!GameplayHudReleased) ShowRoomPick(pageManager);
+    }
+
+    void ShowRoomPick(PageManager pageManager)
+    {
         if (pageManager != null)
         {
             pageManager.ShowRoomPage();

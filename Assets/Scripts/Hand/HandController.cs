@@ -496,12 +496,14 @@ namespace BlockPet.Hand
         void OnCameraCardClicked()
         {
             if (_selected != null) PutBack();
+            if (!BlockPet.Feed.FeedGate.Check()) return;
             cameraUI?.OpenCameraFromHand();
         }
 
         void Select(Card card)
         {
             if (_dockMode || PhotoCooldown.IsActive) return;
+            if (!BlockPet.Feed.FeedGate.Check()) return; // 昏倒中不能出牌，先復活
             bool wasOpen = _selected != null;
             _selected = card;
 
@@ -531,6 +533,7 @@ namespace BlockPet.Hand
         {
             var card = _selected;
             if (card == null) return;
+            if (!BlockPet.Feed.FeedGate.Check()) { PutBack(); return; }
 
             // 照片從浮起的位置縮小飛向寵物（寵物先留在原地等，吃完才放開）
             var photoRt = _popupPhoto.rectTransform;
@@ -647,9 +650,9 @@ namespace BlockPet.Hand
         {
             // 命中：開心跳起；沒命中：中性的「嗯…？」（不用難過的表情）
             _petLineText.text = r.dead ? "……" : (r.hit ? "好好吃！" : "嗯…？");
-            _petLineSub.text = r.dead ? $"昏倒了，點想吃膠囊復活・+{r.coins} 金幣" : r.hit
-                ? $"命中今天想吃・+{r.coins} 金幣"
-                : (string.IsNullOrEmpty(r.want) ? $"+{r.coins} 金幣" : $"今天想吃{r.want}・+{r.coins} 金幣");
+            _petLineSub.text = r.dead ? "昏倒了，點想吃膠囊復活" : r.hit
+                ? $"命中現在想吃・+{r.coins} 金幣"
+                : (string.IsNullOrEmpty(r.want) ? $"+{r.coins} 金幣" : $"現在想吃{r.want}・+{r.coins} 金幣");
             _petLineSub.color = r.hit ? Coral : Muted;
             float w = Mathf.Max(96f, Mathf.Ceil(_petLineSub.GetPreferredValues(_petLineSub.text).x) + 28f);
             _petLine.sizeDelta = new Vector2(w, 58f);
@@ -759,6 +762,7 @@ namespace BlockPet.Hand
         void OnDockCameraClicked()
         {
             if (PhotoCooldown.IsActive) return;
+            if (!BlockPet.Feed.FeedGate.Check()) return;
             cameraUI?.OpenCameraFromHand();
         }
 

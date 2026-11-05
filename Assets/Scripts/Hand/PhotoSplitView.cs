@@ -376,6 +376,7 @@ namespace BlockPet.Hand
         /// <summary>快門：第一次按打開相機畫面，相機畫面時按就拍下並餵給寵物。</summary>
         void Shoot()
         {
+            if (!FeedGate.Check()) { if (_camMode) ExitCamera(); return; } // 昏倒中不能拍照餵食
             if (_camMode) { CaptureAndFeed(); return; }
             if (PhotoCooldown.IsActive) { SetSay("等一下再拍喔～"); return; }
             if (WebCamTexture.devices.Length == 0) { SetSay("找不到相機…"); return; }

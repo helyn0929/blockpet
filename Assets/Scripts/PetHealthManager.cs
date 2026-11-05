@@ -32,26 +32,34 @@ public class PetHealthManager : MonoBehaviour
     public float CurrentHealth => Hearts / PetHearts.Max * maxHealth;
 
     int _appliedStars;
+    bool _appliedStill;
 
     void Update()
     {
         float hearts = Hearts;
         if (healthSlider != null) healthSlider.value = hearts / PetHearts.Max * maxHealth;
 
-        // 愛心星等即時影響寵物待機行為（★越高越活潑）
-        int stars = PetHearts.Stars(hearts);
+        // 愛心等級即時影響寵物待機行為與移動速度（規格 1.4：速度倍率＝愛心乘數，半顆捨去）
+        int stars = EconomyRules.HeartLevel(hearts);
         var pet = AIController.Instance;
         if (pet != null && stars != _appliedStars)
         {
             _appliedStars = stars;
             pet.SetHeartLevel(stars);
         }
+        // 規格 3.2【未定】暫用值：昏倒時寵物不移動
+        bool still = hearts <= 0f && !EconomyRules.DeadPetMoves;
+        if (pet != null && still != _appliedStill)
+        {
+            _appliedStill = still;
+            pet.SetStill(still);
+        }
     }
 
-    /// <summary>回半顆心（每餵一張照片，FeedSettlement 呼叫）。寵物死亡時不回心。</summary>
-    public void AddHalfHeart()
+    /// <summary>回心（每餵一張照片，FeedSettlement 呼叫；回多少見 EconomyRules.Heal）。寵物死亡時不回心。</summary>
+    public void AddHearts(float amount)
     {
-        FirebaseManager.Instance?.AddRoomHearts(PetHearts.Step);
+        FirebaseManager.Instance?.AddRoomHearts(amount);
     }
 
     /// <summary>復活：喝一瓶空間的復活藥水（商城買）。done(ok, 原因：potion／alive／error) 在主執行緒呼叫。</summary>

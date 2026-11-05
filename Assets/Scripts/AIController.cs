@@ -38,7 +38,13 @@ public class AIController : MonoBehaviour, IEditModeFreezable
 
     static readonly float[] IdleMin  = { 3f, 2.5f, 2f,  1f,  0.5f };
     static readonly float[] IdleMax  = { 6f, 5f,   4f,  3f,  2f   };
-    static readonly float[] SpeedVal = { 1f, 1.2f, 1.5f,1.8f,2.2f };
+    /// <summary>基本移動速度（愛心乘數 ×1.0 時，每秒幾格；2026-11-05 定：沿用原本 3 顆心的 1.5）。實際速度＝基本 × 愛心乘數（EconomyRules）。</summary>
+    const float BaseSpeed = 1.5f;
+    float LevelSpeed => BaseSpeed * BlockPet.Feed.EconomyRules.LevelMultiplier(heartLevel);
+    bool _still;
+
+    /// <summary>昏倒時停住不動（規格 3.2 暫用值），醒來再繼續走。</summary>
+    public void SetStill(bool still) => _still = still;
 
     void Awake()
     {
@@ -110,7 +116,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
     IEnumerator GoToRoutine(Vector3 worldPos, System.Action onArrived)
     {
         _target = new Vector3(worldPos.x, worldPos.y, transform.position.z);
-        _speed  = SpeedVal[Mathf.Clamp(heartLevel, 1, 5) - 1];
+        _speed  = LevelSpeed;
         _state  = State.Walking;
 
         while (Vector3.Distance(transform.position, _target) > 0.05f)
@@ -123,7 +129,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
 
     void Update()
     {
-        if (!_frozen && _state == State.Walking)
+        if (!_frozen && !_still && _state == State.Walking)
         {
             transform.position = Vector3.MoveTowards(transform.position, _target, _speed * Time.deltaTime);
             ApplyFlip();
@@ -146,6 +152,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
     {
         int lvl = Mathf.Clamp(heartLevel, 1, 5) - 1;
         yield return new WaitForSeconds(Random.Range(IdleMin[lvl], IdleMax[lvl]));
+        while (_still) yield return null; // 昏倒中：不找新的目的地
 
         Vector2 candidate = (Vector2)_startPos + Random.insideUnitCircle * wanderRadius;
         if (walkableBounds != null)
@@ -161,7 +168,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
         }
 
         _target = new Vector3(candidate.x, candidate.y, transform.position.z);
-        _speed  = SpeedVal[Mathf.Clamp(heartLevel, 1, 5) - 1];
+        _speed  = LevelSpeed;
         _state  = State.Walking;
     }
 

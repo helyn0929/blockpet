@@ -5,7 +5,7 @@ namespace BlockPet.Feed
 {
     /// <summary>
     /// 愛心規則（開發順序第 6 步）：0～5 顆、半顆為單位；每 5 小時沒人餵掉半顆（以伺服器時間計算）；
-    /// 房間任何成員餵一張回半顆，並重新開始計時；0 顆＝死亡，要喝一瓶復活藥水（商城買）才會醒來（完全恢復）。
+    /// 房間任何成員餵一張就回心（命中 +1、沒命中 +0.5，見 <see cref="EconomyRules"/>），並重新開始計時；0 顆＝死亡，要喝一瓶復活藥水（商城買）才會醒來（完全恢復）。
     /// 房間存的是「上次有人餵（或復活）時的愛心」＋「那時的伺服器時間」，現在的愛心每台手機自己算，不用一直寫伺服器。
     /// 5 顆滿 → 45 小時剩半顆 → 50 小時死亡。
     /// 舊房間（24 小時秒數制、沒有 heartsAt）第一次載入時直接補成 5 顆滿（FirebaseManager.MigratePetHearts）。
@@ -37,8 +37,8 @@ namespace BlockPet.Feed
             return TimeSpan.FromMilliseconds(DecayMs - elapsed);
         }
 
-        /// <summary>愛心對應的星等 ★1～★5（有幾顆就是幾星，半顆進位，最少 ★1）。</summary>
-        public static int Stars(float hearts) => Mathf.Clamp(Mathf.CeilToInt(hearts - 0.001f), 1, 5);
+        /// <summary>愛心對應的星等 ★1～★5（＝<see cref="EconomyRules.HeartLevel"/>：半顆捨去，最少 ★1）。</summary>
+        public static int Stars(float hearts) => EconomyRules.HeartLevel(hearts);
 
         /// <summary>對齊到半顆。</summary>
         public static float Snap(float hearts) => Mathf.Clamp(Mathf.Round(hearts / Step) * Step, 0f, Max);

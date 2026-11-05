@@ -3,7 +3,8 @@
     "rootNamespace": "BlockPet.Tests",
     "references": [
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "BlockPet.Economy"
     ],
     "includePlatforms": [
         "Editor"

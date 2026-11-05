@@ -190,6 +190,7 @@ public class CameraUIManager : MonoBehaviour
 
     void EnterCameraMode()
     {
+        if (!BlockPet.Feed.FeedGate.Check()) return; // 昏倒中不能拍照餵食，先復活
         if (pageManager != null)
             pageManager.ShowHomePage();
         else
@@ -222,6 +223,7 @@ public class CameraUIManager : MonoBehaviour
 
     void FeedAndExit()
     {
+        if (!BlockPet.Feed.FeedGate.Check()) { ExitCameraMode(); return; }
         if (cameraController != null)
             cameraController.FeedPhoto();
 

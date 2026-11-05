@@ -51,17 +51,17 @@
 ### 餵食結算（辨識、命中、金幣、愛心）
 - Scene：無（純程式，由餵食流程呼叫）
 - 主要 Prefab：無
-- 主要腳本：`Scripts/Feed/FeedSettlement.cs`（金幣乘數表在這裡）、`Scripts/Feed/TodayWant.cs`（今天想吃）、`Scripts/Feed/PetPreferences.cs`（五大類別）、`Scripts/Vision/PhotoClassifier.cs`（照片辨識）、`Scripts/Feed/PetHop.cs`
+- 主要腳本：`Scripts/Feed/FeedSettlement.cs`（結算流程）、`Scripts/Economy/EconomyRules.cs`（**經濟規則唯一定義處**：愛心乘數表、回復量、金幣計算、未定暫用值；依據 `docs/design/blockpet-economy-spec.md`）、`Scripts/Feed/FeedGate.cs`（昏倒時擋住餵食入口）、`Scripts/Feed/TodayWant.cs`（現在想吃：取目前空間、寵物、伺服器時間）、`Scripts/Economy/WantSchedule.cs`（現在想吃的時段與抽選：每 2 小時、台灣時間偶數整點）、`Scripts/Economy/PetPreferences.cs`（五大類別、寵物偏愛；2026-11-05 從 Feed 搬到 Economy）、`Scripts/Vision/PhotoClassifier.cs`（照片辨識）、`Scripts/Feed/PetHop.cs`
 
 ### 愛心、死亡與復活
 - Scene：Feed.unity
 - 主要 Prefab：無（`ReviveDialog` 執行時建立）
-- 主要腳本：`Scripts/PetHealthManager.cs`、`Scripts/Feed/PetHearts.cs`（掉心規則、星等）、`Scripts/Feed/ReviveDialog.cs`、`Scripts/FirebaseManager.cs`（`petState.hearts`／`heartsAt`、復活）
+- 主要腳本：`Scripts/PetHealthManager.cs`、`Scripts/Economy/PetHearts.cs`（掉心規則、星等；2026-11-05 從 Feed 搬到 Economy，獨立組件 `BlockPet.Economy` 讓測試可以引用）、`Scripts/Feed/ReviveDialog.cs`、`Scripts/FirebaseManager.cs`（`petState.hearts`／`heartsAt`、復活）
 
 ### 寵物（移動、動畫、收集）
 - Scene：Feed.unity
 - 主要 Prefab：`Assets/Prefabs/PetBase.prefab`；`Assets/Prefabs/shiba.prefab` 沒有被任何場景引用，待確認
-- 主要腳本：`Scripts/AIController.cs`（待機移動，速度表 `SpeedVal` 在這裡）、`Scripts/PetAnimationEvents.cs`、`Scripts/PetCollectionManager.cs`（寵物資料、進化能量）、`Scripts/PetEatTest.cs`（測試用，待確認）
+- 主要腳本：`Scripts/AIController.cs`（待機移動；速度＝基本 1.5 × `EconomyRules` 愛心乘數，昏倒時停住）、`Scripts/PetAnimationEvents.cs`、`Scripts/PetCollectionManager.cs`（寵物資料、進化能量）、`Scripts/PetEatTest.cs`（測試用，待確認）
 
 ### 拍照
 - Scene：Feed.unity
@@ -141,7 +141,7 @@
 
 ### 測試
 - Scene：無
-- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`）；執行 `scripts/run-tests.sh`
+- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）；執行 `scripts/run-tests.sh`
 
 ## 規劃中、專案裡找不到程式的功能
 

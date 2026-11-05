@@ -3,7 +3,7 @@ using UnityEngine;
 namespace BlockPet.Feed
 {
     /// <summary>
-    /// 寵物開心跳一下（命中今天想吃）。寵物的 Animator 目前沒有跳的動畫，用程式往上彈。
+    /// 寵物開心跳一下（命中現在想吃）。寵物的 Animator 目前沒有跳的動畫，用程式往上彈。
     /// 寵物本身會走路（AIController 每幀改 position），所以每幀先拿掉上一幀加的高度、AIController 移動完再加回去，
     /// 不會讓寵物越跳越偏。
     /// </summary>

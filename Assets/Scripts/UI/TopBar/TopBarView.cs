@@ -89,6 +89,8 @@ namespace BlockPet.UI.TopBar
         float _homeSince = -1f;
 
         public HeartsView Hearts => hearts;
+        /// <summary>寵物昏倒中（愛心 0）。</summary>
+        public bool IsDead => _dead;
         public EvoBarView EvoBar => evoBar;
 
         void Awake()
@@ -104,7 +106,7 @@ namespace BlockPet.UI.TopBar
         /// 從現有系統讀數值（每 0.25 秒，有變才更新）。
         /// 愛心：PetHealthManager.Hearts（0～5 顆、半顆，伺服器時間每 5 小時掉半顆）；0 顆時切成死亡狀態。
         /// 進化條：收集進度依照片辨識的類別分成五色段（PetCollectionManager.EnergyByCategory）。
-        /// 想吃：TodayWant（全房間同一個，換日或換寵物時自動變）。
+        /// 想吃：TodayWant（全房間同一個，每 2 小時或換寵物時自動變）。
         /// </summary>
         void PollLiveData()
         {
@@ -273,7 +275,7 @@ namespace BlockPet.UI.TopBar
 
         public void SetEnergies(float[] energies) => evoBar?.SetEnergies(energies);
 
-        /// <summary>設定「今天想吃」的類別（美食、自然、城市、生活人物、寵物）。</summary>
+        /// <summary>設定「現在想吃」的類別（美食、自然、城市、生活人物、寵物）。</summary>
         public void SetWant(string category)
         {
             _want = category;

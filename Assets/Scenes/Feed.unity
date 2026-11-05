@@ -5422,7 +5422,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &905740233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5430,7 +5430,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 905740232}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 26bf797408a618545a11c7e809885d81, type: 3}
   m_Name: 
@@ -9841,7 +9841,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc352e213996d774c850159828d211d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moneyPerPhoto: 50
   moneyText: {fileID: 1676637455}
   countUpDuration: 0.4
 --- !u!1 &1554126078
@@ -9875,7 +9874,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   healthSlider: {fileID: 897430876}
   maxHealth: 86400
-  healAmount: 10800
 --- !u!4 &1554126080
 Transform:
   m_ObjectHideFlags: 0

@@ -84,12 +84,16 @@ namespace BlockPet.UI.TopBar
         string _liveWant;
         int _livePetIndex = int.MinValue;
         string _livePetName;
+        // 進到寵物昏倒的空間：自動跳一次復活視窗（每次進空間最多一次，關掉就不再煩）
+        string _revivePromptedRoom;
+        float _homeSince = -1f;
 
         public HeartsView Hearts => hearts;
         public EvoBarView EvoBar => evoBar;
 
         void Awake()
         {
+            FirebaseManager.OnRoomChanged += ResetRevivePrompt;
             _pageManager = FindObjectOfType<PageManager>(true);
             _cameraUI = FindObjectOfType<CameraUIManager>(true);
             _health = FindObjectOfType<PetHealthManager>(true);
@@ -164,6 +168,32 @@ namespace BlockPet.UI.TopBar
         readonly System.Collections.Generic.List<GameObject> _hiddenLegacy = new System.Collections.Generic.List<GameObject>();
 
         void OnDisable() => SetLegacyHudVisible(true);
+
+        void OnDestroy() => FirebaseManager.OnRoomChanged -= ResetRevivePrompt;
+
+        void ResetRevivePrompt() => _revivePromptedRoom = null;
+
+        /// <summary>
+        /// 寵物昏倒（愛心 0）時，在首頁自動打開復活視窗（有藥水→喝；沒藥水→去商城買）。
+        /// 每次進空間只跳一次；回到首頁後等 0.6 秒（讓頁面和愛心資料先出來）。復活後再死會再跳。
+        /// </summary>
+        void AutoRevivePrompt(bool home)
+        {
+            if (!home) { _homeSince = -1f; return; }
+            if (_homeSince < 0f) _homeSince = Time.unscaledTime;
+            var fb = FirebaseManager.Instance;
+            string room = fb != null ? fb.RoomId : null;
+            if (!_dead)
+            {
+                // 活著：之後再昏倒要再提醒
+                if (_revivePromptedRoom == room) _revivePromptedRoom = null;
+                return;
+            }
+            if (string.IsNullOrEmpty(room) || _revivePromptedRoom == room) return;
+            if (Time.unscaledTime - _homeSince < 0.6f) return;
+            _revivePromptedRoom = room;
+            BlockPet.Feed.ReviveDialog.Show(config != null ? config.font : null, nameText != null ? nameText.text : "寵物");
+        }
 
         /// <summary>
         /// 找出舊版首頁狀態欄裡和新狀態欄重複的顯示物件：舊頭像（HomeTopBar）、購物車（HomeShopButton）、
@@ -358,6 +388,7 @@ namespace BlockPet.UI.TopBar
                 rootGroup.alpha = home ? 1f : 0f;
                 rootGroup.blocksRaycasts = home;
             }
+            AutoRevivePrompt(home && useLiveData);
 
             // 佈置模式：依設定隱藏（預設全部不隱藏）
             var decor = config != null ? config.decorMode : null;

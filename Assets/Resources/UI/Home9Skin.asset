@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 593a142f021a3430eaee64e73846fd12, type: 3}
+  m_Name: Home9Skin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  iconHome: {fileID: 21300000, guid: 6162a971223ba4c75a3e7188f301b641, type: 3}
+  iconMenuChevron: {fileID: 21300000, guid: c76208224512d4715b12a2d040bf5eaa, type: 3}
+  buttonRound: {fileID: 21300000, guid: cfba08b50b5e04f69a0b16c0bd99c34e, type: 3}
+  buttonCamera: {fileID: 21300000, guid: aa45a3bfeef8949c29e69f373387eec9, type: 3}
+  iconAlbum: {fileID: 21300000, guid: 65a6dabb01577475eaf1b7d296385c69, type: 3}
+  iconChat: {fileID: 21300000, guid: 84d56b47111414a21866f51e7f598e19, type: 3}
+  badgeRed: {fileID: 21300000, guid: 46dfaec8258fe4d9cadd67dc728d35ec, type: 3}
+  stickerFrame: {fileID: 21300000, guid: c10b054c7ffd0431da8e6c27fd4b7a5a, type: 3}
+  stickerPhotoMask: {fileID: 21300000, guid: 11af4f62098734439a290b323d70c160, type: 3}
+  stickerLatestFrame: {fileID: 21300000, guid: a1a2ea298f25e49bb86f947091ec2198, type: 3}
+  stickerLatestMask: {fileID: 21300000, guid: e4c8e2a99737f4158bedc25df35062e2, type: 3}
+  avatarRing: {fileID: 21300000, guid: 2ba6eaf3ee9ce4c06baf66d177196e41, type: 3}
+  tagLatest: {fileID: 21300000, guid: 86ee4c880a76b40c1af609ed5797a6fd, type: 3}
+  tagMore: {fileID: 21300000, guid: 6390b358522f049c9a4c6e75d9fb5ae5, type: 3}
+  petBubble: {fileID: 21300000, guid: 7ee1c9c0edac94e6db7fc5080badf700, type: 3}

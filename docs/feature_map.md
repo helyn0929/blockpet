@@ -41,12 +41,16 @@
 - Scene：Feed.unity
 - 主要 Prefab：`Assets/Prefabs/UI/TopBar.prefab`
 - 主要腳本：`Scripts/UI/TopBar/TopBarView.cs`、`Scripts/UI/TopBar/HeartsView.cs`、`Scripts/UI/TopBar/EvoBarView.cs`、`Scripts/UI/TopBar/MenuToggle.cs`、`Scripts/UI/TopBar/TopBarConfig.cs`
+- 首頁 v9 的 Home 鍵、選單鈕（沒有底的線條圖示，設計文件 5.25 ②）：`Scripts/UI/Home/Home9TopIcons.cs`（`TopBarView.Awake` 執行時換樣式，不用重建場景）
 - 舊版：`Scripts/UI/Home/HomeTopBar.cs`
 
-### 手牌與出牌餵食
+### 首頁 v9：點寵物出牌、照片貼紙、底部相簿／相機／聊天（設計文件 5.25）
 - Scene：Feed.unity
 - 主要 Prefab：無（`HandController` 執行時建立）；`Assets/Prefabs/VFX_PhotoFly.prefab` 只在 PetBase.prefab 底下，Feed.unity 已不使用
-- 主要腳本：`Scripts/Hand/HandController.cs`（手牌、收起、出牌後底部列、營地最新照片卡）、`Scripts/Hand/PhotoLibrary.cs`（讀相簿）、`Scripts/Hand/HandSwipe.cs`、`Scripts/Hand/LatestCardDrag.cs`、`Scripts/FeedController.cs`（餵食動畫）、`Scripts/PhotoCooldown.cs`（10 分鐘冷卻）
+- 主要腳本：`Scripts/Hand/HandController.cs`（發牌／收回、舉起照片、餵食飛牌、底部固定三顆鈕）、`Scripts/Hand/HandController.Pet.cs`（點寵物、餓了輕晃、寵物泡泡：好餓／飽飽的／餵食反應／乾淨了）、`Scripts/Hand/HandController.Stickers.cs`（照片貼紙、最新照片貼紙、拖曳位置）、`Scripts/HomeRules/StickerRules.cs`（貼紙規則，獨立組件 `BlockPet.Home`）、`Scripts/Hand/PhotoLibrary.cs`（讀相簿）、`Scripts/Hand/LatestCardDrag.cs`（最新貼紙拖曳）、`Scripts/FeedController.cs`（餵食動畫）、`Scripts/PhotoCooldown.cs`（10 分鐘冷卻）
+- 素材：`Assets/Art/UI/Home9/Sprites/`（匯入設定 `Editor/TopBar/TopBarSpriteImporter.cs`）→ `Resources/UI/Home9Skin.asset`（`Scripts/UI/Home/Home9Skin.cs`，由 `Editor/Home/Home9SkinBuilder.cs` 自動填）；規格 `docs/home9/`
+- 看過的貼紙存在手機 PlayerPrefs（`BlockPet.Home9.Seen.{空間}.{uid}`、第一次使用時間 `BlockPet.Home9.Since.…`、最新貼紙位置 `BlockPet.Home9.LatestPos`）
+- 舊版：`Scripts/Hand/HandSwipe.cs`（首頁不再用；照片檢視、分割畫面左右滑還在用）
 
 ### 餵食結算（辨識、命中、金幣、愛心）
 - Scene：無（純程式，由餵食流程呼叫）
@@ -158,7 +162,7 @@
 
 ### 測試
 - Scene：無
-- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）；執行 `scripts/run-tests.sh`
+- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`、`BlockPet.Travel`、`BlockPet.Home`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）、`StickerRulesTests.cs`（首頁照片貼紙）；執行 `scripts/run-tests.sh`
 
 ## 規劃中、專案裡找不到程式的功能
 

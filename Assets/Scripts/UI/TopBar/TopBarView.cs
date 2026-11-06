@@ -100,6 +100,9 @@ namespace BlockPet.UI.TopBar
             _cameraUI = FindObjectOfType<CameraUIManager>(true);
             _health = FindObjectOfType<PetHealthManager>(true);
             _legacyTopBar = FindObjectOfType<HomeTopBar>(true);
+            // 首頁 v9（5.25 ②）：Home、選單改成沒有底的線條圖示
+            BlockPet.UI.Home.Home9TopIcons.Apply(homeButtonGroup != null ? homeButtonGroup.transform as RectTransform : null,
+                                                 menuGroup != null ? menuGroup.transform as RectTransform : null);
         }
 
         /// <summary>

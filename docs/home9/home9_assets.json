@@ -1,0 +1,200 @@
+[
+ {
+  "file": "icon_home_line",
+  "size_1x": [
+   28,
+   28
+  ],
+  "png_px": [
+   84,
+   84
+  ],
+  "use": "左上 Home（沒有底，點擊範圍 44）；#3A2E22 粗 2.2"
+ },
+ {
+  "file": "icon_menu_chevron",
+  "size_1x": [
+   26,
+   26
+  ],
+  "png_px": [
+   78,
+   78
+  ],
+  "use": "右上選單箭頭（沒有底；展開轉 180°）；#3A2E22 粗 2.2"
+ },
+ {
+  "file": "icon_album_line",
+  "size_1x": [
+   28,
+   28
+  ],
+  "png_px": [
+   84,
+   84
+  ],
+  "use": "底部相簿（放在 home_btn_round 上）；#3A2E22 粗 2.2"
+ },
+ {
+  "file": "icon_chat_line",
+  "size_1x": [
+   28,
+   28
+  ],
+  "png_px": [
+   84,
+   84
+  ],
+  "use": "底部聊天（放在 home_btn_round 上）；#3A2E22 粗 2.2"
+ },
+ {
+  "file": "home_btn_round",
+  "size_1x": [
+   50,
+   50
+  ],
+  "png_px": [
+   150,
+   150
+  ],
+  "use": "相簿／聊天的圓底 50（陰影 0 3 8 另加）"
+ },
+ {
+  "file": "home_btn_camera",
+  "size_1x": [
+   72,
+   72
+  ],
+  "png_px": [
+   216,
+   216
+  ],
+  "use": "底部相機 72（陰影 0 6 14 另加）"
+ },
+ {
+  "file": "badge_red",
+  "size_1x": [
+   18,
+   18
+  ],
+  "png_px": [
+   54,
+   54
+  ],
+  "use": "未讀數字／新照片紅點（數字 TMP 10 Black 白）"
+ },
+ {
+  "file": "sticker_frame",
+  "size_1x": [
+   66,
+   66
+  ],
+  "png_px": [
+   198,
+   198
+  ],
+  "use": "一般照片貼紙的白邊（照片 58×58 圓角 7 放在 (4,4)，用 sticker_photo_mask 裁）；右下角翹起；整張不透明度 85%"
+ },
+ {
+  "file": "sticker_photo_mask",
+  "size_1x": [
+   58,
+   58
+  ],
+  "png_px": [
+   174,
+   174
+  ],
+  "use": "一般貼紙照片遮罩"
+ },
+ {
+  "file": "sticker_latest_frame",
+  "size_1x": [
+   88,
+   88
+  ],
+  "png_px": [
+   264,
+   264
+  ],
+  "use": "最新照片貼紙（金邊 3 #F6C945；照片 78×78 放在 (5,5)）"
+ },
+ {
+  "file": "sticker_latest_mask",
+  "size_1x": [
+   78,
+   78
+  ],
+  "png_px": [
+   234,
+   234
+  ],
+  "use": "最新貼紙照片遮罩"
+ },
+ {
+  "file": "sticker_avatar_ring",
+  "size_1x": [
+   26,
+   26
+  ],
+  "png_px": [
+   78,
+   78
+  ],
+  "use": "貼紙左下頭像的白圈（一般用 22、最新用 26，頭像圓形裁切放裡面）"
+ },
+ {
+  "file": "tag_latest",
+  "size_1x": [
+   36,
+   18
+  ],
+  "png_px": [
+   108,
+   54
+  ],
+  "use": "「最新」標籤（字 TMP 10 Black #3A2E22）",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   30
+  ]
+ },
+ {
+  "file": "tag_more",
+  "size_1x": [
+   36,
+   22
+  ],
+  "png_px": [
+   108,
+   66
+  ],
+  "use": "「+N」更多貼紙（字 TMP 12 Black 白）",
+  "9slice_px_at3x_LTRB": [
+   33,
+   33,
+   33,
+   33
+  ]
+ },
+ {
+  "file": "pet_bubble",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "寵物泡泡（左下角尖；「好餓…」「飽飽的～」「乾淨了！」等；陰影 0 4 10 另加）",
+  "9slice_px_at3x_LTRB": [
+   48,
+   48,
+   48,
+   48
+  ]
+ }
+]

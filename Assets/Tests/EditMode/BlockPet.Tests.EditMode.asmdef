@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "BlockPet.Economy",
-        "BlockPet.Travel"
+        "BlockPet.Travel",
+        "BlockPet.Home"
     ],
     "includePlatforms": [
         "Editor"

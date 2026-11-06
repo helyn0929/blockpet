@@ -28,6 +28,8 @@ namespace BlockPet.EditorTools.TopBar
         public const string DexFolder = "Assets/Art/UI/Dex/Sprites/";
         /// <summary>旅行（設計文件 5.21；docs/travel/travel_assets.json）</summary>
         public const string TravelFolder = "Assets/Art/UI/Travel/Sprites/";
+        /// <summary>首頁 v9（設計文件 5.25；docs/home9/home9_assets.json）</summary>
+        public const string Home9Folder = "Assets/Art/UI/Home9/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -118,16 +120,20 @@ namespace BlockPet.EditorTools.TopBar
             { "camp_code_card", new Vector4(54, 54, 54, 54) },
             { "camp_code_btn_copy", new Vector4(42, 42, 42, 42) },
             { "camp_code_btn_share", new Vector4(42, 51, 42, 42) },
+            // 首頁 v9（docs/home9/home9_assets.json 的 LTRB，換成 L,B,R,T）
+            { "tag_latest", new Vector4(24, 30, 24, 24) },
+            { "tag_more", new Vector4(33, 33, 33, 33) },
+            { "pet_bubble", new Vector4(48, 48, 48, 48) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 8;
+        public override uint GetVersion() => 10;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
             if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
-                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder))
+                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder) || path.StartsWith(Home9Folder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -148,6 +154,8 @@ namespace BlockPet.EditorTools.TopBar
 
             string name = Path.GetFileNameWithoutExtension(path).Replace("@3x", "");
             importer.spriteBorder = Borders.TryGetValue(name, out var b) ? b : Vector4.zero;
+            // 首頁 v9 的 Home、選單箭頭：執行時要讀像素做白色光暈（Home9TopIcons）
+            importer.isReadable = name == "icon_home_line" || name == "icon_menu_chevron";
         }
 
         [MenuItem("BlockPet/TopBar/Reimport Sprites")]
@@ -160,6 +168,7 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(ShutterFolder);
             ReimportFolder(DexFolder);
             ReimportFolder(TravelFolder);
+            ReimportFolder(Home9Folder);
         }
 
         public static void ReimportFolder(string folder)

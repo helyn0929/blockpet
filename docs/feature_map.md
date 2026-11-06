@@ -31,10 +31,10 @@
 - 主要腳本：`Scripts/UI/Room/RoomRingController.cs`（轉盤選空間、搖桿、彈幕）、`Scripts/UI/Room/RoomJoystick.cs`、`Scripts/UI/Room/RoomRingInput.cs`、`Scripts/UI/Room/RingSectorGraphic.cs`、`Scripts/FirebaseManager.cs`（建立／加入／離開／刪除空間）
 - 舊版：`Scripts/UI/Room/RoomUIController.cs`、`Scripts/UI/Room/RoomSelectPageController.cs`、`Scripts/UI/Room/WebView/RoomWebViewBridge.cs`、`Art/UI/Room_UI/RoomScreen.uxml`；是否還在使用待確認
 
-### 空間資訊（點寵物頭像：成員、邀請碼、改名、離開）
+### 空間資訊（點寵物頭像：成員、邀請碼、營地代碼、改名、離開）
 - Scene：Feed.unity（PetSettingPage）
 - 主要 Prefab：無（執行時建立）
-- 主要腳本：`Scripts/UI/Room/RoomInfoScreenController.cs`
+- 主要腳本：`Scripts/UI/Room/RoomInfoScreenController.cs`；營地代碼（藍色 6 碼，5.15 ③-2）由 `FirebaseManager.EnsureCampCode` 產生，存 `Rooms/{room}/meta/campCode`＋`CampCodes/{代碼}`＝空間 id
 - 舊版：`Scripts/UI/PetSetting/PetSettingPageController.cs`（`Art/UI/PetSetting_UI/PetSettingScreen.uxml`），也還掛在場景裡，是否已停用待確認
 
 ### 首頁狀態欄（愛心、想吃、進化條、金幣、復活入口）
@@ -45,7 +45,7 @@
 
 ### 手牌與出牌餵食
 - Scene：Feed.unity
-- 主要 Prefab：無（`HandController` 執行時建立）；照片飛向寵物 `Assets/Prefabs/VFX_PhotoFly.prefab`（掛在 PetBase 底下）
+- 主要 Prefab：無（`HandController` 執行時建立）；`Assets/Prefabs/VFX_PhotoFly.prefab` 只在 PetBase.prefab 底下，Feed.unity 已不使用
 - 主要腳本：`Scripts/Hand/HandController.cs`（手牌、收起、出牌後底部列、營地最新照片卡）、`Scripts/Hand/PhotoLibrary.cs`（讀相簿）、`Scripts/Hand/HandSwipe.cs`、`Scripts/Hand/LatestCardDrag.cs`、`Scripts/FeedController.cs`（餵食動畫）、`Scripts/PhotoCooldown.cs`（10 分鐘冷卻）
 
 ### 餵食結算（辨識、命中、金幣、愛心）
@@ -60,7 +60,7 @@
 
 ### 寵物（移動、動畫、收集）
 - Scene：Feed.unity
-- 主要 Prefab：`Assets/Prefabs/PetBase.prefab`；`Assets/Prefabs/shiba.prefab` 沒有被任何場景引用，待確認
+- 主要 Prefab：無；寵物是場景物件 `Zapup`（掛 `AIController`）。`Assets/Prefabs/PetBase.prefab`（狗，舊餵食動畫用）2026-11-05 已從 Feed.unity 移除，檔案保留；`shiba.prefab` 沒有被任何場景引用
 - 主要腳本：`Scripts/AIController.cs`（待機移動；速度＝基本 1.5 × `EconomyRules` 愛心乘數，昏倒時停住）、`Scripts/PetAnimationEvents.cs`、`Scripts/PetCollectionManager.cs`（寵物資料、進化能量）、`Scripts/PetEatTest.cs`（測試用，待確認）
 
 ### 拍照
@@ -114,6 +114,22 @@
 - 主要腳本：`Scripts/UI/Settings/SettingsScreenController.cs`
 - 舊版：`Scripts/UI/Settings/SettingsUIController.cs`（`Art/UI/Settings_UI/SettingsScreen.uxml`）
 
+### 圖鑑（設計文件 5.23）
+- Scene：無（執行時自動建立，sortingOrder 38）
+- 主要 Prefab：無；素材 `Assets/Resources/UI/DexSkin.asset`（由 `Assets/Editor/Dex/DexSkinBuilder.cs` 從 `Assets/Art/UI/Dex/Sprites/` 自動填）
+- 主要腳本：`Scripts/UI/Dex/DexScreen.cs`（主頁、詳細、還沒收到、圖鑑新增）、`Scripts/Economy/DexRules.cs`（系列與三種型目錄、圖鑑規則、進化型判斷 `TypeFor`）、`Scripts/FirebaseManager.cs`（`LoadRoomDex`、`RecordDex`：`Rooms/{room}/dex`）；入口 `Scripts/UI/TopBar/MenuToggle.cs` 的圖鑑按鈕
+- 測試用：Editor 選單 BlockPet/Debug/圖鑑（`Assets/Editor/Dex/DexDebugMenu.cs`）
+- 待接：進化系統（進化那一刻呼叫 `RecordDex`＋`DexScreen.ShowNew`）、收滿送蛋（抽蛋系統）、其他成員補看「圖鑑新增」；各外型寵物圖待美術（暫用 shiba.png 上色）
+
+### 旅行地圖（設計文件 5.21）
+- Scene：無（執行時自動建立，sortingOrder 38）
+- 主要 Prefab：無；素材 `Assets/Resources/UI/TravelSkin.asset`（由 `Assets/Editor/Travel/TravelSkinBuilder.cs` 從 `Assets/Art/UI/Travel/Sprites/` 自動填）
+- 主要腳本：`Scripts/Travel/TravelMapGen.cs`（地圖生成：陸地、好友位置、路、湖、小山丘、樹、小花、路邊小物、雲霧，照設計稿 TravelGrow 移植；獨立組件 `BlockPet.Travel`）、`Scripts/UI/Travel/TravelScreen.cs`（地圖＋頂部、底部）、`Scripts/UI/Travel/MapCurveGraphic.cs`（路的曲線）；入口 `MenuToggle` 的旅行按鈕
+- 截圖：Editor 選單 BlockPet/Travel/Snapshot Map（`Assets/Editor/Travel/TravelMapSnapshot.cs`，可 batchmode）
+- 派寵物旅行（5.21 流程 5～12）：`FirebaseManager` 的 `SendPetOnTrip`／`FinishTripIfHome`，資料 `Rooms/{room}/trip`、`guests/{對方}`、`passport/{對方}`、`tripLast`；規則 `Scripts/Travel/TripRules.cs`；地圖上的派出發面板、旅途中、抵達、在對方營地、護照在 `TravelScreen`；首頁上的出門木牌、客人、回家蓋章卡在 `Scripts/UI/Travel/TravelHomeOverlay.cs`（執行時自動建立）；測試用選單 BlockPet/Debug/旅行
+- 營地好友（5.21 流程 1～3）：`FirebaseManager` 的 `SendFriendInvite`／`AcceptFriendInvite`／`DeclineFriendInvite`，資料 `Rooms/{room}/friendInvites/{對方}`、`Rooms/{room}/friends/{對方}`（slot＝地圖格子，放好就固定）；規則在 `Scripts/Travel/CampFriendRules.cs`；面板「加營地好友」「好友邀請」在 `TravelScreen`
+- 地圖種子＝目前營地的營地代碼（還沒有時用 K7R2PX）；好友用真的營地好友（截圖時用示範假資料）；之後接營地代碼（5.15）、Firebase 營地好友、加好友與派寵物旅行流程、護照
+
 ### 頁面切換
 - Scene：Feed.unity
 - 主要 Prefab：無
@@ -141,15 +157,13 @@
 
 ### 測試
 - Scene：無
-- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）；執行 `scripts/run-tests.sh`
+- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）；執行 `scripts/run-tests.sh`
 
 ## 規劃中、專案裡找不到程式的功能
 
 | 功能 | 狀態 |
 |---|---|
-| 圖鑑 | 素材在 `Assets/Art/UI/Dex/`、規格在 `docs/dex/`；腳本待確認（找不到） |
 | 今日題目 | 待確認（找不到） |
 | 進化分支 | 待確認（找不到；`PetCollectionManager` 只有進化能量） |
 | 抽蛋 | 待確認（找不到） |
-| 旅行與好友、明信片 | 待確認（找不到） |
 | 推播 | 有 `Editor/com.unity.mobile.notifications` 設定資料夾；遊戲腳本待確認（找不到） |

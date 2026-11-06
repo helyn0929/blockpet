@@ -376,7 +376,7 @@ namespace BlockPet.UI.Dex
             // 名字＋季節限定＋收滿（收滿的系列標題旁一直留著金色「收滿」，設計文件 5.23 ①）
             float nx = ix + 50f, nw = CardW - nx - 14f;
             var name = Label(card, nx, iy - 2f, nw, 22, s.name, 16, Ink, TextAlignmentOptions.Left);
-            float tx = nx + Mathf.Ceil(name.GetPreferredValues(s.name).x) + 6f;
+            float tx = nx + Mathf.Ceil(TextWidth(name, s.name)) + 6f;
             if (s.seasonal)
             {
                 var tag = Place(card, "Season", tx, iy + 2f, 56, 16);
@@ -447,7 +447,7 @@ namespace BlockPet.UI.Dex
             {
                 string t = "×" + count;
                 var probe = Label(rt, 0, 0, 10, 16, t, 10, Color.white, TextAlignmentOptions.Center);
-                float w = Mathf.Ceil(probe.GetPreferredValues(t).x) + 12f;
+                float w = Mathf.Ceil(TextWidth(probe, t)) + 12f;
                 var badge = Place(rt, "Count", CellW - 6f - w, 6, w, 16);
                 Img(badge, _skin?.badgeCount, true, Ink, 8);
                 probe.rectTransform.SetParent(badge, false);
@@ -583,7 +583,7 @@ namespace BlockPet.UI.Dex
             }
             string gen = $"第 {e.gen} 代";
             var genProbe = Label(hero, 0, 0, 10, 20, gen, 11, Ink, TextAlignmentOptions.Center);
-            float gw = Mathf.Ceil(genProbe.GetPreferredValues(gen).x) + 18f;
+            float gw = Mathf.Ceil(TextWidth(genProbe, gen)) + 18f;
             var pill = Place(hero, "Gen", 10, 10, gw, 20);
             Img(pill, _skin?.genPill, true, new Color(1f, 248f / 255f, 236f / 255f, 0.9f), 10);
             genProbe.rectTransform.SetParent(pill, false);
@@ -682,7 +682,7 @@ namespace BlockPet.UI.Dex
             {
                 string t = $"{PaletteNames[i]} {pal[i]}%";
                 var text = Label(box, 0, 0, 10, 16, t, 11, Ink, TextAlignmentOptions.Left);
-                float tw = Mathf.Ceil(text.GetPreferredValues(t).x);
+                float tw = Mathf.Ceil(TextWidth(text, t));
                 float itemW = 8f + 4f + tw;
                 if (lx > 0f && lx + itemW > innerW) { lx = 0f; ly += 20f; }
                 var dot = Place(box, "Dot", 12f + lx, ly + 4f, 8, 8);
@@ -737,7 +737,7 @@ namespace BlockPet.UI.Dex
             y += 32f + 8f;
             var how = Label(_popCard, 18, y, Inner, 20, f.how, 13, HowText, TextAlignmentOptions.Top);
             how.lineSpacing = 10f;
-            float hh = Mathf.Ceil(how.GetPreferredValues(f.how, Inner, 0f).y);
+            float hh = Mathf.Ceil(TextHeight(how, f.how, Inner));
             how.rectTransform.sizeDelta = new Vector2(Inner, hh);
             y += hh + 16f;
 
@@ -811,7 +811,7 @@ namespace BlockPet.UI.Dex
             // 「圖鑑新增！」或「BowBow 系列收滿了！」
             string tagText = r.seriesComplete ? $"{s.name}收滿了！" : "圖鑑新增！";
             var tagProbe = Label(_newDesign, 0, 0, 10, 24, tagText, 13, Color.white, TextAlignmentOptions.Center);
-            float tw = Mathf.Ceil(tagProbe.GetPreferredValues(tagText).x) + 24f;
+            float tw = Mathf.Ceil(TextWidth(tagProbe, tagText)) + 24f;
             var tag = Centered(_newDesign, "Tag", 96, tw, 26);
             if (_skin != null && _skin.newTag != null) Img(tag, _skin.newTag, true, Coral, 12);
             else UIShapes.AddRounded(tag.gameObject, Coral, 12).raycastTarget = false;
@@ -830,7 +830,7 @@ namespace BlockPet.UI.Dex
             // 「全營地 +100 金幣」
             string reward = $"全營地 +{EconomyRules.DexNewCellCoins} 金幣";
             var rProbe = Label(_newDesign, 0, 0, 10, 32, reward, 14, Ink, TextAlignmentOptions.Left);
-            float rw = 14f + 18f + 6f + Mathf.Ceil(rProbe.GetPreferredValues(reward).x) + 14f;
+            float rw = 14f + 18f + 6f + Mathf.Ceil(TextWidth(rProbe, reward)) + 14f;
             var pill = Centered(_newDesign, "Reward", 496, rw, 32);
             Img(pill, _skin?.rewardPill, true, new Color(1f, 248f / 255f, 236f / 255f, 0.95f), 16);
             var coin = Place(pill, "Coin", 14, 7, 18, 18);
@@ -904,6 +904,19 @@ namespace BlockPet.UI.Dex
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = new Vector2(DesignW / 2f, -(top + h / 2f));
             return rt;
+        }
+
+        /// <summary>量字寬：字型是動態的，沒出現過的字要先加進字型，不然量出來太窄、字超出底。</summary>
+        static float TextWidth(TMP_Text t, string s)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s).x;
+        }
+
+        static float TextHeight(TMP_Text t, string s, float width)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s, width, 0f).y;
         }
 
         // ─── UI helpers（與其他新版頁面相同的設計座標寫法）────────────

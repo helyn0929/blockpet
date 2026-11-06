@@ -414,7 +414,7 @@ namespace BlockPet.UI.Travel
             // 右邊：「＋ 加營地好友」黃色膠囊（高 38，含下緣 3）、左邊好友邀請信封（38 藍圓，紅點數字）
             const string addText = "＋ 加營地好友";
             var addProbe = Label(_header, 0, 0, 10, 38, addText, 13, Ink);
-            float addW = Mathf.Ceil(addProbe.GetPreferredValues(addText).x) + 28f;
+            float addW = Mathf.Ceil(TextWidth(addProbe, addText)) + 28f;
             var add = Place(_header, "Add", DesignW - 14f - addW, 17, addW, 41);
             var addImg = SkinImage(add, _skin?.addButton, Yellow, 19, true);
             if (_skin == null || _skin.addButton == null) UIShapes.AddRounded(Place(add, "Edge", 0, 3, addW, 38).gameObject, YellowEdge, 19).transform.SetAsFirstSibling();
@@ -712,7 +712,7 @@ namespace BlockPet.UI.Travel
             if (!string.IsNullOrEmpty(tag))
             {
                 var probe = Label(parent, 0, 0, 10, 16, tag, 10, Color.white);
-                float tw = Mathf.Ceil(probe.GetPreferredValues(tag).x) + 16f;
+                float tw = Mathf.Ceil(TextWidth(probe, tag)) + 16f;
                 var tr = Place(parent, "Tag", x - tw / 2f, y - 30f - 20f, tw, 17);
                 if (_skin != null && _skin.tagPill != null) { var ti2 = tr.gameObject.AddComponent<Image>(); ti2.sprite = _skin.tagPill; ti2.type = Image.Type.Sliced; ti2.color = tagColor; ti2.raycastTarget = false; }
                 else UIShapes.AddRounded(tr.gameObject, tagColor, 8.5f).raycastTarget = false;
@@ -727,7 +727,7 @@ namespace BlockPet.UI.Travel
             {
                 string t = trips > 1 ? "×" + trips : "印";
                 var probe = Label(parent, 0, 0, 10, 22, t, 9, StampRed);
-                float bw = Mathf.Max(22f, Mathf.Ceil(probe.GetPreferredValues(t).x) + 10f);
+                float bw = Mathf.Max(22f, Mathf.Ceil(TextWidth(probe, t)) + 10f);
                 var badge = Place(parent, "Stamp", x + 36f - bw, y - 36f, bw, 22);
                 badge.pivot = new Vector2(0.5f, 0.5f);
                 badge.anchoredPosition = new Vector2(x + 36f - bw / 2f, -(y - 36f + 11f));
@@ -830,7 +830,7 @@ namespace BlockPet.UI.Travel
         void NameLabel(RectTransform parent, float cx, float top, string text, float size, Sprite sprite, Color fallback, float h, float padX, float bottom)
         {
             var probe = Label(parent, 0, 0, 10, h - bottom, text, size, Ink);
-            float w = Mathf.Ceil(probe.GetPreferredValues(text).x) + padX * 2f;
+            float w = Mathf.Ceil(TextWidth(probe, text)) + padX * 2f;
             var rt = Place(parent, "Label", cx - w / 2f, top, w, h);
             if (sprite != null)
             {
@@ -1009,7 +1009,7 @@ namespace BlockPet.UI.Travel
             intro.enableWordWrapping = true;
             intro.alignment = TextAlignmentOptions.TopLeft;
             intro.lineSpacing = 12f;
-            float ih = Mathf.Ceil(intro.GetPreferredValues(intro.text, W, 0f).y);
+            float ih = Mathf.Ceil(TextHeight(intro, intro.text, W));
             intro.rectTransform.sizeDelta = new Vector2(W, ih);
             y += ih + 12f;
 
@@ -1147,7 +1147,7 @@ namespace BlockPet.UI.Travel
             var desc = Label(card, 12, y, W - 24f, 20, $"想跟「{mine}」當好友。同意後地圖上會長出他們的營地，兩邊的寵物可以互相去旅行（看不到照片和聊天）。", 12, SubText);
             desc.enableWordWrapping = true;
             desc.alignment = TextAlignmentOptions.TopLeft;
-            float dh = Mathf.Ceil(desc.GetPreferredValues(desc.text, W - 24f, 0f).y);
+            float dh = Mathf.Ceil(TextHeight(desc, desc.text, W - 24f));
             desc.rectTransform.sizeDelta = new Vector2(W - 24f, dh);
             y += dh + 10f;
 
@@ -1242,7 +1242,7 @@ namespace BlockPet.UI.Travel
             desc.enableWordWrapping = true;
             desc.alignment = TextAlignmentOptions.TopLeft;
             desc.lineSpacing = 12f;
-            float dh = Mathf.Ceil(desc.GetPreferredValues(desc.text, W, 0f).y);
+            float dh = Mathf.Ceil(TextHeight(desc, desc.text, W));
             desc.rectTransform.sizeDelta = new Vector2(W, dh);
             y += dh + 12f;
 
@@ -1251,7 +1251,7 @@ namespace BlockPet.UI.Travel
             var goImg = UIShapes.AddRounded(Place(go, "Fill", 0, 0, W, 54).gameObject, Yellow, 18);
             string goText = _departing ? "出發中…" : $"派 {pet2} 去旅行";
             var gl = Label(go, 0, 0, W, 54, goText, 17, Ink);
-            float gw = Mathf.Ceil(gl.GetPreferredValues(goText).x);
+            float gw = Mathf.Ceil(TextWidth(gl, goText));
             if (_skin != null && _skin.backpack != null && !_departing)
             {
                 var bp = Place(go, "Backpack", (W - gw) / 2f - 28f, 16, 20, 22).gameObject.AddComponent<Image>();
@@ -1326,7 +1326,7 @@ namespace BlockPet.UI.Travel
             float k = _root.rect.width / DesignW;
             _toast.localScale = Vector3.one * k;
             _toastText.text = msg;
-            float w = Mathf.Min(360f, Mathf.Ceil(_toastText.GetPreferredValues(msg).x) + 32f);
+            float w = Mathf.Min(360f, Mathf.Ceil(TextWidth(_toastText, msg)) + 32f);
             _toast.sizeDelta = new Vector2(w, 40f);
             _toastText.rectTransform.sizeDelta = new Vector2(w, 40f);
             _toast.SetAsLastSibling();
@@ -1450,7 +1450,7 @@ namespace BlockPet.UI.Travel
         void Bubble(RectTransform parent, float x, float y, string text, bool tailRight)
         {
             var probe = Label(parent, 0, 0, 10, 26, text, 13, Ink);
-            float w = Mathf.Ceil(probe.GetPreferredValues(text).x) + 22f;
+            float w = Mathf.Ceil(TextWidth(probe, text)) + 22f;
             var rt = Place(parent, "Bubble", x, y, w, 30);
             var sprite = tailRight ? _skin?.bubbleRight : _skin?.bubbleLeft;
             UIShapes.AddShadow(rt, new Color(0f, 0f, 0f, 0.18f), 14, 8, 3);
@@ -1605,6 +1605,21 @@ namespace BlockPet.UI.Travel
             if (d.TotalHours < 1) return $"{(int)d.TotalMinutes} 分鐘前";
             if (d.TotalDays < 1) return $"{(int)d.TotalHours} 小時前";
             return $"{(int)d.TotalDays} 天前";
+        }
+
+        /// <summary>
+        /// 量字寬（名牌、按鈕、標籤的底依字寬算）：字型是動態的，沒出現過的字要先加進字型，不然量出來太窄、字超出底。
+        /// </summary>
+        static float TextWidth(TMP_Text t, string s)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s).x;
+        }
+
+        static float TextHeight(TMP_Text t, string s, float width)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s, width, 0f).y;
         }
 
         // ─── UI helpers ────────────────────────────────────────────────

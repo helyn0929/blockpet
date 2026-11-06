@@ -42,6 +42,8 @@ namespace BlockPet.UI.Travel
         PageManager _pages;
         CameraUIManager _cameraUI;
         SpriteRenderer[] _hiddenPet;
+        /// <summary>寵物出門那一刻的位置：木牌固定插在這裡（寵物藏起來後還會在原地亂走，不能跟著牠）。</summary>
+        Vector3? _signWorld;
         string _hostDismissedFor;
         float _nextCheck, _backT;
 
@@ -120,7 +122,12 @@ namespace BlockPet.UI.Travel
                 cardY += _awayCard.sizeDelta.y + 10f;
             }
             _sign.gameObject.SetActive(away);
-            if (away) FollowPet(_sign, k, -55f, -120f);
+            if (away)
+            {
+                if (_signWorld == null && AIController.Instance != null) _signWorld = AIController.Instance.transform.position;
+                FollowPet(_sign, k, -55f, -120f, _signWorld);
+            }
+            else _signWorld = null;
 
             // 客人（只顯示最早到、現在在這裡的那隻）
             FirebaseManager.TravelGuest guest = null;
@@ -145,7 +152,7 @@ namespace BlockPet.UI.Travel
             if (guest != null)
             {
                 _guestTag.text = guest.fromName;
-                float tw = Mathf.Ceil(_guestTag.GetPreferredValues(guest.fromName).x) + 16f;
+                float tw = Mathf.Ceil(TextWidth(_guestTag, guest.fromName)) + 16f;
                 ((RectTransform)_guestTag.transform.parent).sizeDelta = new Vector2(tw, 17f);
                 ((RectTransform)_guestTag.transform.parent).anchoredPosition = new Vector2(60f - tw / 2f, 24f);
                 _guestTag.rectTransform.sizeDelta = new Vector2(tw, 17f);
@@ -193,14 +200,14 @@ namespace BlockPet.UI.Travel
         }
 
         /// <summary>把 UI 放在首頁寵物的位置（腳下）＋位移（設計座標）。找不到寵物就放在畫面中間偏下。</summary>
-        void FollowPet(RectTransform rt, float k, float dx, float dy)
+        void FollowPet(RectTransform rt, float k, float dx, float dy, Vector3? fixedWorld = null)
         {
             var pet = AIController.Instance;
             var cam = Camera.main;
             Vector2 local;
-            if (pet != null && cam != null)
+            if ((fixedWorld.HasValue || pet != null) && cam != null)
             {
-                Vector3 sp = cam.WorldToScreenPoint(pet.transform.position);
+                Vector3 sp = cam.WorldToScreenPoint(fixedWorld ?? pet.transform.position);
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, sp, null, out local);
             }
             else local = new Vector2(0f, -_root.rect.height * 0.1f);
@@ -423,7 +430,7 @@ namespace BlockPet.UI.Travel
             string photos = last.photos > 0 ? $"旅行時大家餵了 {last.photos} 張照片，{pet} 都收到了" : "旅行時沒有人餵照片，下次記得寄照片給牠";
             var pl = Label(card, 18, y, Inner, 34, photos, 12, SubText, TextAlignmentOptions.Center);
             pl.enableWordWrapping = true;
-            float ph = Mathf.Ceil(pl.GetPreferredValues(photos, Inner, 0f).y);
+            float ph = Mathf.Ceil(TextHeight(pl, photos, Inner));
             pl.rectTransform.sizeDelta = new Vector2(Inner, ph);
             y += ph + 14f;
 
@@ -443,6 +450,21 @@ namespace BlockPet.UI.Travel
             y += 53f + 18f;
             card.sizeDelta = new Vector2(W, y);
             _backLayer.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// 量字寬（名牌、按鈕、標籤的底依字寬算）：字型是動態的，沒出現過的字要先加進字型，不然量出來太窄、字超出底。
+        /// </summary>
+        static float TextWidth(TMP_Text t, string s)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s).x;
+        }
+
+        static float TextHeight(TMP_Text t, string s, float width)
+        {
+            if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
+            return t.GetPreferredValues(s, width, 0f).y;
         }
 
         // ─── UI helpers ────────────────────────────────────────────────

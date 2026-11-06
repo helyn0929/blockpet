@@ -29,6 +29,8 @@ namespace BlockPet.Feed
         public const bool CanFeedWhenDead = false;
         /// <summary>3.2【未定】暫用值：0 顆心（昏倒）時寵物不移動。</summary>
         public const bool DeadPetMoves = false;
+        /// <summary>3.6【未定】暫用值：圖鑑收到新的一格，全營地 +100 金幣（設計文件 5.23）。</summary>
+        public const int DexNewCellCoins = 100;
 
         /// <summary>
         /// 愛心對應的等級 1～5：半顆心無條件捨去（1.5 顆＝1、4.5 顆＝4）。

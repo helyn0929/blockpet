@@ -724,6 +724,8 @@ public class FirebaseManager : MonoBehaviour
         public string ownerUserId;
         public string createdAt;
         public string lastActiveAt;
+        /// <summary>營地代碼（藍色 6 碼，設計文件 5.15 ③-2）：只用來加營地好友、當旅行地圖的種子；和邀請碼（空間 id）分開。舊空間沒有，進空間時補上。</summary>
+        public string campCode;
     }
 
     [Serializable]
@@ -1179,6 +1181,113 @@ public class FirebaseManager : MonoBehaviour
             }
             lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(result));
         });
+    }
+
+    // ─── 圖鑑（設計文件 5.23）：Rooms/{room}/dex/{系列}/{外型}/{紀錄} ─────
+
+    /// <summary>圖鑑記一筆的結果。</summary>
+    public struct DexRecordResult
+    {
+        public bool ok;
+        /// <summary>這一格之前沒收過（會發獎勵、跳「圖鑑新增！」）。</summary>
+        public bool isNewCell;
+        /// <summary>這一筆讓系列收滿 7 格。</summary>
+        public bool seriesComplete;
+        /// <summary>記完之後這個系列收到幾格。</summary>
+        public int got;
+        /// <summary>這一筆是營地的第幾代。</summary>
+        public int gen;
+    }
+
+    /// <summary>讀目前空間的圖鑑（營地共用一本）。callback 在主執行緒；讀不到回傳空的圖鑑。</summary>
+    public void LoadRoomDex(Action<BlockPet.Feed.DexBook> done)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId)) { done?.Invoke(new BlockPet.Feed.DexBook()); return; }
+        RoomRoot().Child("dex").GetValueAsync().ContinueWith(t =>
+        {
+            var book = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null ? ParseDex(t.Result.Value) : new BlockPet.Feed.DexBook();
+            if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] LoadRoomDex failed: " + t.Exception?.GetBaseException()?.Message);
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(book));
+        });
+    }
+
+    /// <summary>
+    /// 圖鑑記一筆（進化那一刻呼叫；進化系統還沒做，目前由 Debug 選單呼叫）。
+    /// 用交易寫，兩個人同時記也不會蓋掉；entry.gen ≤ 0 時自動算成「營地第幾代」（目前總筆數 + 1）。
+    /// 新的一格：全營地 +<see cref="BlockPet.Feed.EconomyRules.DexNewCellCoins"/> 金幣（帳本記 dex_new_cell）。callback 在主執行緒。
+    /// </summary>
+    public void RecordDex(string seriesId, string formKey, BlockPet.Feed.DexEntry entry, Action<DexRecordResult> done)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId) || entry == null
+            || BlockPet.Feed.DexRules.FindSeries(seriesId) == null || BlockPet.Feed.DexRules.Form(formKey) == null)
+        {
+            done?.Invoke(new DexRecordResult());
+            return;
+        }
+        var result = new DexRecordResult();
+        RoomRoot().Child("dex").RunTransaction(mutable =>
+        {
+            var root = mutable.Value as Dictionary<string, object> ?? new Dictionary<string, object>();
+            var book = ParseDex(root);
+            var r = new DexRecordResult { ok = true, isNewCell = book.IsNewCell(seriesId, formKey) };
+            r.gen = entry.gen > 0 ? entry.gen : book.TotalEntries() + 1;
+
+            if (!(root.TryGetValue(seriesId, out var so) && so is Dictionary<string, object> series)) root[seriesId] = series = new Dictionary<string, object>();
+            if (!(series.TryGetValue(formKey, out var fo) && fo is Dictionary<string, object> form)) series[formKey] = form = new Dictionary<string, object>();
+            long at = entry.evolvedAt > 0 ? entry.evolvedAt : ServerNowMs;
+            form["g" + r.gen + "_" + at] = new Dictionary<string, object>
+            {
+                { "gen", (long)r.gen },
+                { "at", at },
+                { "days", (long)Mathf.Max(0, entry.days) },
+                { "pal", string.Join(",", entry.palette ?? new int[5]) },
+            };
+            book.Add(seriesId, formKey, new BlockPet.Feed.DexEntry { gen = r.gen, evolvedAt = at, days = entry.days, palette = entry.palette });
+            r.got = book.Got(seriesId);
+            r.seriesComplete = r.isNewCell && book.IsComplete(seriesId);
+            result = r;
+            mutable.Value = root;
+            return TransactionResult.Success(mutable);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            if (!ok) Debug.LogWarning("[FirebaseManager] RecordDex failed: " + t.Exception?.GetBaseException()?.Message);
+            var r = ok ? result : new DexRecordResult();
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+            {
+                if (r.ok && r.isNewCell) AddRoomCoins(BlockPet.Feed.EconomyRules.DexNewCellCoins, "dex_new_cell");
+                // 收滿一個系列：送免費抽一次寵物蛋（先記張數，抽蛋 5.24 做好時扣）
+                if (r.ok && r.seriesComplete) AddRoomShopItem(BlockPet.Feed.DexRules.FreeEggDrawId, 1, null);
+                done?.Invoke(r);
+            });
+        });
+    }
+
+    /// <summary>把 Rooms/{room}/dex 的資料轉成圖鑑（DataSnapshot.Value 或交易裡的 Dictionary 都可以）。</summary>
+    static BlockPet.Feed.DexBook ParseDex(object value)
+    {
+        var book = new BlockPet.Feed.DexBook();
+        if (!(value is Dictionary<string, object> root)) return book;
+        foreach (var s in root)
+        {
+            if (!(s.Value is Dictionary<string, object> forms)) continue;
+            foreach (var f in forms)
+            {
+                if (!(f.Value is Dictionary<string, object> entries)) continue;
+                foreach (var e in entries)
+                {
+                    if (!(e.Value is Dictionary<string, object> d)) continue;
+                    var entry = new BlockPet.Feed.DexEntry { gen = (int)ReadLong(d, "gen"), evolvedAt = ReadLong(d, "at"), days = (int)ReadLong(d, "days") };
+                    if (d.TryGetValue("pal", out var pal) && pal != null)
+                    {
+                        var parts = pal.ToString().Split(',');
+                        for (int i = 0; i < entry.palette.Length && i < parts.Length; i++) int.TryParse(parts[i], out entry.palette[i]);
+                    }
+                    book.Add(s.Key, f.Key, entry);
+                }
+            }
+        }
+        return book;
     }
 
     /// <summary>目前空間的某個商品數量 +count（交易，避免兩個成員同時買時互相覆蓋）。callback 在主執行緒。</summary>
@@ -1681,6 +1790,8 @@ public class FirebaseManager : MonoBehaviour
         // This prevents PetCollectionManager.EnsureValidState() from publishing
         // stale data to Firebase while HasRoomPetState is still true.
         ResetChatListenState();
+        StopCampFriends();
+        StopTravelState();
         StopPhotoListening();
         StopPetListening();
         StopEquipListening();
@@ -1762,6 +1873,8 @@ public class FirebaseManager : MonoBehaviour
     public string CurrentPetName => _roomMeta != null && !string.IsNullOrWhiteSpace(_roomMeta.petName) ? _roomMeta.petName : null;
     /// <summary>目前空間的名稱；還沒載入時是 null。</summary>
     public string CurrentRoomName => _roomMeta != null && !string.IsNullOrWhiteSpace(_roomMeta.name) ? _roomMeta.name : null;
+    /// <summary>目前營地的營地代碼；還沒載入或還在產生時是 null。</summary>
+    public string CurrentCampCode => _roomMeta != null && !string.IsNullOrWhiteSpace(_roomMeta.campCode) ? _roomMeta.campCode : null;
     /// <summary>目前空間的名字有變（主執行緒）。</summary>
     public static event Action OnRoomMetaChanged;
 
@@ -1786,7 +1899,638 @@ public class FirebaseManager : MonoBehaviour
         try { meta = JsonUtility.FromJson<RoomMeta>(args.Snapshot.GetRawJsonValue()); } catch { }
         if (meta == null) return;
         _roomMeta = meta;
-        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => OnRoomMetaChanged?.Invoke());
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            // 舊空間（或剛建立的空間）還沒有營地代碼：補一個
+            if (string.IsNullOrWhiteSpace(meta.campCode)) EnsureCampCode(_roomId);
+            OnRoomMetaChanged?.Invoke();
+        });
+    }
+
+    // ─── 營地代碼（設計文件 5.15 ③-2、5.21 ①）────────────────────────
+    // CampCodes/{代碼} = 空間 id（加營地好友時用代碼找營地；交易保證不重複）；Rooms/{room}/meta/campCode = 代碼。
+
+    const string CampCodesNode = "CampCodes";
+    const string CampCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 和邀請碼一樣不用 0/O/1/I
+    public const int CampCodeLength = 6;
+    string _ensuringCampCodeFor;
+
+    static string NewCampCode()
+    {
+        var chars = new char[CampCodeLength];
+        for (int i = 0; i < chars.Length; i++) chars[i] = CampCodeAlphabet[UnityEngine.Random.Range(0, CampCodeAlphabet.Length)];
+        return new string(chars);
+    }
+
+    /// <summary>幫空間產生營地代碼（搶到沒人用的代碼才寫進 meta；最多試 5 次）。</summary>
+    void EnsureCampCode(string roomId, int attempt = 0)
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(roomId)) return;
+        if (attempt == 0) { if (_ensuringCampCodeFor == roomId) return; _ensuringCampCodeFor = roomId; }
+        if (attempt >= 5) { _ensuringCampCodeFor = null; Debug.LogWarning("[FirebaseManager] 營地代碼產生失敗（試了 5 次）"); return; }
+        string code = NewCampCode();
+        bool claimed = false;
+        dbRef.Child(CampCodesNode).Child(code).RunTransaction(data =>
+        {
+            if (data.Value != null && data.Value.ToString() != roomId) { claimed = false; return TransactionResult.Abort(); }
+            data.Value = roomId;
+            claimed = true;
+            return TransactionResult.Success(data);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && claimed;
+            if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] 營地代碼登記失敗（Firebase 規則要允許寫 CampCodes）：" + t.Exception?.GetBaseException()?.Message);
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+            {
+                if (t.IsFaulted) { _ensuringCampCodeFor = null; return; }
+                if (!ok) { EnsureCampCode(roomId, attempt + 1); return; } // 代碼被用了：換一組
+                dbRef.Child("Rooms").Child(roomId).Child("meta").Child("campCode").SetValueAsync(code).ContinueWith(t2 =>
+                {
+                    if (t2.IsFaulted) Debug.LogWarning("[FirebaseManager] 寫入營地代碼失敗：" + t2.Exception?.GetBaseException()?.Message);
+                    lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => _ensuringCampCodeFor = null);
+                });
+            });
+        });
+    }
+
+    // ─── 營地好友（設計文件 5.21 ①、流程 1～3）────────────────────────
+    // Rooms/{對方}/friendInvites/{我} = 邀請；Rooms/{A}/friends/{B} = 好友（slot＝地圖上的格子，放好就固定）。
+    // 同意時兩邊一起寫；對方那邊的 slot 先寫 -1，由對方營地的成員下次載入時自己分格子（看不到別的營地的好友清單）。
+
+    [Serializable]
+    public class CampFriend
+    {
+        public string roomId;
+        /// <summary>地圖上的格子 0～9；-1＝還沒分（對方同意後，等我們這邊分）。</summary>
+        public int slot = -1;
+        public long since;
+        /// <summary>加好友時的營地名字（之後從對方 meta 更新顯示）。</summary>
+        public string name;
+        /// <summary>去過幾趟（派寵物旅行做好後才會增加）。</summary>
+        public int trips;
+    }
+
+    [Serializable]
+    public class FriendInvite
+    {
+        public string fromRoom;
+        public string roomName;
+        public string petName;
+        public int petIndex;
+        public int members;
+        public string sender;
+        public long sentAt;
+    }
+
+    public static event Action OnCampFriendsChanged;
+    public static event Action OnFriendInvitesChanged;
+
+    readonly List<CampFriend> _campFriends = new List<CampFriend>();
+    readonly List<FriendInvite> _friendInvites = new List<FriendInvite>();
+    DatabaseReference _friendsRef, _invitesRef;
+    string _friendsRoom;
+    bool _assigningSlots;
+
+    /// <summary>目前營地的營地好友（依格子排）。要先 <see cref="StartCampFriends"/>。</summary>
+    public IReadOnlyList<CampFriend> CampFriends => _campFriends;
+    /// <summary>目前營地收到的好友邀請（新的在前）。</summary>
+    public IReadOnlyList<FriendInvite> FriendInvites => _friendInvites;
+    /// <summary>好友資料是否已經讀到（避免一開始空清單時誤顯示「剛開始」）。</summary>
+    public bool CampFriendsLoaded { get; private set; }
+
+    /// <summary>開始聽目前營地的好友與好友邀請（打開旅行地圖時呼叫；換空間會自動換）。</summary>
+    public void StartCampFriends()
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId)) return;
+        if (_friendsRoom == _roomId && _friendsRef != null) return;
+        StopCampFriends();
+        _friendsRoom = _roomId;
+        _friendsRef = RoomRoot().Child("friends");
+        _invitesRef = RoomRoot().Child("friendInvites");
+        _friendsRef.ValueChanged += HandleFriendsChanged;
+        _invitesRef.ValueChanged += HandleInvitesChanged;
+    }
+
+    void StopCampFriends()
+    {
+        if (_friendsRef != null) _friendsRef.ValueChanged -= HandleFriendsChanged;
+        if (_invitesRef != null) _invitesRef.ValueChanged -= HandleInvitesChanged;
+        _friendsRef = _invitesRef = null;
+        _friendsRoom = null;
+        _campFriends.Clear();
+        _friendInvites.Clear();
+        CampFriendsLoaded = false;
+    }
+
+    static long ReadLongObj(object v) { try { return v == null ? 0 : Convert.ToInt64(v); } catch { return 0; } }
+
+    void HandleFriendsChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) { Debug.LogWarning("[FirebaseManager] 讀營地好友失敗（Firebase 規則）：" + e.DatabaseError.Message); return; }
+        var list = new List<CampFriend>();
+        if (e.Snapshot != null && e.Snapshot.Exists)
+            foreach (var c in e.Snapshot.Children)
+            {
+                var d = c.Value as Dictionary<string, object>;
+                list.Add(new CampFriend
+                {
+                    roomId = c.Key,
+                    slot = d != null && d.ContainsKey("slot") ? (int)ReadLongObj(d["slot"]) : -1,
+                    since = d != null && d.ContainsKey("since") ? ReadLongObj(d["since"]) : 0,
+                    name = d != null && d.TryGetValue("name", out var n) ? n?.ToString() : null,
+                    trips = d != null && d.ContainsKey("trips") ? (int)ReadLongObj(d["trips"]) : 0,
+                });
+            }
+        list.Sort((a, b) => a.slot != b.slot ? a.slot.CompareTo(b.slot) : a.since.CompareTo(b.since));
+        string room = _friendsRoom;
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            if (room != _friendsRoom) return;
+            _campFriends.Clear();
+            _campFriends.AddRange(list);
+            CampFriendsLoaded = true;
+            if (list.Exists(f => f.slot < 0)) AssignPendingSlots();
+            OnCampFriendsChanged?.Invoke();
+        });
+    }
+
+    void HandleInvitesChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) { Debug.LogWarning("[FirebaseManager] 讀好友邀請失敗：" + e.DatabaseError.Message); return; }
+        var list = new List<FriendInvite>();
+        if (e.Snapshot != null && e.Snapshot.Exists)
+            foreach (var c in e.Snapshot.Children)
+            {
+                FriendInvite inv = null;
+                try { inv = JsonUtility.FromJson<FriendInvite>(c.GetRawJsonValue()); } catch { }
+                if (inv == null) continue;
+                inv.fromRoom = c.Key;
+                list.Add(inv);
+            }
+        list.Sort((a, b) => b.sentAt.CompareTo(a.sentAt));
+        string room = _friendsRoom;
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            if (room != _friendsRoom) return;
+            _friendInvites.Clear();
+            _friendInvites.AddRange(list);
+            OnFriendInvitesChanged?.Invoke();
+        });
+    }
+
+    /// <summary>對方同意後，我們這邊的 slot 是 -1：照加入時間依序分到還沒用的最小格子（交易，避免兩台手機分到同一格）。</summary>
+    void AssignPendingSlots()
+    {
+        if (_assigningSlots || _friendsRef == null) return;
+        _assigningSlots = true;
+        _friendsRef.RunTransaction(data =>
+        {
+            var root = data.Value as Dictionary<string, object>;
+            if (root == null) return TransactionResult.Success(data);
+            var used = new List<int>();
+            var pending = new List<KeyValuePair<string, Dictionary<string, object>>>();
+            foreach (var kv in root)
+            {
+                if (!(kv.Value is Dictionary<string, object> d)) continue;
+                int slot = d.ContainsKey("slot") ? (int)ReadLongObj(d["slot"]) : -1;
+                if (slot >= 0) used.Add(slot); else pending.Add(new KeyValuePair<string, Dictionary<string, object>>(kv.Key, d));
+            }
+            pending.Sort((a, b) => ReadLongObj(a.Value.ContainsKey("since") ? a.Value["since"] : null).CompareTo(ReadLongObj(b.Value.ContainsKey("since") ? b.Value["since"] : null)));
+            foreach (var p in pending)
+            {
+                int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used);
+                if (slot < 0) break; // 滿了：留著 -1，不顯示在地圖上
+                p.Value["slot"] = (long)slot;
+                used.Add(slot);
+            }
+            data.Value = root;
+            return TransactionResult.Success(data);
+        }).ContinueWith(t =>
+        {
+            if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] 分配好友格子失敗：" + t.Exception?.GetBaseException()?.Message);
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => _assigningSlots = false);
+        });
+    }
+
+    /// <summary>
+    /// 送出營地好友邀請（輸入對方營地代碼）。done(錯誤提示)：成功是 null；失敗是要顯示的文字（CampFriendRules 的提示）。主執行緒。
+    /// </summary>
+    public void SendFriendInvite(string code, Action<string> done)
+    {
+        string me = _roomId;
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(me)) { done?.Invoke("還沒登入或沒有進空間"); return; }
+        FindRoomByCampCode(code, target =>
+        {
+            var friendIds = new List<string>();
+            foreach (var f in _campFriends) friendIds.Add(f.roomId);
+            string err = BlockPet.Travel.CampFriendRules.Check(target, me, friendIds, false);
+            if (err != null) { done?.Invoke(err); return; }
+            var inviteRef = dbRef.Child("Rooms").Child(target).Child("friendInvites").Child(me);
+            inviteRef.GetValueAsync().ContinueWith(t =>
+            {
+                bool invited = t.IsCompleted && !t.IsFaulted && t.Result != null && t.Result.Exists;
+                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+                {
+                    if (invited) { done?.Invoke(BlockPet.Travel.CampFriendRules.MsgAlreadyInvited); return; }
+                    GetRoomMembers(me, members =>
+                    {
+                        var inv = new FriendInvite
+                        {
+                            fromRoom = me,
+                            roomName = CurrentRoomName ?? me,
+                            petName = CurrentPetName ?? "",
+                            petIndex = PetCollectionManager.Instance != null ? PetCollectionManager.Instance.CurrentPetIndex : 0,
+                            members = members != null ? members.Count : 1,
+                            sender = HasDisplayName ? GetDisplayName() : "",
+                            sentAt = ServerNowMs,
+                        };
+                        inviteRef.SetRawJsonValueAsync(JsonUtility.ToJson(inv)).ContinueWith(t2 =>
+                        {
+                            bool ok = t2.IsCompleted && !t2.IsFaulted && !t2.IsCanceled;
+                            if (!ok) Debug.LogWarning("[FirebaseManager] 送出好友邀請失敗（Firebase 規則要允許 friendInvites）：" + t2.Exception?.GetBaseException()?.Message);
+                            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok ? null : "送出失敗，請再試一次"));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// <summary>同意好友邀請：我們這邊分一格、對方那邊先寫 -1（對方自己分），刪掉邀請。done(成功) 在主執行緒。</summary>
+    public void AcceptFriendInvite(FriendInvite inv, Action<bool> done)
+    {
+        string me = _roomId;
+        if (dbRef == null || inv == null || string.IsNullOrEmpty(me) || string.IsNullOrEmpty(inv.fromRoom)) { done?.Invoke(false); return; }
+        var used = new List<int>();
+        foreach (var f in _campFriends) used.Add(f.slot);
+        if (_campFriends.Count >= BlockPet.Travel.CampFriendRules.MaxFriends) { done?.Invoke(false); return; }
+        int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used);
+        long now = ServerNowMs;
+        var updates = new Dictionary<string, object>
+        {
+            [$"Rooms/{me}/friends/{inv.fromRoom}"] = new Dictionary<string, object> { { "slot", (long)slot }, { "since", now }, { "name", inv.roomName ?? "" }, { "trips", 0L } },
+            [$"Rooms/{inv.fromRoom}/friends/{me}"] = new Dictionary<string, object> { { "slot", -1L }, { "since", now }, { "name", CurrentRoomName ?? me }, { "trips", 0L } },
+            [$"Rooms/{me}/friendInvites/{inv.fromRoom}"] = null,
+        };
+        dbRef.UpdateChildrenAsync(updates).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            if (!ok) Debug.LogWarning("[FirebaseManager] 同意好友邀請失敗（Firebase 規則要允許 friends）：" + t.Exception?.GetBaseException()?.Message);
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    /// <summary>不要：直接刪掉邀請（不通知對方，2026-11-06 定）。</summary>
+    public void DeclineFriendInvite(FriendInvite inv, Action<bool> done)
+    {
+        if (dbRef == null || inv == null || string.IsNullOrEmpty(_roomId)) { done?.Invoke(false); return; }
+        RoomRoot().Child("friendInvites").Child(inv.fromRoom).RemoveValueAsync().ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
+        });
+    }
+
+    // ─── 派寵物旅行（設計文件 5.21 ③；流程 5～12）──────────────────────
+    // Rooms/{我}/trip：旅行中（一次只能一趟）；Rooms/{對方}/guests/{我}：對方營地看到的客人；
+    // Rooms/{我}/passport/{對方}：護照的章；Rooms/{我}/tripLast：最近一次回家（每個成員各看一次蓋章卡）。
+
+    [Serializable]
+    public class TravelTrip
+    {
+        public string to;
+        public string toName;
+        public string toPet;
+        public int toSlot;
+        public long departAt;
+        public int oneWayMin;
+        public int stayMin = BlockPet.Travel.TripRules.StayMinutes;
+        public string by;
+        public string petName;
+        public long HomeAt => BlockPet.Travel.TripRules.HomeAt(departAt, oneWayMin, stayMin);
+    }
+
+    [Serializable]
+    public class TravelGuest
+    {
+        public string from;
+        public string fromName;
+        public string petName;
+        public int petIndex;
+        public long arriveAt;
+        public long leaveAt;
+    }
+
+    [Serializable]
+    public class PassportStamp
+    {
+        public string roomId;
+        public string name;
+        public long first;
+        public int times;
+    }
+
+    [Serializable]
+    public class TripReturn
+    {
+        public string to;
+        public string toName;
+        public long at;
+        public int photos;
+        public int stampNo;
+    }
+
+    public static event Action OnTravelChanged;
+
+    DatabaseReference _tripRef, _guestsRef, _passportRef, _tripLastRef;
+    string _travelRoom;
+    public TravelTrip CurrentTrip { get; private set; }
+    public TripReturn LastTripReturn { get; private set; }
+    readonly List<TravelGuest> _guests = new List<TravelGuest>();
+    readonly List<PassportStamp> _passport = new List<PassportStamp>();
+    public IReadOnlyList<TravelGuest> Guests => _guests;
+    public IReadOnlyList<PassportStamp> Passport => _passport;
+    bool _finishingTrip;
+
+    /// <summary>開始聽目前營地的旅行、客人、護照（首頁和旅行地圖都會用；換空間會自動換）。</summary>
+    public void StartTravelState()
+    {
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId)) return;
+        if (_travelRoom == _roomId && _tripRef != null) return;
+        StopTravelState();
+        _travelRoom = _roomId;
+        _tripRef = RoomRoot().Child("trip");
+        _guestsRef = RoomRoot().Child("guests");
+        _passportRef = RoomRoot().Child("passport");
+        _tripLastRef = RoomRoot().Child("tripLast");
+        _tripRef.ValueChanged += HandleTripChanged;
+        _guestsRef.ValueChanged += HandleGuestsChanged;
+        _passportRef.ValueChanged += HandlePassportChanged;
+        _tripLastRef.ValueChanged += HandleTripLastChanged;
+    }
+
+    void StopTravelState()
+    {
+        if (_tripRef != null) _tripRef.ValueChanged -= HandleTripChanged;
+        if (_guestsRef != null) _guestsRef.ValueChanged -= HandleGuestsChanged;
+        if (_passportRef != null) _passportRef.ValueChanged -= HandlePassportChanged;
+        if (_tripLastRef != null) _tripLastRef.ValueChanged -= HandleTripLastChanged;
+        _tripRef = _guestsRef = _passportRef = _tripLastRef = null;
+        _travelRoom = null;
+        CurrentTrip = null;
+        LastTripReturn = null;
+        _guests.Clear();
+        _passport.Clear();
+    }
+
+    void TravelEvent(string room, Action apply)
+    {
+        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+        {
+            if (room != _travelRoom) return;
+            apply();
+            OnTravelChanged?.Invoke();
+        });
+    }
+
+    void HandleTripChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) { Debug.LogWarning("[FirebaseManager] 讀旅行失敗：" + e.DatabaseError.Message); return; }
+        TravelTrip trip = null;
+        if (e.Snapshot != null && e.Snapshot.Exists) try { trip = JsonUtility.FromJson<TravelTrip>(e.Snapshot.GetRawJsonValue()); } catch { }
+        TravelEvent(_travelRoom, () => CurrentTrip = trip);
+    }
+
+    void HandleGuestsChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) return;
+        var list = new List<TravelGuest>();
+        if (e.Snapshot != null && e.Snapshot.Exists)
+            foreach (var c in e.Snapshot.Children)
+            {
+                TravelGuest g = null;
+                try { g = JsonUtility.FromJson<TravelGuest>(c.GetRawJsonValue()); } catch { }
+                if (g == null) continue;
+                g.from = c.Key;
+                list.Add(g);
+            }
+        list.Sort((a, b) => a.arriveAt.CompareTo(b.arriveAt)); // 最早到的在前（只顯示這一隻）
+        TravelEvent(_travelRoom, () => { _guests.Clear(); _guests.AddRange(list); });
+    }
+
+    void HandlePassportChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) return;
+        var list = new List<PassportStamp>();
+        if (e.Snapshot != null && e.Snapshot.Exists)
+            foreach (var c in e.Snapshot.Children)
+            {
+                PassportStamp st = null;
+                try { st = JsonUtility.FromJson<PassportStamp>(c.GetRawJsonValue()); } catch { }
+                if (st == null) continue;
+                st.roomId = c.Key;
+                list.Add(st);
+            }
+        list.Sort((a, b) => a.first.CompareTo(b.first));
+        TravelEvent(_travelRoom, () => { _passport.Clear(); _passport.AddRange(list); });
+    }
+
+    void HandleTripLastChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (e.DatabaseError != null) return;
+        TripReturn r = null;
+        if (e.Snapshot != null && e.Snapshot.Exists) try { r = JsonUtility.FromJson<TripReturn>(e.Snapshot.GetRawJsonValue()); } catch { }
+        TravelEvent(_travelRoom, () => LastTripReturn = r);
+    }
+
+    /// <summary>
+    /// 派寵物去好友營地。先用交易佔住 trip（已經有人派出去就失敗），再在對方營地留客人資料。done(錯誤提示) 主執行緒，成功是 null。
+    /// </summary>
+    public void SendPetOnTrip(CampFriend friend, int oneWayMin, Action<string> done)
+    {
+        string me = _roomId;
+        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(me) || friend == null) { done?.Invoke("還沒登入或沒有進空間"); return; }
+        // 對方寵物的名字（給「在對方營地」畫面用）
+        var petNameTask = friend.roomId.StartsWith("DEBUG_")
+            ? System.Threading.Tasks.Task.FromResult<DataSnapshot>(null)
+            : dbRef.Child("Rooms").Child(friend.roomId).Child("meta").Child("petName").GetValueAsync();
+        petNameTask.ContinueWith(tp =>
+        {
+            string toPet = tp.IsCompleted && !tp.IsFaulted && tp.Result != null && tp.Result.Exists ? tp.Result.Value?.ToString() : null;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+            {
+                long now = ServerNowMs;
+                var trip = new TravelTrip
+                {
+                    to = friend.roomId, toName = friend.name, toPet = toPet ?? "", toSlot = friend.slot,
+                    departAt = now, oneWayMin = oneWayMin, stayMin = BlockPet.Travel.TripRules.StayMinutes,
+                    by = GetUserId(), petName = CurrentPetName ?? "",
+                };
+                var tripDict = TripToDict(trip);
+                bool took = false;
+                RoomRoot().Child("trip").RunTransaction(data =>
+                {
+                    if (data.Value != null) { took = false; return TransactionResult.Abort(); }
+                    data.Value = tripDict;
+                    took = true;
+                    return TransactionResult.Success(data);
+                }).ContinueWith(t =>
+                {
+                    bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && took;
+                    if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] 派寵物失敗：" + t.Exception?.GetBaseException()?.Message);
+                    lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+                    {
+                        if (!ok) { done?.Invoke(t.IsFaulted ? "出發失敗，請再試一次" : "寵物已經出門了"); return; }
+                        var guest = new TravelGuest
+                        {
+                            fromName = CurrentRoomName ?? me, petName = trip.petName,
+                            petIndex = PetCollectionManager.Instance != null ? PetCollectionManager.Instance.CurrentPetIndex : 0,
+                            arriveAt = BlockPet.Travel.TripRules.ArriveAt(now, oneWayMin),
+                            leaveAt = BlockPet.Travel.TripRules.LeaveAt(now, oneWayMin),
+                        };
+                        if (!friend.roomId.StartsWith("DEBUG_")) // 測試用的假好友沒有真的營地
+                        dbRef.Child("Rooms").Child(friend.roomId).Child("guests").Child(me).SetRawJsonValueAsync(JsonUtility.ToJson(guest)).ContinueWith(tg =>
+                        {
+                            if (tg.IsFaulted) Debug.LogWarning("[FirebaseManager] 對方營地的客人資料寫入失敗（Firebase 規則要允許 guests）：" + tg.Exception?.GetBaseException()?.Message);
+                        });
+                        done?.Invoke(null);
+                    });
+                });
+            });
+        });
+    }
+
+    /// <summary>（測試用）把目前的旅行往前推 ms 毫秒（出發時間提早），不用真的等 1～3 小時。</summary>
+    public void DebugShiftTrip(long ms)
+    {
+        var t = CurrentTrip;
+        if (t == null || dbRef == null || string.IsNullOrEmpty(_roomId)) return;
+        RoomRoot().Child("trip").Child("departAt").SetValueAsync(t.departAt - ms);
+    }
+
+    /// <summary>（測試用）不用另一個營地，直接加一個假的營地好友（id 以 DEBUG_ 開頭）；clear＝清掉全部假好友。</summary>
+    public void DebugFriend(bool clear)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(_roomId)) return;
+        var friends = RoomRoot().Child("friends");
+        if (clear)
+        {
+            foreach (var f in _campFriends) if (f.roomId.StartsWith("DEBUG_")) friends.Child(f.roomId).RemoveValueAsync();
+            return;
+        }
+        var used = new List<int>();
+        foreach (var f in _campFriends) used.Add(f.slot);
+        int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used);
+        if (slot < 0) { Debug.LogWarning("[FirebaseManager] 營地好友已滿 10 個"); return; }
+        string[] names = { "小黑的辦公室營地", "海邊小屋", "山上的家", "阿嬤的菜園", "團子的小窩" };
+        string id = "DEBUG_FRIEND_" + slot;
+        friends.Child(id).SetValueAsync(new Dictionary<string, object>
+        {
+            { "slot", (long)slot }, { "since", ServerNowMs }, { "name", "（測試）" + names[slot % names.Length] }, { "trips", 0L },
+        });
+    }
+
+    /// <summary>（測試用）假裝有別的營地的寵物來玩 30 分鐘；clear＝清掉。</summary>
+    public void DebugGuest(bool clear)
+    {
+        if (dbRef == null || string.IsNullOrEmpty(_roomId)) return;
+        var r = RoomRoot().Child("guests").Child("DEBUG_GUEST");
+        if (clear) { r.RemoveValueAsync(); return; }
+        long now = ServerNowMs;
+        var g = new TravelGuest { fromName = "測試營地", petName = "小黑", arriveAt = now, leaveAt = now + 30L * 60 * 1000 };
+        r.SetRawJsonValueAsync(JsonUtility.ToJson(g));
+    }
+
+    static Dictionary<string, object> TripToDict(TravelTrip t) => new Dictionary<string, object>
+    {
+        { "to", t.to ?? "" }, { "toName", t.toName ?? "" }, { "toPet", t.toPet ?? "" }, { "toSlot", (long)t.toSlot },
+        { "departAt", t.departAt }, { "oneWayMin", (long)t.oneWayMin }, { "stayMin", (long)t.stayMin },
+        { "by", t.by ?? "" }, { "petName", t.petName ?? "" },
+    };
+
+    static TravelTrip TripFromDict(Dictionary<string, object> d)
+    {
+        if (d == null) return null;
+        string Str(string k) => d.TryGetValue(k, out var v) && v != null ? v.ToString() : "";
+        return new TravelTrip
+        {
+            to = Str("to"), toName = Str("toName"), toPet = Str("toPet"), by = Str("by"), petName = Str("petName"),
+            toSlot = (int)ReadLong(d, "toSlot"), departAt = ReadLong(d, "departAt"),
+            oneWayMin = (int)ReadLong(d, "oneWayMin"), stayMin = (int)Math.Max(1, ReadLong(d, "stayMin")),
+        };
+    }
+
+    /// <summary>
+    /// 回家蓋章：旅行時間到了，誰先打開 App 就由誰結算一次（交易拿走 trip，拿到的人才做）。
+    /// 好友路 +1 趟、護照 +1 章、刪掉對方營地的客人、寫 tripLast（每個成員各看一次蓋章卡）。
+    /// photos＝旅行時大家餵的照片張數（呼叫的人從相簿算好）。
+    /// </summary>
+    public void FinishTripIfHome(Func<long, long, int> countPhotos)
+    {
+        var trip = CurrentTrip;
+        if (trip == null || _finishingTrip || dbRef == null || string.IsNullOrEmpty(_roomId)) return;
+        long now = ServerNowMs;
+        if (now < trip.HomeAt) return;
+        _finishingTrip = true;
+        string me = _roomId;
+        bool claimed = false;
+        TravelTrip claimedTrip = null;
+        RoomRoot().Child("trip").RunTransaction(data =>
+        {
+            claimed = false;
+            if (data.Value == null) return TransactionResult.Abort();
+            var t0 = TripFromDict(data.Value as Dictionary<string, object>);
+            if (t0 == null || ServerNowMs < t0.HomeAt) return TransactionResult.Abort();
+            claimedTrip = t0;
+            claimed = true;
+            data.Value = null;
+            return TransactionResult.Success(data);
+        }).ContinueWith(t =>
+        {
+            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && claimed && claimedTrip != null;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
+            {
+                _finishingTrip = false;
+                if (!ok || me != _roomId) return;
+                var tr = claimedTrip;
+                int photos = countPhotos != null ? countPhotos(tr.departAt, tr.HomeAt) : 0;
+                // 好友路 +1 趟
+                RoomRoot().Child("friends").Child(tr.to).Child("trips").RunTransaction(d =>
+                {
+                    long cur = 0; try { if (d.Value != null) cur = Convert.ToInt64(d.Value); } catch { }
+                    d.Value = cur + 1;
+                    return TransactionResult.Success(d);
+                });
+                // 護照 +1 章，順便算出這是第幾個章
+                int stampNo = 1;
+                foreach (var st in _passport) stampNo += Mathf.Max(0, st.times);
+                RoomRoot().Child("passport").Child(tr.to).RunTransaction(d =>
+                {
+                    var dict = d.Value as Dictionary<string, object> ?? new Dictionary<string, object>();
+                    long times = 0; try { if (dict.ContainsKey("times")) times = Convert.ToInt64(dict["times"]); } catch { }
+                    dict["times"] = times + 1;
+                    if (!dict.ContainsKey("first")) dict["first"] = tr.departAt;
+                    dict["name"] = tr.toName ?? "";
+                    d.Value = dict;
+                    return TransactionResult.Success(d);
+                });
+                if (!tr.to.StartsWith("DEBUG_")) dbRef.Child("Rooms").Child(tr.to).Child("guests").Child(me).RemoveValueAsync();
+                var last = new TripReturn { to = tr.to, toName = tr.toName, at = tr.HomeAt, photos = photos, stampNo = stampNo };
+                RoomRoot().Child("tripLast").SetRawJsonValueAsync(JsonUtility.ToJson(last));
+            });
+        });
+    }
+
+    /// <summary>用營地代碼找營地（加營地好友用）。回傳空間 id，找不到是 null。callback 在主執行緒。</summary>
+    public void FindRoomByCampCode(string code, Action<string> done)
+    {
+        code = (code ?? "").Trim().ToUpperInvariant();
+        if (dbRef == null || auth?.CurrentUser == null || code.Length != CampCodeLength) { done?.Invoke(null); return; }
+        dbRef.Child(CampCodesNode).Child(code).GetValueAsync().ContinueWith(t =>
+        {
+            string room = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists ? t.Result.Value?.ToString() : null;
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(room));
+        });
     }
 
     bool _petInitRequested;

@@ -1,0 +1,956 @@
+[
+ {
+  "file": "map_sea_wave_tile",
+  "size_1x": [
+   44,
+   20
+  ],
+  "png_px": [
+   132,
+   60
+  ],
+  "use": "海的波浪紋（平鋪在 #9FCFD6 上）"
+ },
+ {
+  "file": "map_land_disc",
+  "size_1x": [
+   64,
+   64
+  ],
+  "png_px": [
+   192,
+   192
+  ],
+  "use": "陸地圓（白，上色後疊三層：淺水 #B8E0E4 半徑+20 → 沙灘 #F3E7C9 +7 → 草地 #BFDE9C；縮放成需要的半徑）"
+ },
+ {
+  "file": "map_lake",
+  "size_1x": [
+   56,
+   36
+  ],
+  "png_px": [
+   168,
+   108
+  ],
+  "use": "湖（可等比縮放 0.6～1.1）"
+ },
+ {
+  "file": "map_hill",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "小山丘（可等比縮放 0.7～1.1）"
+ },
+ {
+  "file": "map_tree",
+  "size_1x": [
+   20,
+   24
+  ],
+  "png_px": [
+   60,
+   72
+  ],
+  "use": "樹（樹冠＋亮點＋影子；縮放 0.6～1）；依 y 由上往下排"
+ },
+ {
+  "file": "map_tree_dark",
+  "size_1x": [
+   20,
+   24
+  ],
+  "png_px": [
+   60,
+   72
+  ],
+  "use": "樹（樹冠＋亮點＋影子；縮放 0.6～1）；依 y 由上往下排"
+ },
+ {
+  "file": "map_flower",
+  "size_1x": [
+   6,
+   6
+  ],
+  "png_px": [
+   18,
+   18
+  ],
+  "use": "小花（白，上色 #F6C945／#F28FA6／原色白）"
+ },
+ {
+  "file": "map_fog",
+  "size_1x": [
+   110,
+   70
+  ],
+  "png_px": [
+   330,
+   210
+  ],
+  "use": "下一塊地的雲霧（輕微左右飄 5 秒）；文字「加好友後這裡會長出地」用 TMP 11 Black #6B8A94"
+ },
+ {
+  "file": "map_prop_bench",
+  "size_1x": [
+   16,
+   12
+  ],
+  "png_px": [
+   48,
+   36
+  ],
+  "use": "長椅"
+ },
+ {
+  "file": "map_prop_sign",
+  "size_1x": [
+   18,
+   20
+  ],
+  "png_px": [
+   54,
+   60
+  ],
+  "use": "路牌"
+ },
+ {
+  "file": "map_prop_flowerbed",
+  "size_1x": [
+   20,
+   12
+  ],
+  "png_px": [
+   60,
+   36
+  ],
+  "use": "花圃"
+ },
+ {
+  "file": "map_prop_lamp",
+  "size_1x": [
+   10,
+   24
+  ],
+  "png_px": [
+   30,
+   72
+  ],
+  "use": "路燈"
+ },
+ {
+  "file": "map_pin_frame",
+  "size_1x": [
+   56,
+   56
+  ],
+  "png_px": [
+   168,
+   168
+  ],
+  "use": "好友營地大頭針外框（裡面放對方場景＋寵物，用 map_pin_mask 裁圓；陰影 0 4 10 另加）；旅行中目的地把框上色 #E86B4F"
+ },
+ {
+  "file": "map_pin_mask",
+  "size_1x": [
+   56,
+   56
+  ],
+  "png_px": [
+   168,
+   168
+  ],
+  "use": "大頭針圓形遮罩"
+ },
+ {
+  "file": "map_home_frame",
+  "size_1x": [
+   88,
+   88
+  ],
+  "png_px": [
+   264,
+   264
+  ],
+  "use": "家的外框（76 圓＋外光圈；裡面同大頭針做法，遮罩用 map_home_mask）"
+ },
+ {
+  "file": "map_home_mask",
+  "size_1x": [
+   76,
+   76
+  ],
+  "png_px": [
+   228,
+   228
+  ],
+  "use": "家的圓形遮罩"
+ },
+ {
+  "file": "map_label_bg",
+  "size_1x": [
+   24,
+   16
+  ],
+  "png_px": [
+   72,
+   48
+  ],
+  "use": "營地名牌底（字 TMP 10 Black）",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   24
+  ]
+ },
+ {
+  "file": "map_home_label",
+  "size_1x": [
+   24,
+   20
+  ],
+  "png_px": [
+   72,
+   60
+  ],
+  "use": "「家人營地（家）」黃色名牌（含下緣 2）",
+  "9slice_px_at3x_LTRB": [
+   27,
+   27,
+   27,
+   30
+  ]
+ },
+ {
+  "file": "map_stamp_badge",
+  "size_1x": [
+   22,
+   22
+  ],
+  "png_px": [
+   66,
+   66
+  ],
+  "use": "去過的營地：右上小章（字 TMP「印」或「×2」9 Black #C2452B，整個轉 -10°）"
+ },
+ {
+  "file": "map_tag_pill",
+  "size_1x": [
+   24,
+   16
+  ],
+  "png_px": [
+   72,
+   48
+  ],
+  "use": "大頭針上的標籤（白，上色：「BowBow 在這裡」#E86B4F、「目的地」#6F8FE0、客人營地名 #6F8FE0；字白 10 Black）",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   24
+  ]
+ },
+ {
+  "file": "map_route_dash",
+  "size_1x": [
+   12,
+   6
+  ],
+  "png_px": [
+   36,
+   18
+  ],
+  "use": "還沒去過的路：程式沿曲線每 11px 放一個點（或用 LineRenderer 虛線材質）；路本身用程式畫曲線"
+ },
+ {
+  "file": "pet_backpack",
+  "size_1x": [
+   18,
+   20
+  ],
+  "png_px": [
+   54,
+   60
+  ],
+  "use": "寵物的小背包（疊在寵物身上，旅途中、在對方營地都背著）"
+ },
+ {
+  "file": "away_sign",
+  "size_1x": [
+   110,
+   120
+  ],
+  "png_px": [
+   330,
+   360
+  ],
+  "use": "自己營地：寵物出門時的木牌（字 TMP「去旅行了！」Huninn 14）"
+ },
+ {
+  "file": "travel_btn_back",
+  "size_1x": [
+   44,
+   44
+  ],
+  "png_px": [
+   132,
+   132
+  ],
+  "use": "左上返回（含底）"
+ },
+ {
+  "file": "travel_header_bg",
+  "size_1x": [
+   12,
+   12
+  ],
+  "png_px": [
+   36,
+   36
+  ],
+  "use": "頂部底（拉伸到 390 × 74）",
+  "9slice_px_at3x_LTRB": [
+   6,
+   6,
+   6,
+   6
+  ]
+ },
+ {
+  "file": "travel_btn_invite",
+  "size_1x": [
+   38,
+   38
+  ],
+  "png_px": [
+   114,
+   114
+  ],
+  "use": "好友邀請小圖示（藍色信封）"
+ },
+ {
+  "file": "travel_badge_red",
+  "size_1x": [
+   18,
+   18
+  ],
+  "png_px": [
+   54,
+   54
+  ],
+  "use": "新邀請紅點（字 TMP 白 10 Black；兩位數時用 9-slice 版）"
+ },
+ {
+  "file": "travel_badge_red_wide",
+  "size_1x": [
+   24,
+   18
+  ],
+  "png_px": [
+   72,
+   54
+  ],
+  "use": "紅點（可拉寬）",
+  "9slice_px_at3x_LTRB": [
+   27,
+   27,
+   27,
+   27
+  ]
+ },
+ {
+  "file": "travel_btn_add",
+  "size_1x": [
+   40,
+   41
+  ],
+  "png_px": [
+   120,
+   123
+  ],
+  "use": "「＋ 加營地好友」黃色膠囊（含下緣 3；字 TMP 13 Black）",
+  "9slice_px_at3x_LTRB": [
+   57,
+   57,
+   57,
+   66
+  ]
+ },
+ {
+  "file": "travel_btn_passport",
+  "size_1x": [
+   64,
+   76
+  ],
+  "png_px": [
+   192,
+   228
+  ],
+  "use": "左下護照鈕（字 TMP「護照」11 Black #FFE9A8、「N 個章」10 Black 白；陰影 0 6 14 另加）"
+ },
+ {
+  "file": "icon_globe",
+  "size_1x": [
+   24,
+   24
+  ],
+  "png_px": [
+   72,
+   72
+  ],
+  "use": "護照地球圖示（單獨）"
+ },
+ {
+  "file": "travel_status_card",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "右下狀態卡底（陰影 0 6 14 另加）",
+  "9slice_px_at3x_LTRB": [
+   54,
+   54,
+   54,
+   54
+  ]
+ },
+ {
+  "file": "travel_progress_track",
+  "size_1x": [
+   12,
+   6
+  ],
+  "png_px": [
+   36,
+   18
+  ],
+  "use": "旅途進度條軌道",
+  "9slice_px_at3x_LTRB": [
+   9,
+   9,
+   9,
+   9
+  ]
+ },
+ {
+  "file": "travel_progress_fill",
+  "size_1x": [
+   12,
+   6
+  ],
+  "png_px": [
+   36,
+   18
+  ],
+  "use": "旅途進度條填滿",
+  "9slice_px_at3x_LTRB": [
+   9,
+   9,
+   9,
+   9
+  ]
+ },
+ {
+  "file": "travel_dim",
+  "size_1x": [
+   4,
+   4
+  ],
+  "png_px": [
+   12,
+   12
+  ],
+  "use": "面板後面的暗色遮罩（拉伸滿版）"
+ },
+ {
+  "file": "travel_sheet_panel",
+  "size_1x": [
+   60,
+   60
+  ],
+  "png_px": [
+   180,
+   180
+  ],
+  "use": "底部面板底（上方圓角 26）",
+  "9slice_px_at3x_LTRB": [
+   84,
+   84,
+   84,
+   0
+  ]
+ },
+ {
+  "file": "travel_sheet_grabber",
+  "size_1x": [
+   40,
+   5
+  ],
+  "png_px": [
+   120,
+   15
+  ],
+  "use": "拖曳把手"
+ },
+ {
+  "file": "travel_photo_mask",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "對方營地預覽圓角 18 遮罩（354 × 130）",
+  "9slice_px_at3x_LTRB": [
+   54,
+   54,
+   54,
+   54
+  ]
+ },
+ {
+  "file": "travel_info_cell",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "「路程／在那邊玩／回到家」資訊格",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "travel_btn_go",
+  "size_1x": [
+   60,
+   58
+  ],
+  "png_px": [
+   180,
+   174
+  ],
+  "use": "「派 BowBow 去旅行」黃色大按鈕（含下緣 4；左邊放 pet_backpack 20 × 22）",
+  "9slice_px_at3x_LTRB": [
+   54,
+   54,
+   54,
+   66
+  ]
+ },
+ {
+  "file": "travel_glass_bar",
+  "size_1x": [
+   60,
+   52
+  ],
+  "png_px": [
+   180,
+   156
+  ],
+  "use": "上方毛玻璃 bar（Unity 另加模糊；同 5.16 ②）",
+  "9slice_px_at3x_LTRB": [
+   78,
+   78,
+   78,
+   78
+  ]
+ },
+ {
+  "file": "travel_btn_back_sm",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "bar 裡的返回地圖（40）"
+ },
+ {
+  "file": "travel_tag_traveling",
+  "size_1x": [
+   24,
+   18
+  ],
+  "png_px": [
+   72,
+   54
+  ],
+  "use": "「旅行中」藍色標籤（字白 11 Black）",
+  "9slice_px_at3x_LTRB": [
+   27,
+   27,
+   27,
+   27
+  ]
+ },
+ {
+  "file": "bubble_left_tail",
+  "size_1x": [
+   40,
+   32
+  ],
+  "png_px": [
+   120,
+   96
+  ],
+  "use": "寵物對話泡泡（左下角尖；陰影 0 3 8 另加）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "bubble_right_tail",
+  "size_1x": [
+   40,
+   32
+  ],
+  "png_px": [
+   120,
+   96
+  ],
+  "use": "寵物對話泡泡（右下角尖）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "travel_popup_card",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "「BowBow 從家人營地來玩了！」白卡、自己營地的旅行中卡片（陰影 0 10 24 另加）",
+  "9slice_px_at3x_LTRB": [
+   60,
+   60,
+   60,
+   60
+  ]
+ },
+ {
+  "file": "travel_avatar_bg",
+  "size_1x": [
+   48,
+   48
+  ],
+  "png_px": [
+   144,
+   144
+  ],
+  "use": "客人寵物頭像底"
+ },
+ {
+  "file": "passport_page",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "護照內頁（回家卡 220 × 170、護照頁滿版；背景 #2E4686）",
+  "9slice_px_at3x_LTRB": [
+   36,
+   36,
+   36,
+   36
+  ]
+ },
+ {
+  "file": "passport_fold",
+  "size_1x": [
+   2,
+   40
+  ],
+  "png_px": [
+   6,
+   120
+  ],
+  "use": "回家卡內頁中間的摺線（拉長）"
+ },
+ {
+  "file": "passport_stamp_ring",
+  "size_1x": [
+   92,
+   92
+  ],
+  "png_px": [
+   276,
+   276
+  ],
+  "use": "章的雙圈（白，上色每個營地一色：#C2452B／#4F8F45／#3F5BA8／#B8891F…；中間放對方寵物 36 × 31；上方營地名、下方日期 TMP；整個歪 -8～10°）"
+ },
+ {
+  "file": "passport_stamp_empty",
+  "size_1x": [
+   92,
+   92
+  ],
+  "png_px": [
+   276,
+   276
+  ],
+  "use": "還沒去過的空格（中間「？」Huninn 14 #B9AC96；下方「營地名＋還沒去過」）"
+ },
+ {
+  "file": "passport_times_badge",
+  "size_1x": [
+   24,
+   16
+  ],
+  "png_px": [
+   72,
+   48
+  ],
+  "use": "「×2」次數標籤",
+  "9slice_px_at3x_LTRB": [
+   24,
+   24,
+   24,
+   24
+  ]
+ },
+ {
+  "file": "passport_btn_back",
+  "size_1x": [
+   44,
+   44
+  ],
+  "png_px": [
+   132,
+   132
+  ],
+  "use": "護照頁左上返回"
+ },
+ {
+  "file": "travel_btn_primary",
+  "size_1x": [
+   60,
+   53
+  ],
+  "png_px": [
+   180,
+   159
+  ],
+  "use": "「看護照」等一般黃色按鈕（含下緣 3）",
+  "9slice_px_at3x_LTRB": [
+   45,
+   45,
+   45,
+   54
+  ]
+ },
+ {
+  "file": "friend_input_box",
+  "size_1x": [
+   40,
+   56
+  ],
+  "png_px": [
+   120,
+   168
+  ],
+  "use": "營地代碼輸入框（藍框；寬拉到 354）",
+  "9slice_px_at3x_LTRB": [
+   45,
+   45,
+   45,
+   45
+  ]
+ },
+ {
+  "file": "friend_btn_disabled",
+  "size_1x": [
+   60,
+   52
+  ],
+  "png_px": [
+   180,
+   156
+  ],
+  "use": "「送出好友邀請」沒打滿 6 碼時（灰）",
+  "9slice_px_at3x_LTRB": [
+   45,
+   45,
+   45,
+   45
+  ]
+ },
+ {
+  "file": "icon_paper_plane",
+  "size_1x": [
+   64,
+   64
+  ],
+  "png_px": [
+   192,
+   192
+  ],
+  "use": "送出邀請後的紙飛機圖示"
+ },
+ {
+  "file": "friend_invite_card",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "好友邀請卡底（內距 12）",
+  "9slice_px_at3x_LTRB": [
+   54,
+   54,
+   54,
+   54
+  ]
+ },
+ {
+  "file": "friend_thumb_mask",
+  "size_1x": [
+   72,
+   72
+  ],
+  "png_px": [
+   216,
+   216
+  ],
+  "use": "邀請卡上對方營地縮圖遮罩"
+ },
+ {
+  "file": "friend_btn_no",
+  "size_1x": [
+   40,
+   46
+  ],
+  "png_px": [
+   120,
+   138
+  ],
+  "use": "「不要」",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "friend_btn_yes",
+  "size_1x": [
+   40,
+   49
+  ],
+  "png_px": [
+   120,
+   147
+  ],
+  "use": "「同意」（含下緣 3）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   51
+  ]
+ },
+ {
+  "file": "camp_code_card",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "空間資訊的藍色營地代碼卡（5.15 ③-2）",
+  "9slice_px_at3x_LTRB": [
+   54,
+   54,
+   54,
+   54
+  ]
+ },
+ {
+  "file": "camp_code_cell",
+  "size_1x": [
+   42,
+   52
+  ],
+  "png_px": [
+   126,
+   156
+  ],
+  "use": "營地代碼一格（42 × 50＋下緣 2；字 Huninn 26 #3F5BA8）"
+ },
+ {
+  "file": "camp_code_btn_copy",
+  "size_1x": [
+   40,
+   40
+  ],
+  "png_px": [
+   120,
+   120
+  ],
+  "use": "「複製」",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   42
+  ]
+ },
+ {
+  "file": "camp_code_btn_share",
+  "size_1x": [
+   40,
+   43
+  ],
+  "png_px": [
+   120,
+   129
+  ],
+  "use": "「分享」（藍、含下緣 3）",
+  "9slice_px_at3x_LTRB": [
+   42,
+   42,
+   42,
+   51
+  ]
+ }
+]

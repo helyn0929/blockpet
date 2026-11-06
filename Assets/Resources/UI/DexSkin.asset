@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 973abdf2c31e24b7f9d521c3cf0cb897, type: 3}
+  m_Name: DexSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  petPlaceholder: {fileID: 21300000, guid: ec0b9b3f7b311495b8cfbf2466f8448d, type: 3}
+  campBackground: {fileID: 2800000, guid: e1b8f608bd8a847858d38cb8261bd314, type: 3}
+  headerBg: {fileID: 21300000, guid: 1ad673eecc4e043769d2055d9bbfdc3b, type: 3}
+  back: {fileID: 21300000, guid: 0759e3516e3414f97b70c52b9cdf7ddc, type: 3}
+  tab: {fileID: 21300000, guid: 942a23b123ec44c95914c418eb4754b9, type: 3}
+  tabOn: {fileID: 21300000, guid: d5e1d958a5fd048c6b6a654b29877d9d, type: 3}
+  seriesCard: {fileID: 21300000, guid: 186626f7bf952411cbde9f9bbdaada1d, type: 3}
+  seriesIconBg: {fileID: 21300000, guid: d539e4784f29d43c78c2517c4e029c67, type: 3}
+  egg: {fileID: 21300000, guid: 3e6d72de8f4624b3faae95ce0c65ab26, type: 3}
+  eggZigzag: {fileID: 21300000, guid: df3bd1b1cabf146b9bb2f96cab04509d, type: 3}
+  progressTrack: {fileID: 21300000, guid: f73d453c67f5a4448b5bd6e0382bad73, type: 3}
+  progressFill: {fileID: 21300000, guid: e25e1b47b99ea46f29b71bf132068f4c, type: 3}
+  tagSeason: {fileID: 21300000, guid: ef2f42cfd00e74b3a870f112e50782fa, type: 3}
+  badgeCount: {fileID: 21300000, guid: ee4f7607fa6254535bc57e93cd14113f, type: 3}
+  shopCell: {fileID: 21300000, guid: b32d137931d584e20b509159a5c3f9f3, type: 3}
+  shopBag: {fileID: 21300000, guid: ad863adb593c84382a685c8af1b5788b, type: 3}
+  sheetPanel: {fileID: 21300000, guid: 08af9307167c049b1a0cb73297407127, type: 3}
+  sheetGrabber: {fileID: 21300000, guid: cb9b9e74edc0c48ceae44b19221cbbfc, type: 3}
+  close: {fileID: 21300000, guid: 7c9266ae556d04f1f87f09388876d2d0, type: 3}
+  photoMask: {fileID: 21300000, guid: 0164e3827286d40c9988d5f52675bd58, type: 3}
+  genPill: {fileID: 21300000, guid: 81e837d37e2b5455b8efb0ed77663ba1, type: 3}
+  arrow: {fileID: 21300000, guid: d4ac5ece287914a2fba312d7ce079891, type: 3}
+  infoBox: {fileID: 21300000, guid: b21871883d3594d1cac654add9b9c125, type: 3}
+  paletteMask: {fileID: 21300000, guid: 20014540ecb524f598ec9a3cffedbfaf, type: 3}
+  dot: {fileID: 21300000, guid: 0ce9203700c8e4713875cce0c70bd0b8, type: 3}
+  pageDot: {fileID: 21300000, guid: 97d948c9376094ec58267710bc26b3f3, type: 3}
+  pageDotOn: {fileID: 21300000, guid: fbce39e040f4c4afb9bb5a1d60f0dec2, type: 3}
+  popupCard: {fileID: 21300000, guid: 181bce94ae17f47b2891601fe6c125fe, type: 3}
+  buttonPrimary: {fileID: 21300000, guid: 0e4491e4e03654987b58fc8c5d0f10ef, type: 3}
+  dim: {fileID: 21300000, guid: de5f94b8ac2154e459686c8b5c747f17, type: 3}
+  newRays: {fileID: 21300000, guid: 87e9d73e358fc43b58aedf1e34a12c00, type: 3}
+  newTag: {fileID: 21300000, guid: 29ac289d975814439adda15739914dea, type: 3}
+  rewardPill: {fileID: 21300000, guid: 665bb5b33e93d4df8bfc816da2928a75, type: 3}
+  coin: {fileID: 21300000, guid: af3351d5681bc4b60a8d860ab5fad78e, type: 3}
+  buttonPrimaryLarge: {fileID: 21300000, guid: fd2f53564bb824d5d892f0fb29d95cae, type: 3}

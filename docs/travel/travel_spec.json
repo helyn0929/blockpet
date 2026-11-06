@@ -1,0 +1,67 @@
+{
+ "source": "設計稿 artifact 頁面「旅行」TravelGrow（地圖）、TravelMap*（流程）、TravelMapPassport、TravelAdd、TravelInvites、RoomInfoCamp；規格見設計文件 5.21",
+ "canvas": [
+  390,
+  772
+ ],
+ "colors": {
+  "sea": "#9FCFD6",
+  "shallow": "#B8E0E4",
+  "sand": "#F3E7C9",
+  "grass": "#BFDE9C",
+  "hill": "#A6CF82",
+  "hill_light": "#C9E6AA",
+  "tree": "#6BAA55",
+  "tree_dark": "#5A9548",
+  "tree_light": "#8CC56E",
+  "road": "#FFFFFF",
+  "road_edge": "#DCEBC8",
+  "route_active": "#E86B4F",
+  "dest_blue": "#6F8FE0",
+  "cream": "#FFF8EC",
+  "card": "#FFFCF4",
+  "yellow": "#F6C945",
+  "yellow_shadow": "#D9A92C",
+  "text": "#3A2E22",
+  "text_sub": "#6B5D4E",
+  "passport_bg": "#2E4686",
+  "passport_cover": "#3F5BA8",
+  "passport_gold": "#FFE9A8",
+  "stamp_colors": [
+   "#C2452B",
+   "#4F8F45",
+   "#3F5BA8",
+   "#B8891F"
+  ]
+ },
+ "map_generation": {
+  "seed": "營地代碼（例 K7R2PX）做 FNV-1a 32bit hash；每種東西用不同 salt 開一條 mulberry32 亂數，所以加好友時舊的東西不會亂跳",
+  "home": {
+   "x": 195,
+   "y": 380
+  },
+  "friend_slots": "第 i 個好友：角度 a0 + i×2.39996（黃金角）± 0.35，距離 R = 135 + 12i + rand×22；x = 195 + cos(a)×R×kx（kx 0.60～0.68），y = 380 + sin(a)×R；x 夾在 58～332、y 夾在 168～600；離家 > 100、離其他好友 > 86，不行就 a +0.4、R +10 再試（最多 10 次）。位置決定後固定",
+  "road": "家 → 好友 二次貝茲曲線；控制點＝中點 + 垂直方向 × bend（-0.275～0.275）",
+  "land": "家 r112 ＋ 家旁 3 塊 r58～80 ＋ 每個好友：營地 r70、旁邊一塊 r38～52、路上 t=0.3/0.55/0.8 各一塊 r46；三層：淺水 r+20、沙灘 r+7、草地 r",
+  "decor": "湖 1～2 個、小山丘 3＋階段、樹叢 60 叢×3～8 棵、小花 14＋；只放在草地內、避開營地（40）和路（12）",
+  "road_style": "沒去過：白色虛線 寬 3.5（3 8）；去過：白路 寬 6 + min(趟數,4)，外框 #DCEBC8 寬 11 + min(趟數,4)",
+  "props": "每條去過的路最多 3 樣，放在 t = 0.32 / 0.52 / 0.72，往左右交錯偏 14；種類（長椅、路牌、花圃、路燈）由種子決定",
+  "fog": "下一個好友的位置放 map_fog＋小字「加好友後這裡會長出地」",
+  "many_friends": "好友多時地圖可以拖曳、縮放；大頭針與名牌大小不變"
+ },
+ "travel_rules": {
+  "one_way_min": "依距離，15～75 分（距離 ÷ 3.5，取 5 的倍數）",
+  "stay_min": 30,
+  "one_trip_at_a_time": true,
+  "anyone_can_send": true,
+  "photos_during_trip": "照常餵，進化與金幣照算，照片放相簿",
+  "passport": "營地共用一本；空格數＝已加好友但還沒去過的營地數"
+ },
+ "animations": {
+  "route_active": "紅色虛線流動 0.8 秒循環",
+  "pet_on_road": "左右搖擺 0.8 秒",
+  "fog": "左右飄 6px 5 秒",
+  "stamp": "蓋章 0.6 秒：0.5 倍→1.12→1，轉 -20°→-8°",
+  "pin_new": "新營地長出 0.4 秒放大淡入"
+ }
+}

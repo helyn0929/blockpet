@@ -24,6 +24,10 @@ namespace BlockPet.EditorTools.TopBar
         public const string PhotoViewFolder = "Assets/Art/UI/PhotoView/Sprites/";
         /// <summary>分割畫面快門（設計文件 5.16 ⑤；同上 json）</summary>
         public const string ShutterFolder = "Assets/Art/UI/Shutter/Sprites/";
+        /// <summary>圖鑑（設計文件 5.23；docs/dex/dex_assets.json）</summary>
+        public const string DexFolder = "Assets/Art/UI/Dex/Sprites/";
+        /// <summary>旅行（設計文件 5.21；docs/travel/travel_assets.json）</summary>
+        public const string TravelFolder = "Assets/Art/UI/Travel/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -60,16 +64,70 @@ namespace BlockPet.EditorTools.TopBar
             { "photo_input_bar", new Vector4(6, 6, 6, 6) },
             { "chat_input", new Vector4(63, 63, 63, 63) },
             { "cam_toast_card", new Vector4(42, 42, 42, 42) },
+            // 圖鑑（docs/dex/dex_assets.json 的 9slice_px_at3x_LTRB，換成 Unity 的 L,B,R,T）
+            { "dex_header_bg", new Vector4(6, 6, 6, 6) },
+            { "dex_tab", new Vector4(42, 42, 42, 42) },
+            { "dex_tab_on", new Vector4(42, 42, 42, 42) },
+            { "dex_series_card", new Vector4(66, 66, 66, 66) },
+            { "dex_progress_track", new Vector4(9, 9, 9, 9) },
+            { "dex_progress_fill", new Vector4(9, 9, 9, 9) },
+            { "dex_tag_season", new Vector4(24, 24, 24, 24) },
+            { "dex_cell", new Vector4(48, 48, 48, 48) },
+            { "dex_cell_rare_empty", new Vector4(48, 48, 48, 48) },
+            { "dex_cell_extreme", new Vector4(48, 48, 48, 48) },
+            { "dex_badge_count", new Vector4(24, 24, 24, 24) },
+            { "dex_shop_cell", new Vector4(48, 48, 48, 48) },
+            { "dex_sheet_panel", new Vector4(84, 0, 84, 84) },
+            { "dex_photo_mask", new Vector4(60, 60, 60, 60) },
+            { "dex_gen_pill", new Vector4(30, 30, 30, 30) },
+            { "dex_info_box", new Vector4(42, 42, 42, 42) },
+            { "dex_palette_mask", new Vector4(18, 18, 18, 18) },
+            { "dex_page_dot_on", new Vector4(9, 9, 9, 9) },
+            { "dex_popup_card", new Vector4(72, 72, 72, 72) },
+            { "btn_primary", new Vector4(48, 57, 54, 48) },
+            { "btn_primary_lg", new Vector4(57, 66, 63, 57) },
+            { "dex_new_tag", new Vector4(36, 42, 36, 36) },
+            { "dex_reward_pill", new Vector4(48, 48, 48, 48) },
+            // 旅行（docs/travel/travel_assets.json；檔名 xxx@3x.png，查表時去掉 @3x）
+            { "map_label_bg", new Vector4(24, 24, 24, 24) },
+            { "map_home_label", new Vector4(27, 30, 27, 27) },
+            { "map_tag_pill", new Vector4(24, 24, 24, 24) },
+            { "travel_header_bg", new Vector4(6, 6, 6, 6) },
+            { "travel_badge_red_wide", new Vector4(27, 27, 27, 27) },
+            { "travel_btn_add", new Vector4(57, 66, 57, 57) },
+            { "travel_status_card", new Vector4(54, 54, 54, 54) },
+            { "travel_progress_track", new Vector4(9, 9, 9, 9) },
+            { "travel_progress_fill", new Vector4(9, 9, 9, 9) },
+            { "travel_sheet_panel", new Vector4(84, 0, 84, 84) },
+            { "travel_photo_mask", new Vector4(54, 54, 54, 54) },
+            { "travel_info_cell", new Vector4(42, 42, 42, 42) },
+            { "travel_btn_go", new Vector4(54, 66, 54, 54) },
+            { "travel_glass_bar", new Vector4(78, 78, 78, 78) },
+            { "travel_tag_traveling", new Vector4(27, 27, 27, 27) },
+            { "bubble_left_tail", new Vector4(42, 42, 42, 42) },
+            { "bubble_right_tail", new Vector4(42, 42, 42, 42) },
+            { "travel_popup_card", new Vector4(60, 60, 60, 60) },
+            { "passport_page", new Vector4(36, 36, 36, 36) },
+            { "passport_times_badge", new Vector4(24, 24, 24, 24) },
+            { "travel_btn_primary", new Vector4(45, 54, 45, 45) },
+            { "friend_input_box", new Vector4(45, 45, 45, 45) },
+            { "friend_btn_disabled", new Vector4(45, 45, 45, 45) },
+            { "friend_invite_card", new Vector4(54, 54, 54, 54) },
+            { "friend_btn_no", new Vector4(42, 42, 42, 42) },
+            { "friend_btn_yes", new Vector4(42, 51, 42, 42) },
+            { "camp_code_card", new Vector4(54, 54, 54, 54) },
+            { "camp_code_btn_copy", new Vector4(42, 42, 42, 42) },
+            { "camp_code_btn_share", new Vector4(42, 51, 42, 42) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 6;
+        public override uint GetVersion() => 8;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
             if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
-                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder))
+                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -88,7 +146,7 @@ namespace BlockPet.EditorTools.TopBar
             settings.spriteAlignment = (int)SpriteAlignment.Center;
             importer.SetTextureSettings(settings);
 
-            string name = Path.GetFileNameWithoutExtension(path);
+            string name = Path.GetFileNameWithoutExtension(path).Replace("@3x", "");
             importer.spriteBorder = Borders.TryGetValue(name, out var b) ? b : Vector4.zero;
         }
 
@@ -100,6 +158,8 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(HandFolder);
             ReimportFolder(PhotoViewFolder);
             ReimportFolder(ShutterFolder);
+            ReimportFolder(DexFolder);
+            ReimportFolder(TravelFolder);
         }
 
         public static void ReimportFolder(string folder)

@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 090225ef9b2164cea965b509adb350ff, type: 3}
+  m_Name: TravelSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  pet: {fileID: 21300000, guid: ec0b9b3f7b311495b8cfbf2466f8448d, type: 3}
+  campBackground: {fileID: 2800000, guid: e1b8f608bd8a847858d38cb8261bd314, type: 3}
+  seaWave: {fileID: 21300000, guid: b08e010dacad24734b3dd6a99d787d54, type: 3}
+  landDisc: {fileID: 21300000, guid: a9a485b7e69474bbb995c8e2f78047cf, type: 3}
+  pinFrame: {fileID: 21300000, guid: fc2e6329ea94f40bbaa9683417f7de7e, type: 3}
+  pinMask: {fileID: 21300000, guid: 2b9f846899fd3444e9b440c86022e5b7, type: 3}
+  homeFrame: {fileID: 21300000, guid: 15951660624964b21886d24f43a97b76, type: 3}
+  homeMask: {fileID: 21300000, guid: 5398b4d1812bd4f34a82da075c9ff72a, type: 3}
+  labelBg: {fileID: 21300000, guid: cbbc97fab83e34b5496e4a0271955f3b, type: 3}
+  homeLabel: {fileID: 21300000, guid: f5b873b4eec0d4f0d8c1ce3e76d4f72c, type: 3}
+  back: {fileID: 21300000, guid: 8b09e939664114ef4b0fe5fd404f9e5d, type: 3}
+  stampBadge: {fileID: 21300000, guid: e9ae640c0a9674292904c8b67dfa4408, type: 3}
+  propBench: {fileID: 21300000, guid: 7d3ffdc2dd22d4754abb0cd7622aa5da, type: 3}
+  propSign: {fileID: 21300000, guid: 3dd56006a342a4adca8602443d5de0c0, type: 3}
+  propFlowerbed: {fileID: 21300000, guid: 584605bd46fcd4069816a152ed300c89, type: 3}
+  propLamp: {fileID: 21300000, guid: 9c7fb584cde0246d5a6f711bc3ea796b, type: 3}
+  headerBg: {fileID: 21300000, guid: 8979730266eb7424289e806d88cde10c, type: 3}
+  inviteButton: {fileID: 21300000, guid: 642ac6de429964038abac05a53a488ac, type: 3}
+  redBadge: {fileID: 21300000, guid: ffd95239284fd463e94e7a01d75de4bb, type: 3}
+  addButton: {fileID: 21300000, guid: c0dc6560f51704daabba164232a0b3e1, type: 3}
+  passportButton: {fileID: 21300000, guid: 53c38d9063a7f4d5ca551abe0e1c7848, type: 3}
+  statusCard: {fileID: 21300000, guid: 9c6574fd08f4d4c56a38a8f8b788252f, type: 3}
+  paperPlane: {fileID: 21300000, guid: 3cc1578b84226441b80e5e27d8a8d16c, type: 3}
+  backpack: {fileID: 21300000, guid: 325efc1199e644f7da4e4f3e553c89f3, type: 3}
+  tagPill: {fileID: 21300000, guid: 2482626133e93457aa2b5e8e5b993de8, type: 3}
+  glassBar: {fileID: 21300000, guid: 23ad6be03cb7349d79af3f48a2b84ed6, type: 3}
+  backSmall: {fileID: 21300000, guid: 579bda046f9a3437286b860dfdb73aee, type: 3}
+  tagTraveling: {fileID: 21300000, guid: 757e001e81fd3495b8045a861181b039, type: 3}
+  bubbleLeft: {fileID: 21300000, guid: 4592d64338f4e4ecda54c16f42d93575, type: 3}
+  bubbleRight: {fileID: 21300000, guid: 693ff9104f1c644e193fb0388a554696, type: 3}
+  awaySign: {fileID: 21300000, guid: 8d78ef164e6f44d25abd076b00e1bb8a, type: 3}
+  popupCard: {fileID: 21300000, guid: 149892610d6ab4149a89666175998d6e, type: 3}
+  avatarBg: {fileID: 21300000, guid: a1a942531ff564a1aaa550bfb1eb2675, type: 3}
+  infoCell: {fileID: 21300000, guid: 9c6e822a321c243bca951e8ca76127aa, type: 3}
+  photoMask: {fileID: 21300000, guid: 32ce503bab0a1420da34c11740743520, type: 3}
+  passportBack: {fileID: 21300000, guid: f65c210f3e9d44705888b6f5109f75a4, type: 3}
+  passportPage: {fileID: 21300000, guid: 12b4606a0fadf401e80e40e5af68cf4a, type: 3}
+  passportFold: {fileID: 21300000, guid: 427d01d8526f04f5284140b1f0b47954, type: 3}
+  stampRing: {fileID: 21300000, guid: 7a957e58ef61149e99b6a0e5cd7c9a69, type: 3}
+  stampEmpty: {fileID: 21300000, guid: 719456bf895944111ac23336488aea33, type: 3}
+  timesBadge: {fileID: 21300000, guid: cf7d6f1da18394377a2e8a7c363155e3, type: 3}

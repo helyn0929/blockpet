@@ -39,8 +39,8 @@ namespace BlockPet.UI.TopBar
             _pageManager = FindObjectOfType<PageManager>(true);
             if (toggleButton != null) toggleButton.onClick.AddListener(Toggle);
             if (decorButton != null) decorButton.onClick.AddListener(() => Fire(onDecor, "佈置", EnterDecorMode));
-            if (travelButton != null) travelButton.onClick.AddListener(() => Fire(onTravel, "旅行"));
-            if (dexButton != null) dexButton.onClick.AddListener(() => Fire(onDex, "圖鑑"));
+            if (travelButton != null) travelButton.onClick.AddListener(() => Fire(onTravel, "旅行", BlockPet.UI.Travel.TravelScreen.Open));
+            if (dexButton != null) dexButton.onClick.AddListener(() => Fire(onDex, "圖鑑", BlockPet.UI.Dex.DexScreen.Open));
             if (settingsButton != null) settingsButton.onClick.AddListener(() => Fire(onSettings, "設定", () => _pageManager?.ShowSettingsPage()));
             SetOpen(false, instant: true);
         }

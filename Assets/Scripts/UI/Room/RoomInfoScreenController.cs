@@ -43,6 +43,12 @@ namespace BlockPet.UI.Room
         static readonly Color Coral = Hex(0xE86B4F);
         static readonly Color Red = Hex(0xC2452B);
         static readonly Color Grass = Hex(0x8FA868);
+        // 營地代碼（藍色卡，5.15 ③-2）
+        static readonly Color BlueSoft = Hex(0xE2E8F8);
+        static readonly Color Blue = Hex(0x6F8FE0);
+        static readonly Color BlueDeep = Hex(0x4F6FC4);
+        static readonly Color BlueText = Hex(0x3F5BA8);
+        static readonly Color BlueEdge = Hex(0xB9C7EC);
 
         [Header("Style")]
         [SerializeField] HandSkin skin;
@@ -79,6 +85,8 @@ namespace BlockPet.UI.Room
         TMP_Text _petNameText, _petSub;
         readonly List<TMP_Text> _codeChars = new List<TMP_Text>();
         TMP_Text _inviteNote;
+        readonly List<TMP_Text> _campChars = new List<TMP_Text>();
+        string _campCode;
         TMP_Text _membersTitle;
         RectTransform _membersCard;
         TMP_Text _petNameValue, _roomNameValue, _birthValue;
@@ -123,11 +131,14 @@ namespace BlockPet.UI.Room
             CloseLeave(instant: true);
             _toastGroup.alpha = 0f;
             _scroll.verticalNormalizedPosition = 1f;
+            FirebaseManager.OnRoomMetaChanged -= OnCampMeta;
+            FirebaseManager.OnRoomMetaChanged += OnCampMeta;
             Load();
         }
 
         void OnDisable()
         {
+            FirebaseManager.OnRoomMetaChanged -= OnCampMeta;
             if (_canvas != null) _canvas.gameObject.SetActive(false);
         }
 
@@ -177,6 +188,7 @@ namespace BlockPet.UI.Room
                 _petName = meta != null && !string.IsNullOrEmpty(meta.petName) ? meta.petName : _roomName;
                 _ownerId = meta?.ownerUserId;
                 _born = meta != null && DateTime.TryParse(meta.createdAt, out var t) ? t.ToLocalTime() : (DateTime?)null;
+                if (meta != null && !string.IsNullOrWhiteSpace(meta.campCode)) _campCode = meta.campCode;
                 Refresh();
                 BuildMembers();
             });
@@ -199,6 +211,16 @@ namespace BlockPet.UI.Room
             _roomNameValue.text = _roomName;
             _birthValue.text = _born.HasValue ? _born.Value.ToString("yyyy/MM/dd") : "—";
             _leaveSub.text = $"離開後就看不到 {pet} 和營地照片";
+            // 營地代碼：目前空間用監聽到的（剛補上代碼時也會更新）
+            var fb = FirebaseManager.Instance;
+            if (fb != null && fb.RoomId == _roomId && !string.IsNullOrEmpty(fb.CurrentCampCode)) _campCode = fb.CurrentCampCode;
+            for (int i = 0; i < _campChars.Count; i++)
+                _campChars[i].text = !string.IsNullOrEmpty(_campCode) && i < _campCode.Length ? _campCode.Substring(i, 1) : "";
+        }
+
+        void OnCampMeta()
+        {
+            if (this != null && isActiveAndEnabled) Refresh();
         }
 
         Sprite PetSprite()
@@ -215,6 +237,21 @@ namespace BlockPet.UI.Room
             if (_busy) return;
             if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
             pageManager?.ShowHomePage();
+        }
+
+        void CopyCampCode()
+        {
+            if (string.IsNullOrEmpty(_campCode)) { Toast("營地代碼產生中，請稍等"); return; }
+            GUIUtility.systemCopyBuffer = _campCode;
+            Toast("已複製營地代碼 " + _campCode);
+        }
+
+        void ShareCampCode()
+        {
+            if (string.IsNullOrEmpty(_campCode)) { Toast("營地代碼產生中，請稍等"); return; }
+            string camp = string.IsNullOrEmpty(_roomName) ? "我們的營地" : _roomName;
+            string text = $"來跟「{camp}」當營地好友！打開 BlockPet，到「旅行 → 加營地好友」輸入營地代碼：{_campCode}，我們的寵物就能互相去旅行。";
+            if (!ShareText.Send(text)) Toast("已複製邀請訊息，貼給朋友吧");
         }
 
         void CopyCode()
@@ -598,6 +635,37 @@ namespace BlockPet.UI.Room
             share.gameObject.AddComponent<ButtonScalePress>();
             _inviteNote = Label(inv, 14, 158, ContentW - 28f, 16, "", 11, Muted, TextAlignmentOptions.Center);
             _inviteNote.enableWordWrapping = false;
+
+            // 跟別的營地當好友（藍色卡，5.15 ③-2）：樣式同上，換藍色、換標題，避免給錯
+            var camp = Place(_content, "CampCode", PadX, 0, ContentW, 206);
+            UIShapes.AddRounded(camp.gameObject, Blue, 18).raycastTarget = false;
+            StretchIn(UIShapes.AddRounded(Place(camp, "Fill", 0, 0, 0, 0).gameObject, BlueSoft, 16.5f).rectTransform, 1.5f, 1.5f, 1.5f, 1.5f);
+            Label(camp, 14, 14, 200, 20, "跟別的營地當好友", 15, Ink, TextAlignmentOptions.Left);
+            Label(camp, 14, 16, ContentW - 28f, 18, "營地代碼", 11, BlueDeep, TextAlignmentOptions.Right);
+            for (int i = 0; i < 6; i++)
+            {
+                var tile = Place(camp, "Code" + i, cx + i * 48f, 44, 42, 50);
+                UIShapes.AddRounded(Place(tile, "Edge", 0, 2, 42, 50).gameObject, BlueEdge, 12).raycastTarget = false;
+                UIShapes.AddRounded(Place(tile, "Fill", 0, 0, 42, 50).gameObject, Color.white, 12).raycastTarget = false;
+                _campChars.Add(Label(tile, 0, 0, 42, 50, "", 26, BlueText, TextAlignmentOptions.Center));
+            }
+            var ccopy = Place(camp, "Copy", 14, 104, copyW, 44);
+            UIShapes.AddRounded(ccopy.gameObject, BlueEdge, 13).raycastTarget = false;
+            var ccbg = UIShapes.AddRounded(Place(ccopy, "Fill", 1.5f, 1.5f, copyW - 3f, 41).gameObject, Color.white, 11.5f);
+            Label(ccopy, 0, 0, copyW, 44, "複製", 14, Ink, TextAlignmentOptions.Center);
+            var ccb = ccopy.gameObject.AddComponent<Button>();
+            ccb.targetGraphic = ccbg;
+            ccb.onClick.AddListener(CopyCampCode);
+            var cshare = Place(camp, "Share", 14 + copyW + 8f, 104, shareW, 44);
+            UIShapes.AddRounded(Place(cshare, "Edge", 0, 3, shareW, 44).gameObject, BlueDeep, 13).raycastTarget = false;
+            var csbg = UIShapes.AddRounded(Place(cshare, "Fill", 0, 0, shareW, 44).gameObject, Blue, 13);
+            Label(cshare, 0, 0, shareW, 44, "分享", 14, Color.white, TextAlignmentOptions.Center);
+            var csb = cshare.gameObject.AddComponent<Button>();
+            csb.targetGraphic = csbg;
+            csb.onClick.AddListener(ShareCampCode);
+            cshare.gameObject.AddComponent<ButtonScalePress>();
+            var campNote = Label(camp, 14, 158, ContentW - 28f, 34, "別的營地在「旅行 → 加營地好友」輸入這組碼，只能加營地好友（寵物可以互相去旅行），不能加入", 11, BlueText, TextAlignmentOptions.Center);
+            campNote.enableWordWrapping = true;
 
             // 成員
             var mem = Place(_content, "Members", PadX, 0, ContentW, 100);

@@ -141,10 +141,6 @@ namespace BlockPet.UI.TopBar
         public Vector2 homeSize = new Vector2(46, 32);
         public float homeIconSize = 20;
 
-        [Header("今日題目（第 9 步使用；設計文件 5.7：避開 Home 鍵）")]
-        [Tooltip("今日題目直排格子的起始 y（相對畫面上緣）")]
-        public float todayThemeStartY = 124;
-
         [Header("佈置模式")]
         [Tooltip("佈置模式要隱藏哪些介面（尚未定案，預設全部不隱藏）")]
         public DecorModeSettings decorMode;

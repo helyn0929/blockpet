@@ -213,8 +213,6 @@ namespace BlockPet.EditorTools.TopBar
                 c.homeSize = new Vector2(Num(home, "w", c.homeSize.x), Num(home, "h", c.homeSize.y));
                 c.homeIconSize = Num(home, "iconSize", c.homeIconSize);
             }
-            var theme = Obj(root, "todayTheme");
-            if (theme != null) c.todayThemeStartY = Num(theme, "startY", c.todayThemeStartY);
 
             var sizes = Obj(root, "fontSizes");
             if (sizes != null)

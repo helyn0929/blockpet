@@ -176,7 +176,7 @@ namespace BlockPet.UI.TopBar
         void ResetRevivePrompt() => _revivePromptedRoom = null;
 
         /// <summary>
-        /// 寵物昏倒（愛心 0）時，在首頁自動打開復活視窗（有藥水→喝；沒藥水→去商城買）。
+        /// 寵物昏倒（愛心 0）時，在首頁自動打開復活視窗（付營地金幣讓牠醒來）。
         /// 每次進空間只跳一次；回到首頁後等 0.6 秒（讓頁面和愛心資料先出來）。復活後再死會再跳。
         /// </summary>
         void AutoRevivePrompt(bool home)

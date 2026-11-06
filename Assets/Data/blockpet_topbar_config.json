@@ -138,10 +138,6 @@
     "icon": "Icons/icon_home@3x.png",
     "iconSize": 20
   },
-  "todayTheme": {
-    "_note": "今日題目直排格子起始 y（避開 Home 鍵）；第 9 步實作時使用",
-    "startY": 124
-  },
   "fontSizes": {
     "name": 13,
     "lv": 9,

@@ -2919,19 +2919,19 @@ public class FirebaseManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 復活：用掉空間的一瓶復活藥水（<see cref="BlockPet.Feed.PetHearts.PotionId"/>），愛心回到 5 顆滿。
-    /// 先扣藥水再復活；如果扣了之後發現別人已經先復活了，把藥水還回去。
-    /// done(ok, 原因) 在主執行緒呼叫，原因：potion（沒有藥水）／alive（已經活著）／error。
+    /// 復活：從營地帳戶付 <see cref="BlockPet.Feed.EconomyRules.RevivePrice"/> 金幣，愛心回到 5 顆滿（2026-11-06：不再用藥水）。
+    /// 先扣金幣再復活；如果扣了之後發現別人已經先復活了，把金幣退回去。
+    /// done(ok, 原因) 在主執行緒呼叫，原因：coins（金幣不夠）／alive（已經活著）／error。
     /// </summary>
     public void ReviveRoomPet(Action<bool, string> done)
     {
         if (!enableSharedRoomPet || _petRef == null) { done?.Invoke(false, "error"); return; }
         if (GetRoomHeartsNow() > 0f) { done?.Invoke(false, "alive"); return; }
-        string potion = BlockPet.Feed.PetHearts.PotionId;
+        int price = BlockPet.Feed.EconomyRules.RevivePrice;
         var petRef = _petRef;
-        UseRoomShopItem(potion, ok =>
+        SpendRoomCoins(price, "revive", ok =>
         {
-            if (!ok) { done?.Invoke(false, "potion"); return; }
+            if (!ok) { done?.Invoke(false, "coins"); return; }
             bool revived = false;
             petRef.RunTransaction(mutable =>
             {
@@ -2951,7 +2951,7 @@ public class FirebaseManager : MonoBehaviour
                 bool success = !t.IsFaulted && !t.IsCanceled && revived;
                 lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
                 {
-                    if (!success) AddRoomShopItem(potion, 1, null); // 藥水還回去
+                    if (!success) AddRoomCoins(price, "refund:revive"); // 金幣退回
                     done?.Invoke(success, success ? null : (revived ? "error" : "alive"));
                 });
             });

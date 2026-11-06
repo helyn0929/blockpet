@@ -5,7 +5,7 @@ namespace BlockPet.Tests
 {
     /// <summary>
     /// 經濟規則測試：docs/design/blockpet-economy-spec.md 第 2 節的驗收條件（乘數表、愛心回復、餵食金幣、移動速度）。
-    /// 需要 Firebase 的條件（成員 A、B 帳本、今日題目、帳戶與花費）不在這裡。
+    /// 需要 Firebase 的條件（成員 A、B 帳本、帳戶與花費）不在這裡。
     /// </summary>
     public class EconomyRulesTests
     {

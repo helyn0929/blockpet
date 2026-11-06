@@ -16,8 +16,6 @@ namespace BlockPet.UI.TopBar
         public bool hideHomeButton;
         [Tooltip("右上選單鈕（佈置／旅行／圖鑑／設定）")]
         public bool hideMenuButton;
-        [Tooltip("今日題目（第 9 步實作後生效）")]
-        public bool hideTodayTheme;
         [Tooltip("手牌、營地最新照片卡、出牌後的相簿／拍照／聊天")]
         public bool hideHand;
 

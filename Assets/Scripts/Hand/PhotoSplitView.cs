@@ -518,7 +518,7 @@ namespace BlockPet.Hand
         {
             string title, sub, say;
             Color color;
-            if (r.dead) { title = "……"; sub = "昏倒了，先喝復活藥水"; say = "……"; color = Muted; }
+            if (r.dead) { title = "……"; sub = "昏倒了，先讓牠醒來"; say = "……"; color = Muted; }
             else if (r.hit) { title = "好好吃！"; sub = $"命中想吃・+{r.coins} 金幣"; say = "謝謝！好好吃～"; color = Hex(0xE0662E); }
             else { title = "嗯…？"; sub = $"不是想吃的・+{r.coins} 金幣"; say = "嗯…這是什麼？"; color = Muted; }
             _camToastTitle.text = title;

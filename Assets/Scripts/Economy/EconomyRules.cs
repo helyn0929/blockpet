@@ -29,6 +29,8 @@ namespace BlockPet.Feed
         public const bool CanFeedWhenDead = false;
         /// <summary>3.2【未定】暫用值：0 顆心（昏倒）時寵物不移動。</summary>
         public const bool DeadPetMoves = false;
+        /// <summary>復活：從營地帳戶付 100 金幣（2026-10-28 定案 100 金幣；2026-11-06 改成直接付金幣，不再買藥水）。</summary>
+        public const int RevivePrice = 100;
         /// <summary>3.6【未定】暫用值：圖鑑收到新的一格，全營地 +100 金幣（設計文件 5.23）。</summary>
         public const int DexNewCellCoins = 100;
 

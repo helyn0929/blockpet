@@ -132,7 +132,6 @@ MonoBehaviour:
   homeY: 80
   homeSize: {x: 46, y: 32}
   homeIconSize: 20
-  todayThemeStartY: 124
   decorMode: {fileID: 11400000, guid: ce1247aebc430470193a75aa8d3ada24, type: 2}
   panel: {fileID: 21300000, guid: 22ab9644836f149a2aa704aa31573829, type: 3}
   panelShadow: {fileID: 21300000, guid: 76fcd7600d77e48c4aabe730bd180693, type: 3}

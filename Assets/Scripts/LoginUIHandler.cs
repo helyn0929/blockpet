@@ -270,6 +270,7 @@ public class LoginUIHandler : MonoBehaviour
         // 上次待的空間還在 → 直接進去（不要每次都從選空間頁進，會錯過拍照時機）
         var fb = FirebaseManager.Instance;
         string lastRoom = fb != null ? fb.RoomId : "";
+        Debug.Log($"[LoginUIHandler] Post-login: last room='{lastRoom}' uid='{fb?.GetUserId()}' saved='{PlayerPrefs.GetString("Blockpet.RoomId", "")}'");
         if (pageManager != null && !string.IsNullOrEmpty(lastRoom) && !string.IsNullOrEmpty(fb.GetUserId()))
         {
             pageManager.StartCoroutine(EnterLastRoomOrPick(pageManager, lastRoom));
@@ -287,6 +288,7 @@ public class LoginUIHandler : MonoBehaviour
         fb.CheckMyRoom(roomId, ok => member = ok);
         float until = Time.realtimeSinceStartup + 3f;
         while (member == null && Time.realtimeSinceStartup < until) yield return null;
+        Debug.Log($"[LoginUIHandler] Post-login: member of {roomId}? {(member.HasValue ? member.Value.ToString() : "timeout")}, released={GameplayHudReleased}, current='{fb?.RoomId}'");
 
         // 沒網路又沒快取（3 秒沒回應）也直接進：寧可先進去拍照，不要卡在選空間頁
         if (member != false && fb != null && fb.RoomId == roomId && !GameplayHudReleased)

@@ -56,7 +56,7 @@
 ### 愛心、死亡與復活
 - Scene：Feed.unity
 - 主要 Prefab：無（`ReviveDialog` 執行時建立）
-- 主要腳本：`Scripts/PetHealthManager.cs`、`Scripts/Economy/PetHearts.cs`（掉心規則、星等；2026-11-05 從 Feed 搬到 Economy，獨立組件 `BlockPet.Economy` 讓測試可以引用）、`Scripts/Feed/ReviveDialog.cs`、`Scripts/FirebaseManager.cs`（`petState.hearts`／`heartsAt`、復活）
+- 主要腳本：`Scripts/PetHealthManager.cs`、`Scripts/Economy/PetHearts.cs`（掉心規則、星等；2026-11-05 從 Feed 搬到 Economy，獨立組件 `BlockPet.Economy` 讓測試可以引用）、`Scripts/Feed/ReviveDialog.cs`（復活視窗：直接付營地金幣，價格 `EconomyRules.RevivePrice`）、`Scripts/FirebaseManager.cs`（`petState.hearts`／`heartsAt`、`ReviveRoomPet` 扣金幣復活）
 
 ### 寵物（移動、動畫、收集）
 - Scene：Feed.unity
@@ -100,6 +100,7 @@
 ### 商城
 - Scene：Feed.unity（MarketPage）
 - 主要 Prefab：`Assets/Art/Test/ShopItemCard.prefab`
+- 分頁：家具／環境／寵物蛋（2026-11-06：裝飾、道具分頁刪除）
 - 主要腳本：`Scripts/UI/Market/MarketScreenController.cs`、`Scripts/UI/Market/MarketCatalog.cs`（商品與價格）、`Scripts/UI/Market/MarketInventoryStore.cs`；舊版相關：`MarketPageController.cs`、`MarketUIController.cs`、`ShopGridController.cs`、`Scripts/UI/Market/WebView/MarketWebViewBridge.cs`、`Art/UI/Market_UI/MarketScreen.uxml`，哪些還在用待確認
 
 ### 佈置家具
@@ -163,7 +164,6 @@
 
 | 功能 | 狀態 |
 |---|---|
-| 今日題目 | 待確認（找不到） |
 | 進化分支 | 待確認（找不到；`PetCollectionManager` 只有進化能量） |
 | 抽蛋 | 待確認（找不到） |
 | 推播 | 有 `Editor/com.unity.mobile.notifications` 設定資料夾；遊戲腳本待確認（找不到） |

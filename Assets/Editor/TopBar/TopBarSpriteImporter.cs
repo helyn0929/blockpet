@@ -34,6 +34,8 @@ namespace BlockPet.EditorTools.TopBar
         public const string PolaroidFolder = "Assets/Art/UI/Polaroid/Sprites/";
         /// <summary>佈置營地（設計文件 5.28；docs/decorate/decorate_assets.json）</summary>
         public const string DecorateFolder = "Assets/Art/UI/Decorate/Sprites/";
+        /// <summary>寄明信片（設計文件 5.21，2026-11-08；docs/postcard/postcard_assets.json）</summary>
+        public const string PostcardFolder = "Assets/Art/UI/Postcard/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -149,17 +151,30 @@ namespace BlockPet.EditorTools.TopBar
             { "deco_btn_done", new Vector4(57, 57, 57, 57) },
             { "deco_panel", new Vector4(66, 0, 66, 66) },
             { "deco_tag_dark", new Vector4(27, 27, 27, 27) },
+            // 寄明信片（postcard_assets.json 的 9slice_px_at3x；面板 pc_sheet 上 78 左右 78、下面不切）
+            { "pc_btn_draw", new Vector4(51, 51, 51, 51) },
+            { "pc_chip_free", new Vector4(24, 24, 24, 24) },
+            { "pc_card", new Vector4(78, 78, 78, 78) },
+            { "pc_btn_yes", new Vector4(45, 45, 45, 45) },
+            { "pc_btn_no", new Vector4(45, 45, 45, 45) },
+            { "pc_btn_wait", new Vector4(45, 45, 45, 45) },
+            { "pc_tag_country", new Vector4(30, 30, 30, 30) },
+            { "pc_tag_same", new Vector4(30, 30, 30, 30) },
+            { "pc_noface_bar", new Vector4(36, 36, 36, 36) },
+            { "pc_sheet", new Vector4(78, 0, 78, 78) },
+            { "pc_note", new Vector4(42, 42, 42, 42) },
+            { "pc_passport_page", new Vector4(54, 54, 54, 54) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 15;
+        public override uint GetVersion() => 16;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
             if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
                    || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder) || path.StartsWith(Home9Folder)
-                   || path.StartsWith(PolaroidFolder) || path.StartsWith(DecorateFolder))
+                   || path.StartsWith(PolaroidFolder) || path.StartsWith(DecorateFolder) || path.StartsWith(PostcardFolder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -199,6 +214,7 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(Home9Folder);
             ReimportFolder(PolaroidFolder);
             ReimportFolder(DecorateFolder);
+            ReimportFolder(PostcardFolder);
         }
 
         public static void ReimportFolder(string folder)

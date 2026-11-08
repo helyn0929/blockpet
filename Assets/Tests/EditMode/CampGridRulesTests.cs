@@ -74,5 +74,21 @@ namespace BlockPet.Tests
             var placed = new List<(Cell anchor, int w, int d)> { (new Cell(0, 0), 2, 2), (new Cell(5, 5), 1, 1) };
             Assert.AreEqual(5, GridMath.UsedCells(placed));
         }
+
+        [Test]
+        public void 拖曳_底座中心在哪就放哪一格_稍微偏一點也一樣()
+        {
+            var o = new Vector2(205, 370);
+            foreach (var (w, d) in new[] { (1, 1), (2, 1), (2, 2) })
+            {
+                var anchor = new Cell(3, -2);
+                var p = GridMath.AnchorPoint(anchor, w, d, o);
+                Assert.AreEqual(anchor, GridMath.AnchorAt(p, w, d, o), $"{w}x{d}");
+                Assert.AreEqual(anchor, GridMath.AnchorAt(p + new Vector2(8, -4), w, d, o), $"{w}x{d} 偏一點");
+            }
+            // 往右下拖一格（i + 1）
+            var c1 = GridMath.AnchorPoint(new Cell(0, 0), 1, 1, o) + new Vector2(30, 15);
+            Assert.AreEqual(new Cell(1, 0), GridMath.AnchorAt(c1, 1, 1, o));
+        }
     }
 }

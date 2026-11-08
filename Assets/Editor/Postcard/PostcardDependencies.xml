@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<dependencies>
+  <!-- 寄明信片（設計文件 5.21）：有人臉的照片不能寄。Android 用 ML Kit 人臉偵測（BlockPetFaceDetect.java）；
+       iOS 用系統內建的 Vision，不用加套件。由 External Dependency Manager 在 Android 建置時下載。 -->
+  <androidPackages>
+    <androidPackage spec="com.google.mlkit:face-detection:16.1.7" />
+  </androidPackages>
+</dependencies>

@@ -185,6 +185,7 @@ namespace BlockPet.UI.Polaroid
             if (!_open) return;
             _open = false;
             EndTyping();
+            EndSendMode();
             FirebaseManager.OnChatEntryAdded -= OnChat;
             FirebaseManager.OnChatEntryChanged -= OnChat;
             FirebaseManager.OnChatEntryRemoved -= OnChatRemoved;
@@ -298,6 +299,9 @@ namespace BlockPet.UI.Polaroid
 
             _placeholder.text = PlaceholderFor(m);
             _input.text = "";
+            _mode = InputMode.Comment;
+            _input.characterLimit = 200;
+            SyncCaptionMode();
 
             ReleasePhoto();
             _card.SetPhoto(null, false);
@@ -326,6 +330,7 @@ namespace BlockPet.UI.Polaroid
             string oldFilter = _style.filter;
             _style = Copy(fb.PolaroidStyleNow);
             ApplyStyle();
+            if (_mode == InputMode.Caption && !_input.isFocused) _input.text = _style.caption ?? "";
             if ((oldFilter ?? "none") != (_style.filter ?? "none")) RefreshFiltered();
             _stickers.Clear();
             _stickers.AddRange(fb.PolaroidStickersNow);
@@ -335,7 +340,7 @@ namespace BlockPet.UI.Polaroid
 
         void ApplyStyle()
         {
-            _card.ApplyStyle(_style, IsOwner, PhotoTime(Current));
+            _card.ApplyStyle(_style, false, PhotoTime(Current)); // 2026-11-08 使用者：拿掉標題旁的編輯筆，寫標題改從右下編輯鈕進入
             // 編輯鈕：鉛筆顏色跟畫框字色、70%
             var ink = PolaroidRules.Frame(_style.frame).ink;
             if (_editIcon != null) _editIcon.color = new Color(ink.r, ink.g, ink.b, 0.7f);
@@ -504,21 +509,43 @@ namespace BlockPet.UI.Polaroid
             if (PhotoComments.Send(m, OwnerName(m), _input.text)) _input.text = "";
         }
 
-        /// <summary>點自己照片的標題：留言框變成「寫一句標題…」。</summary>
+        /// <summary>點自己照片的標題：留言框變成「寫一句標題…」並打開鍵盤。</summary>
         void BeginCaption()
         {
             if (!IsOwner) return; // 別人的照片點標題沒反應
             Deselect();
+            EnterCaptionMode(true);
+        }
+
+        /// <summary>留言框變成寫標題（自己拍的照片才行）；focus＝要不要打開鍵盤。</summary>
+        void EnterCaptionMode(bool focus)
+        {
+            if (_input == null || !IsOwner) return;
             _mode = InputMode.Caption;
             _placeholder.text = "寫一句標題…";
             _input.characterLimit = PolaroidRules.CaptionMax;
-            _input.text = _style.caption ?? "";
-            _input.ActivateInputField();
+            if (!_input.isFocused) _input.text = _style.caption ?? "";
+            if (focus) _input.ActivateInputField();
         }
+
+        /// <summary>
+        /// 裝飾頁＝寫標題模式（2026-11-08 使用者：按右下編輯鈕，留言框自動變成寫標題，不跳鍵盤）；寵物頁＝留言。
+        /// 換頁、換張、Firebase 送來新標題時呼叫。
+        /// </summary>
+        void SyncCaptionMode()
+        {
+            if (_input == null) return;
+            if (_page == Page.Deco && IsOwner) EnterCaptionMode(false);
+            else if (_mode == InputMode.Caption) EndTyping();
+        }
+
+        bool _endingTyping;
 
         void EndTyping()
         {
-            if (_input == null) return;
+            if (_input == null || _endingTyping) return;
+            _endingTyping = true;
+            if (_input.isFocused) _input.DeactivateInputField();
             if (_mode == InputMode.Caption)
             {
                 _mode = InputMode.Comment;
@@ -526,7 +553,8 @@ namespace BlockPet.UI.Polaroid
                 _input.text = "";
                 _placeholder.text = PlaceholderFor(Current);
             }
-            if (_input.isFocused) _input.DeactivateInputField();
+            _endingTyping = false;
+            if (_open && _page == Page.Deco && IsOwner) EnterCaptionMode(false); // 還在裝飾頁：回到寫標題模式
         }
 
         /// <summary>點拍立得空白處：收起鍵盤、取消選取貼紙。</summary>

@@ -31,12 +31,21 @@ extern "C" void _BlockPet_FetchRecentPhotos(const char* gameObjectName, int limi
         NSString* dir = [NSTemporaryDirectory() stringByAppendingPathComponent:@"blockpet_hand"];
         [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
 
+        // 遊戲自己存出去的圖（拍立得下載、收到的明信片下載，都放在「BlockPet」相簿）不能當手牌（明信片不能拿來餵寵物，5.21）
+        NSMutableSet* ownExports = [NSMutableSet set];
+        PHFetchOptions* albumOpts = [[PHFetchOptions alloc] init];
+        albumOpts.predicate = [NSPredicate predicateWithFormat:@"title = %@", @"BlockPet"];
+        PHFetchResult<PHAssetCollection*>* albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:albumOpts];
+        for (PHAssetCollection* album in albums)
+            for (PHAsset* a in [PHAsset fetchAssetsInAssetCollection:album options:nil]) [ownExports addObject:a.localIdentifier];
+
         NSMutableArray* items = [NSMutableArray array];
         for (PHAsset* asset in assets)
         {
             if ((NSInteger)items.count >= limit) break;
             // 過濾截圖（PhotoScreenshot）；Live Photo、HDR、人像等相機拍的子類型都保留
             if (asset.mediaSubtypes & PHAssetMediaSubtypePhotoScreenshot) continue;
+            if ([ownExports containsObject:asset.localIdentifier]) continue;
 
             NSString* safeId = [[asset.localIdentifier componentsSeparatedByString:@"/"] firstObject];
             NSString* path = [dir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@_%d.jpg", safeId, maxEdge]];

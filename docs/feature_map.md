@@ -34,7 +34,7 @@
 ### 空間資訊（點寵物頭像：成員、邀請碼、營地代碼、改名、離開）
 - Scene：Feed.unity（PetSettingPage）
 - 主要 Prefab：無（執行時建立）
-- 主要腳本：`Scripts/UI/Room/RoomInfoScreenController.cs`；營地代碼（藍色 6 碼，5.15 ③-2）由 `FirebaseManager.EnsureCampCode` 產生，存 `Rooms/{room}/meta/campCode`＋`CampCodes/{代碼}`＝空間 id
+- 主要腳本：`Scripts/UI/Room/RoomInfoScreenController.cs`；營地代碼由 `FirebaseManager.EnsureCampCode` 產生（只當明信片地圖的種子，2026-11-08 起不顯示）
 - 舊版：`Scripts/UI/PetSetting/PetSettingPageController.cs`（`Art/UI/PetSetting_UI/PetSettingScreen.uxml`），也還掛在場景裡，是否已停用待確認
 
 ### 首頁狀態欄（愛心、想吃、進化條、金幣、復活入口）
@@ -123,16 +123,18 @@
 - 和 11-06 刪除的「從照片撿裝飾」無關
 
 ### 佈置家具（設計文件 5.28 佈置營地：斜角格子）
-- Scene：Feed.unity（`RoomEditorController` 掛在 HomePage；畫面執行時建立，sortingOrder 12）
+- Scene：Feed.unity（`RoomEditorController` 掛在 HomePage；畫面執行時建立，sortingOrder 12）；入口是右上選單「佈置」（`MenuToggle`）和商店「去擺放」
+- 操作：按住家具拖（面板卡片往上拖到營地），吸附格子，白框放得下、紅框放不下；也能點家具再點綠格
+- 佈置時收起狀態欄、選單、照片貼紙、底部按鈕：`Assets/Data/DecorModeSettings.asset`
 - 主要 Prefab：`Assets/Art/UI/Mainroom_UI/DecorationObject.prefab`
-- 主要腳本：`Scripts/Decoration/DecorationManager.cs`（`PlaceOnGrid`／`MoveOnGrid`、編輯鎖）、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/Decoration/DecorationLayout.cs`（家具在格子上的位置、大小、前後、影子）、`Scripts/UI/Home/RoomEditorController.cs`（右下「佈置」鈕、佈置畫面與流程）、`Scripts/UI/TopBar/DecorModeSettings.cs`
+- 主要腳本：`Scripts/Decoration/DecorationManager.cs`（`PlaceOnGrid`／`MoveOnGrid`、編輯鎖）、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/Decoration/DecorationLayout.cs`（家具在格子上的位置、大小、前後、影子）、`Scripts/UI/Home/RoomEditorController.cs`（佈置畫面、拖曳與點選流程）、`Scripts/UI/TopBar/DecorModeSettings.cs`
 - 格子規則：`Scripts/Decoration/Grid/CampGridRules.cs`（獨立組件 `BlockPet.CampGrid`：`GridMath` 座標、底座、放得下、前後、圖片位置；測試 `Tests/EditMode/CampGridRulesTests.cs`）
 - 格子表：`Scripts/Decoration/Grid/CampGrid.cs`，檔案 `Assets/Resources/Camp/CampGrid_forest.asset`；在 Unity 選到它，在 Scene 畫面用滑鼠點格子標「存在／不能放／擴建」（`Assets/Editor/Decorate/CampGridEditor.cs`，選單 BlockPet/Decorate/Create Forest Camp Grid）
 - 家具底座：`DecorationItem` 的 `footprintW`／`footprintD`／`hangPoint`（`Assets/Data/Market/furn_*.asset`）
 - 素材：`Assets/Resources/UI/DecorateSkin.asset`（`Assets/Editor/Decorate/DecorateSkinBuilder.cs` 從 `Assets/Art/UI/Decorate/Sprites/` 自動填）
 - 資料：`Rooms/{room}/decorations/{id}` 多了 `gi`、`gj`（底座最上面那格）；沒有格子座標的舊家具不顯示，佈置時列在「還沒擺出來的家具」
 - 寵物和家具前後用同一套：`AIController.SortOrderForY`
-- 舊的自由擺放 `Scripts/UI/Home/DecorationPickerController.cs`（`Art/UI/Mainroom_UI/DecorationPicker.uxml`）不再顯示，保留接線
+- 舊的自由擺放（`DecorationPickerController`、`DecorationPicker.uxml/.uss`）2026-11-08 已刪除
 - `Assets/Prefabs/Livingroom.prefab` 沒有被引用，待確認
 
 ### 設定
@@ -148,14 +150,16 @@
 - 測試用：Editor 選單 BlockPet/Debug/圖鑑（`Assets/Editor/Dex/DexDebugMenu.cs`）
 - 待接：進化系統（進化那一刻呼叫 `RecordDex`＋`DexScreen.ShowNew`）、收滿送蛋（抽蛋系統）、其他成員補看「圖鑑新增」；各外型寵物圖待美術（暫用 shiba.png 上色）
 
-### 旅行地圖（設計文件 5.21）
-- Scene：無（執行時自動建立，sortingOrder 38）
-- 主要 Prefab：無；素材 `Assets/Resources/UI/TravelSkin.asset`（由 `Assets/Editor/Travel/TravelSkinBuilder.cs` 從 `Assets/Art/UI/Travel/Sprites/` 自動填）
-- 主要腳本：`Scripts/Travel/TravelMapGen.cs`（地圖生成：陸地、好友位置、路、湖、小山丘、樹、小花、路邊小物、雲霧，照設計稿 TravelGrow 移植；獨立組件 `BlockPet.Travel`）、`Scripts/UI/Travel/TravelScreen.cs`（地圖＋頂部、底部）、`Scripts/UI/Travel/MapCurveGraphic.cs`（路的曲線）；入口 `MenuToggle` 的旅行按鈕
-- 截圖：Editor 選單 BlockPet/Travel/Snapshot Map（`Assets/Editor/Travel/TravelMapSnapshot.cs`，可 batchmode）
-- 派寵物旅行（5.21 流程 5～12）：`FirebaseManager` 的 `SendPetOnTrip`／`FinishTripIfHome`，資料 `Rooms/{room}/trip`、`guests/{對方}`、`passport/{對方}`、`tripLast`；規則 `Scripts/Travel/TripRules.cs`；地圖上的派出發面板、旅途中、抵達、在對方營地、護照在 `TravelScreen`；首頁上的出門木牌、客人、回家蓋章卡在 `Scripts/UI/Travel/TravelHomeOverlay.cs`（執行時自動建立）；測試用選單 BlockPet/Debug/旅行
-- 營地好友（5.21 流程 1～3）：`FirebaseManager` 的 `SendFriendInvite`／`AcceptFriendInvite`／`DeclineFriendInvite`，資料 `Rooms/{room}/friendInvites/{對方}`、`Rooms/{room}/friends/{對方}`（slot＝地圖格子，放好就固定）；規則在 `Scripts/Travel/CampFriendRules.cs`；面板「加營地好友」「好友邀請」在 `TravelScreen`
-- 地圖種子＝目前營地的營地代碼（還沒有時用 K7R2PX）；好友用真的營地好友（截圖時用示範假資料）；之後接營地代碼（5.15）、Firebase 營地好友、加好友與派寵物旅行流程、護照
+### 寄明信片（設計文件 5.21，2026-11-08 取代旅行）
+- Scene：無（執行時自動建立，sortingOrder 38）；入口 `MenuToggle` 的「旅行」按鈕（選單的字維持「旅行」）
+- 素材：`Assets/Resources/UI/TravelSkin.asset`（地圖，`Assets/Editor/Travel/TravelSkinBuilder.cs`）＋`Assets/Resources/UI/PostcardSkin.asset`（抽好友、選照片、護照，`Assets/Editor/Postcard/PostcardSkinBuilder.cs` 從 `Assets/Art/UI/Postcard/Sprites/` 自動填）
+- 地圖：`Scripts/Travel/TravelMapGen.cs`（照設計稿 TravelGrow 移植；獨立組件 `BlockPet.Travel`）、`Scripts/UI/Travel/TravelScreen.cs`（地圖＋頂部「明信片地圖」、底部護照與狀態卡、好友營地面板）、`Scripts/UI/Travel/MapCurveGraphic.cs`；地圖種子＝營地代碼（`FirebaseManager.EnsureCampCode`，不再顯示）
+- 規則：`Scripts/Travel/PostcardRules.cs`（抽好友次數與價格、台灣時間換日、好友上限與解鎖、配對、等確認／回寄期限、郵票郵戳）、`Scripts/Travel/TripRules.cs`（路程時間）、`Scripts/Travel/CampFriendRules.cs`（地圖格子）；數字在 `Assets/Resources/Postcard/postcard_settings.json`
+- 抽好友：`Scripts/UI/Travel/TravelScreen.Draw.cs`（抽好友按鈕、配對卡、等對方確認、有營地想加你們、解鎖、封鎖・檢舉）；資料 `CampProfiles/{營地}`、`Rooms/{room}/matchIn`、`matchOut`、`postcardMeta`、`blocked`、`blockedBy`、`Reports`（`Scripts/FirebaseManager.Postcard.cs`）
+- 寄明信片：`Scripts/UI/Travel/TravelScreen.Postcard.cs`（選照片、人臉、裝飾過的拍立得、寄出、護照、放大看）；拍立得寄出模式 `Scripts/UI/Polaroid/PolaroidScreen.Send.cs`；資料 `Rooms/{收件}/postcards/{id}`＋`postcardImg/{id}`（JPG base64）、`Rooms/{寄件}/sent/{id}`；寵物出門沿用 `SendPetOnTrip`（`Rooms/{room}/trip`、`guests`）
+- 人臉偵測：`Scripts/Postcard/FaceDetector.cs`＋`Assets/Plugins/iOS/BlockPetFaceDetect.mm`（Vision）＋`Assets/Plugins/Android/BlockPetFaceDetect.java`（ML Kit，依賴 `Assets/Editor/Postcard/PostcardDependencies.xml`）；國家 `Scripts/Postcard/DeviceRegion.cs`
+- 首頁：`Scripts/UI/Travel/TravelHomeOverlay.cs`（出門木牌、客人、收到明信片／寵物回家帶回風景明信片的彈出，風景明信片 `PostcardArt.RenderScenery`）
+- 推播還沒做（App 內通知）；測試用選單 BlockPet/Debug/寄明信片；地圖截圖 BlockPet/Travel/Snapshot Map
 
 ### 頁面切換
 - Scene：Feed.unity
@@ -184,7 +188,7 @@
 
 ### 測試
 - Scene：無
-- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`、`BlockPet.Travel`、`BlockPet.Home`、`BlockPet.Polaroid`、`BlockPet.Outfit`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）、`StickerRulesTests.cs`（首頁照片貼紙）、`PolaroidRulesTests.cs`（拍立得規則與濾鏡）、`OutfitRulesTests.cs`（穿搭部位、限定月份、商店狀態）；執行 `scripts/run-tests.sh`
+- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`、`BlockPet.Travel`、`BlockPet.Home`、`BlockPet.Polaroid`、`BlockPet.Outfit`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（地圖格子）、`PostcardRulesTests.cs`（寄明信片）、`TripRulesTests.cs`（旅行時間與階段）、`StickerRulesTests.cs`（首頁照片貼紙）、`PolaroidRulesTests.cs`（拍立得規則與濾鏡）、`OutfitRulesTests.cs`（穿搭部位、限定月份、商店狀態）；執行 `scripts/run-tests.sh`
 
 ## 規劃中、專案裡找不到程式的功能
 

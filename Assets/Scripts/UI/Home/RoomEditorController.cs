@@ -12,13 +12,14 @@ namespace BlockPet.UI.Home
 {
     /// <summary>
     /// 佈置營地：斜角格子（設計文件 5.28；docs/decorate/decorate_spec.json；2026-11-08 取代原本的自由擺放）。
-    /// - 平常：營地右下「佈置」按鈕；格子不顯示。
-    /// - 佈置中：暗色遮罩＋所有格子浮出、寵物半透明；上方「佈置營地・已用 N / M 格・完成」；下方「還沒擺出來的家具」。
-    /// - 點一件家具（場上的或面板裡的）→ 浮起發黃光、上方小標「營火・點綠色格子移過去」；放得下的格子閃綠色（1.4 秒）。
-    /// - 點綠色格子 → 先顯示半透明預覽＋白框，再移過去（寫進營地資料，大家看到一樣的擺法）。
+    /// - 入口：右上選單「佈置」（MenuToggle）、商店「去擺放」（EnterEditModeAndPlace）；平常營地不顯示格子。
+    /// - 佈置中：暗色遮罩＋所有格子浮出、寵物半透明；狀態欄、照片貼紙、底部按鈕收起來（DecorModeSettings）；
+    ///   上方「佈置營地・已用 N / M 格・完成」；下方「還沒擺出來的家具」。
+    /// - 拖曳（2026-11-08 使用者要求，比設計的「點綠色格子」直觀）：按住場上的家具拖，或把面板裡的卡片往上拖到營地；
+    ///   一路吸附在格子上，底座白框＝放得下、紅框＝放不下；放開在放得下的地方就移過去，否則回原位。
+    /// - 也能用點的：點一件家具 → 浮起發黃光、上方小標；放得下的格子閃綠色（1.4 秒）；點綠色格子 → 半透明預覽＋白框再移過去。
     /// - 按「完成」→ 回到平常的營地。
     /// 編輯鎖、Firebase 讀寫在 DecorationManager；格子規則在 GridMath；格子表 CampGrid（Resources/Camp）。
-    /// 公開方法維持原本的名字（選單「佈置」、商店「去擺放」照舊呼叫）。
     /// </summary>
     public class RoomEditorController : MonoBehaviour
     {
@@ -26,8 +27,9 @@ namespace BlockPet.UI.Home
         const float TopH = 64f, PanelH = 150f;
         const float CardW = 80f, CardH = 92f, CardGap = 10f;
         const float PreviewSeconds = 0.35f, OkPulse = 1.4f;
-        const int DimOrder = -30000, TileOrder = -29000;
+        const int DimOrder = -30000, TileOrder = -29000, LiftOrder = 5000;
         const float TapMovePx = 14f;
+        const float CardDragLift = 40f; // 從卡片拖出來時家具畫在手指上方多少（設計 px），手指不會擋住
 
         static readonly Color Ink = new Color(0x3A / 255f, 0x2E / 255f, 0x22 / 255f);
         static readonly Color Sub = new Color(0x6B / 255f, 0x5D / 255f, 0x4E / 255f);
@@ -35,10 +37,6 @@ namespace BlockPet.UI.Home
         static readonly Color Green = new Color(0x6F / 255f, 0xA4 / 255f, 0x5F / 255f);
         static readonly Color GreenEdge = new Color(0x4A / 255f, 0x7A / 255f, 0x3F / 255f);
 
-        // ─── Inspector（舊的自由擺放用，現在不用；保留讓場景接線不壞）──────
-        [Header("Legacy (free placement, no longer used)")]
-        [SerializeField] DecorationPickerController picker;
-        [SerializeField] SpriteRenderer placementPreview;
         [SerializeField] Camera worldCamera;
 
         public bool IsEditing { get; private set; }
@@ -60,33 +58,35 @@ namespace BlockPet.UI.Home
         int _selCard = -1;
         readonly HashSet<Cell> _okTaps = new HashSet<Cell>();
         bool _hasTarget;
-        Cell _targetTap, _targetAnchor;
+        Cell _targetAnchor;
         float _targetT, _pulseT;
         DecorationItem _queuedItem; // 商店「去擺放」：拿到編輯鎖後直接選這件
 
+        // 按下／拖曳
+        bool _down, _dragging, _dragFits, _dragOverPanel;
+        Vector2 _downPos;
+        DecorationObject _downDecor;  // 按下時點到的場上家具
+        int _downCard = -1;           // 按下時點到的卡片
+        Vector3 _grabOffset;          // 底座中心 − 手指（世界座標）
+        Cell _dragAnchor;
+        ScrollRect _scroll;
+
         // 畫面
         Canvas _canvas;
-        RectTransform _root, _home, _top, _panel, _cards, _tag, _toast;
+        RectTransform _root, _top, _panel, _cards, _tag, _toast;
         TMP_Text _usedText, _tagText, _toastText, _emptyText;
         float _toastUntil;
         readonly List<(RectTransform rt, DecorationItem item, string legacyId, Image ring)> _cardViews = new List<(RectTransform, DecorationItem, string, Image)>();
         GameObject _world;
         SpriteRenderer _dim, _ghost;
         readonly Dictionary<Cell, SpriteRenderer> _tiles = new Dictionary<Cell, SpriteRenderer>();
-        HandController _hand;
-        PageManager _pages;
-        CameraUIManager _cameraUI;
-        Vector2 _downPos;
-        bool _down;
-        float _lastK = -1f;
+        float _lastK = 1f;
 
         // ─── Lifecycle ─────────────────────────────────────────────────
 
         void Start()
         {
             if (worldCamera == null) worldCamera = Camera.main;
-            if (placementPreview != null) placementPreview.enabled = false;
-            picker?.Hide();
             _skin = DecorateSkin.Load();
             _font = _skin != null ? _skin.font : null;
             BuildUI();
@@ -106,31 +106,30 @@ namespace BlockPet.UI.Home
 
         void OnLayoutChanged()
         {
-            if (!IsEditing) return;
+            if (!IsEditing || _dragging) return;
             RefreshAll();
         }
 
         void Update()
         {
             Relayout();
-            _home.gameObject.SetActive(!IsEditing && ShowHomeButton());
             _toast.gameObject.SetActive(Time.unscaledTime < _toastUntil);
             if (!IsEditing) return;
 
             float dt = Time.unscaledDeltaTime;
             _pulseT += dt;
-            UpdateTiles();
-            UpdateSelectedFloat();
-            UpdateTag();
 
             // 點綠色格子後：先顯示半透明預覽＋白框，再移過去
             if (_hasTarget)
             {
                 _targetT += dt;
                 if (_targetT >= PreviewSeconds) CommitTarget();
-                return;
             }
-            HandlePointer();
+            else HandlePointer();
+
+            UpdateTiles();
+            UpdateSelectedFloat();
+            UpdateTag();
         }
 
         // ─── 進入／離開 ────────────────────────────────────────────────
@@ -180,6 +179,7 @@ namespace BlockPet.UI.Home
         public void ExitEditMode(bool save)
         {
             if (!IsEditing) return;
+            CancelDrag();
             Deselect();
             var dm = DecorationManager.Instance;
             dm?.ReleaseEditLock();
@@ -191,21 +191,12 @@ namespace BlockPet.UI.Home
             ShowEditUI(false);
         }
 
-        // 舊介面（DecorationPickerController）呼叫的方法：保留名字
-        public void OnItemSelected(DecorationItem item) => SelectPanelItem(item);
-        public void OnExitEditModeButton() => ExitEditMode(true);
-        public void OnCancelEditModeButton() => ExitEditMode(false);
-        public void OnActionConfirm() { }
-        public void OnActionCancel() => Deselect();
-        public void OnActionRemove() { }
-        public void OnActionDone() => Deselect();
-
         // ─── 資料 ──────────────────────────────────────────────────────
 
         DecorationManager DM => DecorationManager.Instance;
 
-        int W(DecorationItem it) => it != null ? Mathf.Max(1, it.footprintW) : 1;
-        int D(DecorationItem it) => it != null ? Mathf.Max(1, it.footprintD) : 1;
+        static int W(DecorationItem it) => it != null ? Mathf.Max(1, it.footprintW) : 1;
+        static int D(DecorationItem it) => it != null ? Mathf.Max(1, it.footprintD) : 1;
 
         /// <summary>場上（有格子座標）的家具佔哪些格：格子 → decorId。</summary>
         Dictionary<Cell, string> Taken()
@@ -223,18 +214,26 @@ namespace BlockPet.UI.Home
             return taken;
         }
 
+        bool Fits(DecorationItem item, Cell anchor, string self) =>
+            GridMath.Fits(anchor, W(item), D(item), _cells, _blocked, Taken(), self);
+
+        bool TryGetSpawned(string id, out DecorationObject o)
+        {
+            o = null;
+            return id != null && DM != null && DM.Spawned.TryGetValue(id, out o) && o != null;
+        }
+
         void RefreshAll()
         {
             var owned = new List<string>(_owned.Keys);
             _cells = _grid.ActiveCells(owned);
             _blocked = _grid.ActiveBlocked(owned);
             BuildTiles();
+            var keepItem = _selDecorId == null ? _selItem : null;
             BuildCards();
+            if (keepItem != null) SelectPanelItem(keepItem); // 卡片重建後選回同一件
             RecomputeOk();
-            // 已用 N / M 格
-            int used = 0;
-            foreach (var kv in Taken()) used++;
-            _usedText.text = $"已用 {used} / {_grid.PlaceableCount(owned)} 格";
+            _usedText.text = $"已用 {Taken().Count} / {_grid.PlaceableCount(owned)} 格";
         }
 
         // ─── 選取 ──────────────────────────────────────────────────────
@@ -272,7 +271,7 @@ namespace BlockPet.UI.Home
 
         void Deselect()
         {
-            if (_selDecorId != null && DM != null && DM.Spawned.TryGetValue(_selDecorId, out var o) && o != null)
+            if (TryGetSpawned(_selDecorId, out var o))
             {
                 o.SetSelected(false);
                 DecorationLayout.Apply(o, DM.Database.GetById(o.ItemId), _grid); // 放回原本的高度
@@ -292,40 +291,140 @@ namespace BlockPet.UI.Home
             _okTaps.Clear();
             if (_selItem == null || _grid == null) return;
             var taken = Taken();
-            string self = _selDecorId;
             foreach (var c in _cells)
             {
                 if (_blocked.Contains(c)) continue;
                 var anchor = GridMath.AnchorForTap(c, W(_selItem), D(_selItem));
-                if (GridMath.Fits(anchor, W(_selItem), D(_selItem), _cells, _blocked, taken, self)) _okTaps.Add(c);
+                if (GridMath.Fits(anchor, W(_selItem), D(_selItem), _cells, _blocked, taken, _selDecorId)) _okTaps.Add(c);
             }
         }
 
-        // ─── 點擊 ──────────────────────────────────────────────────────
+        // ─── 點擊與拖曳 ────────────────────────────────────────────────
 
         void HandlePointer()
         {
-            if (!ReadPointer(out bool down, out bool up, out Vector2 screen)) return;
-            if (down) { _down = !OverUI(screen); _downPos = screen; return; }
-            if (!up || !_down) return;
-            _down = false;
-            if ((screen - _downPos).magnitude > TapMovePx) return;
+            if (!ReadPointer(out bool down, out bool held, out bool up, out Vector2 screen)) return;
 
+            if (down)
+            {
+                _down = true;
+                _dragging = false;
+                _downPos = screen;
+                _downCard = CardAt(screen);
+                _downDecor = _downCard < 0 && !OverUI(screen) ? FindDecorAt(ScreenToWorld(screen), true) : null;
+                return;
+            }
+            if (!_down) return;
+
+            if (held && !_dragging)
+            {
+                var delta = screen - _downPos;
+                if (delta.magnitude > TapMovePx * _lastK)
+                {
+                    // 場上的家具：往哪拖都算；卡片：往上拖才算（左右滑是捲動面板）
+                    if (_downDecor != null) BeginDragPlaced(_downDecor, screen);
+                    else if (_downCard >= 0 && delta.y > Mathf.Abs(delta.x)) BeginDragCard(_downCard, screen);
+                    else { _down = false; return; } // 面板捲動或在空地上滑：這次不算點
+                }
+            }
+            if (_dragging)
+            {
+                if (held) UpdateDrag(screen);
+                if (up) EndDrag();
+                return;
+            }
+            if (!up) return;
+            _down = false;
+            OnTap(screen);
+        }
+
+        void OnTap(Vector2 screen)
+        {
+            if (_downCard >= 0)
+            {
+                if (_selCard == _downCard) Deselect(); else SelectCard(_downCard);
+                return;
+            }
+            if (OverUI(screen)) return;
             var world = ScreenToWorld(screen);
-            var hit = FindDecorAt(world);
+            var hit = FindDecorAt(world, false);
             if (hit != null) { SelectPlaced(hit); return; }
 
             var cell = _grid.CellAtWorld(world);
             if (_selItem != null && _okTaps.Contains(cell))
             {
-                _targetTap = cell;
                 _targetAnchor = GridMath.AnchorForTap(cell, W(_selItem), D(_selItem));
                 _hasTarget = true;
                 _targetT = 0f;
-                ShowGhost();
+                ShowGhostAt(_targetAnchor, 0.55f);
                 return;
             }
             Deselect();
+        }
+
+        void BeginDragPlaced(DecorationObject o, Vector2 screen)
+        {
+            if (_selDecorId != o.DecorId) SelectPlaced(o);
+            _dragging = true;
+            _grabOffset = DecorationLayout.CenterWorld(_selItem, o.Anchor, _grid) - ScreenToWorld(_downPos);
+            UpdateDrag(screen);
+        }
+
+        void BeginDragCard(int index, Vector2 screen)
+        {
+            if (_selCard != index) SelectCard(index);
+            _dragging = true;
+            _grabOffset = new Vector3(0f, CardDragLift * _grid.WorldPerPx, 0f);
+            if (_scroll != null) { _scroll.StopMovement(); _scroll.enabled = false; } // 拖出來時面板不要跟著捲
+            UpdateDrag(screen);
+        }
+
+        /// <summary>跟著手指：底座中心吸附到最近的一格；放不放得下用底座框的顏色表示。</summary>
+        void UpdateDrag(Vector2 screen)
+        {
+            if (_selItem == null) { CancelDrag(); return; }
+            _dragOverPanel = OverPanel(screen);
+            var center = ScreenToWorld(screen) + _grabOffset;
+            _dragAnchor = GridMath.AnchorAt(_grid.ToDesign(center), W(_selItem), D(_selItem), Vector2.zero);
+            _dragFits = !_dragOverPanel && Fits(_selItem, _dragAnchor, _selDecorId);
+
+            if (TryGetSpawned(_selDecorId, out var o))
+            {
+                DecorationLayout.ApplyAt(o, _selItem, _grid, _dragAnchor);
+                o.transform.position += new Vector3(0f, 6f * _grid.WorldPerPx, 0f); // 拿起來時浮一點
+                o.Renderer.sortingOrder += LiftOrder;
+            }
+            else if (_dragOverPanel) _ghost.enabled = false;
+            else ShowGhostAt(_dragAnchor, 0.85f);
+        }
+
+        void EndDrag()
+        {
+            _dragging = false;
+            _down = false;
+            if (_scroll != null) _scroll.enabled = true;
+            if (_selItem == null) return;
+            bool moved = !(TryGetSpawned(_selDecorId, out var o) && o.Anchor == _dragAnchor);
+            if (_dragFits && moved)
+            {
+                _targetAnchor = _dragAnchor;
+                CommitTarget();
+                return;
+            }
+            // 放不下或沒動：回原位（場上的）／收回面板（卡片），仍然選著
+            if (o != null) DecorationLayout.Apply(o, _selItem, _grid);
+            if (_ghost != null) _ghost.enabled = false;
+            if (!_dragFits && !_dragOverPanel && moved) Toast("這裡放不下");
+        }
+
+        void CancelDrag()
+        {
+            if (!_dragging) return;
+            _dragging = false;
+            _down = false;
+            if (_scroll != null) _scroll.enabled = true;
+            if (TryGetSpawned(_selDecorId, out var o)) DecorationLayout.Apply(o, _selItem, _grid);
+            if (_ghost != null) _ghost.enabled = false;
         }
 
         void CommitTarget()
@@ -344,18 +443,20 @@ namespace BlockPet.UI.Home
         }
 
         /// <summary>點到哪件家具（排在最前面的那件）；只能移自己擺的（同原本的規則）。</summary>
-        DecorationObject FindDecorAt(Vector3 world)
+        DecorationObject FindDecorAt(Vector3 world, bool quiet)
         {
             DecorationObject best = null;
             int bestOrder = int.MinValue;
+            bool others = false;
             foreach (var col in Physics2D.OverlapPointAll(world))
             {
                 var d = col.GetComponent<DecorationObject>();
                 if (d == null || !d.gameObject.activeInHierarchy || !d.HasGrid) continue;
-                if (!d.CanDelete) { Toast("這件是別人擺的，只有擺的人能移動"); continue; }
+                if (!d.CanDelete) { others = true; continue; }
                 int order = d.Renderer.sortingOrder;
                 if (best == null || order > bestOrder) { best = d; bestOrder = order; }
             }
+            if (best == null && others && !quiet) Toast("這件是別人擺的，只有擺的人能移動");
             return best;
         }
 
@@ -390,9 +491,8 @@ namespace BlockPet.UI.Home
                 _dim.transform.localScale = new Vector3(w * 1.2f / b.x, h * 1.2f / b.y, 1f);
                 _dim.enabled = true;
             }
-            var keep = new HashSet<Cell>(_cells);
             var drop = new List<Cell>();
-            foreach (var kv in _tiles) if (!keep.Contains(kv.Key)) drop.Add(kv.Key);
+            foreach (var kv in _tiles) if (!_cells.Contains(kv.Key)) drop.Add(kv.Key);
             foreach (var c in drop) { Destroy(_tiles[c].gameObject); _tiles.Remove(c); }
             var normal = _skin != null ? _skin.tileNormal : null;
             float scale = normal != null && normal.bounds.size.x > 0f ? _grid.tileWorldWidth / normal.bounds.size.x : 1f;
@@ -409,15 +509,24 @@ namespace BlockPet.UI.Home
             }
         }
 
-        /// <summary>格子顏色（設計文件 5.28 ⑤）：不能放／選到的家具佔的／家具佔的／放得下（閃）／要放的那格／一般。</summary>
+        /// <summary>
+        /// 格子顏色（設計文件 5.28 ⑤）：要放的那格（拖曳中放得下＝白框、放不下＝紅）／不能放／選到的家具原本佔的／
+        /// 家具佔的／放得下（閃）／一般。
+        /// </summary>
         void UpdateTiles()
         {
             if (_skin == null) return;
             var taken = Taken();
             HashSet<Cell> selCells = null, targetCells = null;
-            if (_selDecorId != null && _selItem != null && DM.Spawned.TryGetValue(_selDecorId, out var so) && so != null)
+            bool targetOk = true;
+            if (TryGetSpawned(_selDecorId, out var so) && _selItem != null)
                 selCells = new HashSet<Cell>(GridMath.Footprint(so.Anchor, W(_selItem), D(_selItem)));
-            if (_hasTarget && _selItem != null)
+            if (_dragging && !_dragOverPanel && _selItem != null)
+            {
+                targetCells = new HashSet<Cell>(GridMath.Footprint(_dragAnchor, W(_selItem), D(_selItem)));
+                targetOk = _dragFits;
+            }
+            else if (_hasTarget && _selItem != null)
                 targetCells = new HashSet<Cell>(GridMath.Footprint(_targetAnchor, W(_selItem), D(_selItem)));
             float pulse = 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Cos(_pulseT / OkPulse * Mathf.PI * 2f));
             foreach (var kv in _tiles)
@@ -426,7 +535,7 @@ namespace BlockPet.UI.Home
                 var sr = kv.Value;
                 Sprite sp;
                 float a = 1f;
-                if (targetCells != null && targetCells.Contains(c)) sp = _skin.tileTarget;
+                if (targetCells != null && targetCells.Contains(c)) sp = targetOk ? _skin.tileTarget : _skin.tileBlocked;
                 else if (_blocked.Contains(c)) sp = _skin.tileBlocked;
                 else if (selCells != null && selCells.Contains(c)) sp = _skin.tileSelected;
                 else if (taken.ContainsKey(c)) sp = _skin.tileOccupied;
@@ -435,31 +544,28 @@ namespace BlockPet.UI.Home
                 if (sr.sprite != sp) sr.sprite = sp;
                 sr.color = new Color(1f, 1f, 1f, a);
             }
+            // 底座框外面放不下的格子也要看得到（拖到格子外面時）
         }
 
         /// <summary>選到的場上家具：浮起來一點、上下輕輕晃（發黃光由 DecorationObject.SetSelected 做）。</summary>
         void UpdateSelectedFloat()
         {
-            if (_selDecorId == null || !DM.Spawned.TryGetValue(_selDecorId, out var o) || o == null || _hasTarget) return;
+            if (_dragging || _hasTarget || !TryGetSpawned(_selDecorId, out var o)) return;
             DecorationLayout.Apply(o, _selItem, _grid);
             float lift = (8f + 3f * Mathf.Sin(_pulseT * 4f)) * _grid.WorldPerPx;
             o.transform.position += new Vector3(0f, lift, 0f);
-            o.Renderer.sortingOrder += 5000; // 浮起來時畫在最前面
+            o.Renderer.sortingOrder += LiftOrder; // 浮起來時畫在最前面
         }
 
-        /// <summary>點了綠色格子：家具的半透明預覽放在目標位置。</summary>
-        void ShowGhost()
+        /// <summary>家具的半透明預覽放在 anchor（點綠色格子後、或從卡片拖出來時）。</summary>
+        void ShowGhostAt(Cell anchor, float alpha)
         {
             if (_ghost == null || _selItem == null) return;
             var sprite = _selItem.worldSprite != null ? _selItem.worldSprite : _selItem.icon;
             _ghost.sprite = sprite;
-            _ghost.color = new Color(1f, 1f, 1f, 0.55f);
-            var place = GridMath.ImagePlacement(_targetAnchor, W(_selItem), D(_selItem), Vector2.zero);
-            var bottom = _grid.ToWorld(new Vector2(place.centerX, place.bottom));
-            float s = sprite != null && sprite.bounds.size.x > 0f ? place.width * _grid.WorldPerPx / sprite.bounds.size.x : 1f;
-            _ghost.transform.localScale = Vector3.one * s;
-            _ghost.transform.position = sprite != null ? bottom - new Vector3(sprite.bounds.center.x, sprite.bounds.min.y, 0f) * s : bottom;
-            _ghost.sortingOrder = AIController.SortOrderForY(DecorationLayout.FootWorld(_selItem, _targetAnchor, _grid).y) + 1;
+            _ghost.color = new Color(1f, 1f, 1f, alpha);
+            DecorationLayout.PlaceSprite(_ghost.transform, sprite, _selItem, _grid, anchor);
+            _ghost.sortingOrder = AIController.SortOrderForY(DecorationLayout.FootWorld(_selItem, anchor, _grid).y) + LiftOrder;
             _ghost.enabled = true;
         }
 
@@ -484,19 +590,6 @@ namespace BlockPet.UI.Home
 
         // ─── 畫面 ──────────────────────────────────────────────────────
 
-        bool ShowHomeButton()
-        {
-            if (!LoginUIHandler.GameplayHudReleased) return false;
-            var fb = FirebaseManager.Instance;
-            if (fb == null || string.IsNullOrEmpty(fb.RoomId)) return false;
-            if (_pages == null) _pages = FindObjectOfType<PageManager>(true);
-            if (_cameraUI == null) _cameraUI = FindObjectOfType<CameraUIManager>(true);
-            if (_hand == null) _hand = FindObjectOfType<HandController>(true);
-            return _pages != null && _pages.IsHomePageActive
-                   && (_cameraUI == null || _cameraUI.CurrentMode == UIMode.Home)
-                   && (_hand == null || !_hand.IsDealt);
-        }
-
         void ShowEditUI(bool on)
         {
             _top.gameObject.SetActive(on);
@@ -510,18 +603,10 @@ namespace BlockPet.UI.Home
             var go = new GameObject("DecorateScreen (runtime)", typeof(RectTransform));
             _canvas = go.AddComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            _canvas.sortingOrder = 12; // 狀態欄（10）之上：佈置中的上方列蓋住狀態欄
+            _canvas.sortingOrder = 12; // 狀態欄（10）之上
             go.AddComponent<GraphicRaycaster>();
             _root = (RectTransform)go.transform;
-
-            // 平常營地右下「佈置」：deco_btn_pill＋deco_icon_build＋「佈置」15 Black
-            _home = Anchored(_root, "DecorateButton", new Vector2(1f, 0f), 96, 46);
-            UIShapes.AddShadow(_home, new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.3f), 23, 12, 4);
-            var hb = Fill(_home, _skin?.btnPill, true, Color.white, 23);
-            var icon = Img(_home, _skin?.iconBuild, 14, 13, 20, 20);
-            icon.color = Color.white;
-            Label(_home, 40, 0, 46, 46, "佈置", 15, Ink, TextAlignmentOptions.Left);
-            Btn(_home, hb, EnterEditMode);
+            if (!isActiveAndEnabled) go.SetActive(false);
 
             // 上方列：deco_topbar 高 64；「佈置營地」「已用 N / M 格」；右邊綠色「完成」
             _top = Anchored(_root, "TopBar", new Vector2(0.5f, 1f), DesignW, TopH);
@@ -534,7 +619,7 @@ namespace BlockPet.UI.Home
             Label(done, 0, 0, 76, 38, "完成", 15, Color.white, TextAlignmentOptions.Center);
             Btn(done, db, () => ExitEditMode(true));
 
-            // 下方面板：deco_panel 高 150；「還沒擺出來的家具」；卡片 deco_card 左右滑
+            // 下方面板：deco_panel 高 150；「還沒擺出來的家具」；卡片 deco_card 左右滑，往上拖到營地就擺出來
             _panel = Anchored(_root, "Panel", new Vector2(0.5f, 0f), DesignW, PanelH);
             Fill(_panel, _skin?.panel, true, Paper, 24).raycastTarget = true;
             Label(_panel, 16, 12, 260, 20, "還沒擺出來的家具", 13, Ink, TextAlignmentOptions.Left);
@@ -542,8 +627,8 @@ namespace BlockPet.UI.Home
             view.gameObject.AddComponent<RectMask2D>();
             view.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0);
             _cards = Place(view, "Content", 0, 4, DesignW, CardH);
-            var sc = view.gameObject.AddComponent<ScrollRect>();
-            sc.content = _cards; sc.viewport = view; sc.vertical = false; sc.movementType = ScrollRect.MovementType.Elastic;
+            _scroll = view.gameObject.AddComponent<ScrollRect>();
+            _scroll.content = _cards; _scroll.viewport = view; _scroll.vertical = false; _scroll.movementType = ScrollRect.MovementType.Elastic;
             _emptyText = Label(_panel, 0, 70, DesignW, 20, "家具都擺出來了！去商店可以買新的", 12, Sub, TextAlignmentOptions.Center);
 
             // 選到的家具上方小標（deco_tag_dark，11 Black #FFF8EC）
@@ -565,6 +650,7 @@ namespace BlockPet.UI.Home
         {
             foreach (var v in _cardViews) Destroy(v.rt.gameObject);
             _cardViews.Clear();
+            _selCard = -1;
             if (DM == null || DM.Database == null) return;
             // 每件家具：買了幾個 − 已經擺在格子上的；舊的自由擺放（沒有格子座標）也算還沒擺出來
             float x = 16f;
@@ -589,7 +675,6 @@ namespace BlockPet.UI.Home
             }
             _cards.sizeDelta = new Vector2(Mathf.Max(DesignW, x + 6f), CardH);
             _emptyText.gameObject.SetActive(_cardViews.Count == 0);
-            _selCard = -1;
         }
 
         (RectTransform, DecorationItem, string, Image) BuildCard(DecorationItem item, string legacyId, float x)
@@ -600,23 +685,20 @@ namespace BlockPet.UI.Home
             var ring = Fill(ringRt, _skin?.cardRing, false, new Color(0.965f, 0.788f, 0.271f), 16);
             ring.raycastTarget = false;
             ring.enabled = false;
-            var bg = Fill(Place(c, "Bg", 0, 0, CardW, CardH), _skin?.card, false, Color.white, 14);
+            Fill(Place(c, "Bg", 0, 0, CardW, CardH), _skin?.card, false, Color.white, 14).raycastTarget = true;
             var pic = Img(c, item.icon != null ? item.icon : item.worldSprite, 10, 8, CardW - 20f, 50);
             pic.preserveAspect = true;
             var name = Label(c, 4, 60, CardW - 8f, 16, item.displayName, 11, Ink, TextAlignmentOptions.Center);
             name.overflowMode = TextOverflowModes.Ellipsis;
             Label(c, 4, 74, CardW - 8f, 16, $"佔 {W(item) * D(item)} 格", 10, Sub, TextAlignmentOptions.Center);
-            int index = _cardViews.Count;
-            Btn(c, bg, () => { if (_selCard == index) Deselect(); else SelectCard(index); });
             return (c, item, legacyId, ring);
         }
 
-        /// <summary>選到的家具上方小標「營火・點綠色格子移過去」：跟著場上的家具，或在面板裡那張卡上面。</summary>
+        /// <summary>選到的家具上方小標「營火・拖到綠色格子」：跟著場上的家具，或在面板裡那張卡上面；拖曳中不顯示。</summary>
         void UpdateTag()
         {
-            if (_selItem == null) { _tag.gameObject.SetActive(false); return; }
-            string text = $"{_selItem.displayName}・點綠色格子移過去";
-            if (_okTaps.Count == 0) text = $"{_selItem.displayName}・沒有放得下的地方";
+            if (_selItem == null || _dragging || _hasTarget) { _tag.gameObject.SetActive(false); return; }
+            string text = _okTaps.Count == 0 ? $"{_selItem.displayName}・沒有放得下的地方" : $"{_selItem.displayName}・拖到綠色格子";
             if (_tagText.text != text)
             {
                 _tagText.text = text;
@@ -625,20 +707,16 @@ namespace BlockPet.UI.Home
                 _tag.sizeDelta = new Vector2(tw + 20f, 26f);
             }
             Vector2 screen;
-            if (_selDecorId != null && DM.Spawned.TryGetValue(_selDecorId, out var o) && o != null)
-            {
-                var top = o.TopCenter;
-                screen = worldCamera.WorldToScreenPoint(top);
-                screen.y += 6f * _lastK;
-            }
+            if (TryGetSpawned(_selDecorId, out var o))
+                screen = worldCamera.WorldToScreenPoint(o.TopCenter);
             else if (_selCard >= 0 && _selCard < _cardViews.Count)
             {
                 var corners = new Vector3[4];
                 _cardViews[_selCard].rt.GetWorldCorners(corners);
                 screen = RectTransformUtility.WorldToScreenPoint(null, (corners[1] + corners[2]) / 2f);
-                screen.y += 6f * _lastK;
             }
             else { _tag.gameObject.SetActive(false); return; }
+            screen.y += 6f * _lastK * _canvas.scaleFactor;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, null, out var local);
             _tag.anchoredPosition = local - _root.rect.min;
             _tag.localScale = Vector3.one * _lastK;
@@ -654,12 +732,9 @@ namespace BlockPet.UI.Home
             float px = _canvas.scaleFactor > 0f ? 1f / _canvas.scaleFactor : 1f;
             float top = (Screen.height - safe.yMax) * px, bottom = safe.yMin * px;
             _lastK = k;
-            _top.localScale = _panel.localScale = _home.localScale = _toast.localScale = Vector3.one * k;
-            // 上方列連瀏海一起蓋（底圖往上延伸）
+            _top.localScale = _panel.localScale = _toast.localScale = Vector3.one * k;
             _top.anchoredPosition = new Vector2(0f, -top);
             _panel.anchoredPosition = new Vector2(0f, bottom);
-            // 「佈置」：右 14，在底部三顆按鈕上方
-            _home.anchoredPosition = new Vector2(-14f * k, bottom + 120f * k);
         }
 
         void Toast(string msg)
@@ -670,32 +745,47 @@ namespace BlockPet.UI.Home
 
         // ─── 小工具 ────────────────────────────────────────────────────
 
-        bool OverUI(Vector2 screen)
+        List<RaycastResult> RaycastUI(Vector2 screen)
         {
-            var es = EventSystem.current;
-            if (es == null) return false;
-            var data = new PointerEventData(es) { position = screen };
             var hits = new List<RaycastResult>();
-            es.RaycastAll(data, hits);
-            return hits.Count > 0;
+            var es = EventSystem.current;
+            if (es == null) return hits;
+            es.RaycastAll(new PointerEventData(es) { position = screen }, hits);
+            return hits;
         }
 
-        static bool ReadPointer(out bool down, out bool up, out Vector2 pos)
+        bool OverUI(Vector2 screen) => RaycastUI(screen).Count > 0;
+
+        bool OverPanel(Vector2 screen) =>
+            _panel.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(_panel, screen, null);
+
+        /// <summary>手指下是哪張卡片（沒有回 −1）。</summary>
+        int CardAt(Vector2 screen)
+        {
+            if (!OverPanel(screen)) return -1;
+            for (int i = 0; i < _cardViews.Count; i++)
+                if (RectTransformUtility.RectangleContainsScreenPoint(_cardViews[i].rt, screen, null)) return i;
+            return -1;
+        }
+
+        static bool ReadPointer(out bool down, out bool held, out bool up, out Vector2 pos)
         {
 #if UNITY_EDITOR || UNITY_STANDALONE
             down = Input.GetMouseButtonDown(0);
+            held = Input.GetMouseButton(0);
             up = Input.GetMouseButtonUp(0);
             pos = Input.mousePosition;
-            return down || up;
+            return down || held || up;
 #else
-            down = up = false;
+            down = held = up = false;
             pos = default;
             if (Input.touchCount == 0) return false;
             var t = Input.GetTouch(0);
             pos = t.position;
             down = t.phase == TouchPhase.Began;
-            up = t.phase == TouchPhase.Ended;
-            return down || up;
+            up = t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled;
+            held = !up;
+            return true;
 #endif
         }
 
@@ -728,17 +818,16 @@ namespace BlockPet.UI.Home
 
         static Image Fill(RectTransform rt, Sprite sprite, bool sliced, Color fallback, float radius)
         {
-            if (sprite == null) return radius > 0f ? UIShapes.AddRounded(rt.gameObject, fallback, radius) : AddColor(rt, fallback);
+            if (sprite == null)
+            {
+                if (radius > 0f) return UIShapes.AddRounded(rt.gameObject, fallback, radius);
+                var plain = rt.gameObject.AddComponent<Image>();
+                plain.color = fallback;
+                return plain;
+            }
             var img = rt.gameObject.AddComponent<Image>();
             img.sprite = sprite;
             img.type = sliced ? Image.Type.Sliced : Image.Type.Simple;
-            return img;
-        }
-
-        static Image AddColor(RectTransform rt, Color c)
-        {
-            var img = rt.gameObject.AddComponent<Image>();
-            img.color = c;
             return img;
         }
 

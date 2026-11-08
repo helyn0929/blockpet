@@ -95,6 +95,16 @@ namespace BlockPet.Decoration
         public static Cell AnchorForTap(Cell tapped, int w, int d) =>
             new Cell(tapped.i - (Mathf.Max(1, w) - 1) / 2, tapped.j - (Mathf.Max(1, d) - 1) / 2);
 
+        /// <summary>拖曳時：底座中心在設計座標 p，anchor 是哪一格（AnchorPoint 反過來算，四捨五入到最近的一格）。</summary>
+        public static Cell AnchorAt(Vector2 p, int w, int d, Vector2 origin)
+        {
+            w = Mathf.Max(1, w); d = Mathf.Max(1, d);
+            float a = (p.x - origin.x) / (TileW / 2f);   // i0 − j0 + (w − d)/2
+            float b = (p.y - origin.y) / (TileH / 2f);   // i0 + j0 + (w + d)/2
+            // a + b = 2·i0 + w、b − a = 2·j0 + d
+            return new Cell(Mathf.RoundToInt((a + b - w) / 2f), Mathf.RoundToInt((b - a - d) / 2f));
+        }
+
         public static int UsedCells(IEnumerable<(Cell anchor, int w, int d)> placed)
         {
             int n = 0;

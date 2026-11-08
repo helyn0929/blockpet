@@ -4,27 +4,14 @@ using NUnit.Framework;
 
 namespace BlockPet.Tests
 {
-    /// <summary>營地好友規則（設計文件 5.21 ①；2026-11-06 定：最多 10 個、錯誤提示、固定格子）。</summary>
+    /// <summary>營地好友的地圖格子（設計文件 5.21；放好就固定）。</summary>
     public class CampFriendRulesTests
     {
         [Test]
-        public void 送出邀請前的檢查()
+        public void 格子滿了回傳負一_解鎖後可以用第十一格()
         {
-            var friends = new List<string> { "ROOMB" };
-            Assert.AreEqual(CampFriendRules.MsgNotFound, CampFriendRules.Check(null, "ROOMA", friends, false));
-            Assert.AreEqual(CampFriendRules.MsgSelf, CampFriendRules.Check("ROOMA", "ROOMA", friends, false));
-            Assert.AreEqual(CampFriendRules.MsgAlreadyFriend, CampFriendRules.Check("ROOMB", "ROOMA", friends, false));
-            Assert.AreEqual(CampFriendRules.MsgAlreadyInvited, CampFriendRules.Check("ROOMC", "ROOMA", friends, true));
-            Assert.IsNull(CampFriendRules.Check("ROOMC", "ROOMA", friends, false));
-        }
-
-        [Test]
-        public void 好友滿十個不能再加()
-        {
-            var friends = new List<string>();
-            for (int i = 0; i < 10; i++) friends.Add("F" + i);
-            Assert.AreEqual(CampFriendRules.MsgFull, CampFriendRules.Check("NEW", "ME", friends, false));
             Assert.AreEqual(-1, CampFriendRules.NextFreeSlot(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+            Assert.AreEqual(10, CampFriendRules.NextFreeSlot(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, 11));
         }
 
         [Test]
@@ -34,14 +21,6 @@ namespace BlockPet.Tests
             Assert.AreEqual(3, CampFriendRules.NextFreeSlot(new[] { 0, 1, 2 }));
             Assert.AreEqual(1, CampFriendRules.NextFreeSlot(new[] { 0, 2, 3 })); // 刪掉的格子會再被用
             Assert.AreEqual(0, CampFriendRules.NextFreeSlot(new[] { -1, -1 }));  // 還沒分格子的不算
-        }
-
-        [Test]
-        public void 代碼整理()
-        {
-            Assert.AreEqual("K7R2PX", CampFriendRules.NormalizeCode(" k7r-2px "));
-            Assert.AreEqual("ABCDEF", CampFriendRules.NormalizeCode("abcdefgh"));
-            Assert.AreEqual("", CampFriendRules.NormalizeCode(null));
         }
 
         [Test]

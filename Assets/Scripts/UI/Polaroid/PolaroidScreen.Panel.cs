@@ -90,6 +90,7 @@ namespace BlockPet.UI.Polaroid
             if (instant) _pageT = page == Page.Deco ? 1f : 0f;
             if (_editDot != null) _editDot.enabled = page == Page.Deco;
             ApplyPage();
+            SyncCaptionMode();
         }
 
         void ApplyPage()
@@ -299,7 +300,7 @@ namespace BlockPet.UI.Polaroid
                 _tabTexts[i].color = on ? PUI.Hex(0xFFF8EC) : Sub;
             }
             if (_tab == Tab.Stickers) _tabNote.text = $"還能貼 {PolaroidRules.StickersLeft(_stickers, Me)} 個";
-            else _tabNote.text = IsOwner ? "大家都會看到" : "拍照的人才能換";
+            else _tabNote.text = "大家都會看到";
         }
 
         /// <summary>重建工具區；resetScroll＝回到最左邊（換分頁、換張時）。</summary>
@@ -341,10 +342,10 @@ namespace BlockPet.UI.Polaroid
             return TrayPad + cols * Cell + (cols - 1) * Gap + TrayPad;
         }
 
-        /// <summary>畫框：10 種，兩排、格子 52（底 #F4ECDD）；小拍立得預覽 25 × 30＋名字 9 Black；選到外框 3 #F6C945。別人的照片變淡 50%。</summary>
+        /// <summary>畫框：10 種，兩排、格子 52（底 #F4ECDD）；小拍立得預覽 25 × 30＋名字 9 Black；選到外框 3 #F6C945。營地成員都能換。</summary>
         float BuildFrameCells()
         {
-            bool owner = IsOwner;
+            bool owner = CanFrameFilter;
             int cols = (PolaroidRules.Frames.Length + 1) / 2;
             string cur = PolaroidRules.Frame(_style.frame).key;
             for (int i = 0; i < PolaroidRules.Frames.Length; i++)
@@ -380,7 +381,7 @@ namespace BlockPet.UI.Polaroid
         /// <summary>濾鏡：3 種，一排 84 × 72（用這張照片套濾鏡、圓角 13）＋名字 11 Black；選到外框 3 #F6C945；再點一次取消。</summary>
         float BuildFilterCells()
         {
-            bool owner = IsOwner;
+            bool owner = CanFrameFilter;
             string cur = _style.filter;
             for (int i = 0; i < PolaroidRules.Filters.Length; i++)
             {
@@ -419,7 +420,7 @@ namespace BlockPet.UI.Polaroid
 
         void PickFrame(string key)
         {
-            if (!IsOwner) { ShowLocked("畫框"); return; }
+            if (!CanFrameFilter) { ShowLocked("畫框"); return; }
             var m = Current;
             if (m == null || _style.frame == key) return;
             _style.frame = key;
@@ -431,7 +432,7 @@ namespace BlockPet.UI.Polaroid
         /// <summary>點濾鏡：換成這個；再點一次已選的就取消（回到沒有濾鏡）。</summary>
         void PickFilter(string key)
         {
-            if (!IsOwner) { ShowLocked("濾鏡"); return; }
+            if (!CanFrameFilter) { ShowLocked("濾鏡"); return; }
             var m = Current;
             if (m == null) return;
             _style.filter = PolaroidRules.ToggleFilter(_style.filter, key);
@@ -441,7 +442,10 @@ namespace BlockPet.UI.Polaroid
             FirebaseManager.Instance?.SetPolaroidStyle(m.fileName, Copy(_style));
         }
 
-        void ShowLocked(string what) => ShowHint($"只有{OwnerName(Current)}能換{what}", 1.6f);
+        void ShowLocked(string what) => ShowHint($"登入後才能換{what}", 1.6f);
+
+        /// <summary>畫框、濾鏡：營地成員都能換（2026-11-08 使用者決定）。</summary>
+        bool CanFrameFilter => Current != null && PolaroidRules.CanFrameFilter(Me);
 
         // ─── 提示 ──────────────────────────────────────────────────────
 

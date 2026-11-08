@@ -22,23 +22,37 @@ namespace BlockPet.Decoration
             }
             bool show = obj.HasGrid && !item.hangPoint;
             obj.gameObject.SetActive(show);
-            if (!show) return;
+            if (show) ApplyAt(obj, item, grid, obj.Anchor);
+        }
 
+        /// <summary>把家具畫在某個 anchor（拖曳時跟著手指一格一格吸附；不改資料）。</summary>
+        public static void ApplyAt(DecorationObject obj, DecorationItem item, CampGrid grid, Cell anchor)
+        {
             var sr = obj.Renderer;
-            var sprite = sr != null ? sr.sprite : null;
-            var place = GridMath.ImagePlacement(obj.Anchor, item.footprintW, item.footprintD, Vector2.zero);
-            var bottom = grid.ToWorld(new Vector2(place.centerX, place.bottom));
-            float targetW = place.width * grid.WorldPerPx;
-            float scale = sprite != null && sprite.bounds.size.x > 0f ? targetW / sprite.bounds.size.x : item.worldScale;
-            obj.transform.localScale = Vector3.one * scale;
             obj.transform.rotation = Quaternion.identity;
-            var local = sprite != null ? new Vector3(sprite.bounds.center.x, sprite.bounds.min.y, 0f) : Vector3.zero;
-            obj.transform.position = bottom - local * scale;
-
-            var foot = FootWorld(item, obj.Anchor, grid);
+            float scale = PlaceSprite(obj.transform, sr != null ? sr.sprite : null, item, grid, anchor, item.worldScale);
+            var foot = FootWorld(item, anchor, grid);
             if (sr != null) sr.sortingOrder = AIController.SortOrderForY(foot.y);
             Shadow(obj, item, grid, foot, scale);
         }
+
+        /// <summary>把一張家具圖放到 anchor 上（底部對齊、寬度照底座），回傳縮放；拖曳預覽也用這個。</summary>
+        public static float PlaceSprite(Transform t, Sprite sprite, DecorationItem item, CampGrid grid, Cell anchor, float fallbackScale = 1f)
+        {
+            int w = Mathf.Max(1, item.footprintW), d = Mathf.Max(1, item.footprintD);
+            var place = GridMath.ImagePlacement(anchor, w, d, Vector2.zero);
+            var bottom = grid.ToWorld(new Vector2(place.centerX, place.bottom));
+            float targetW = place.width * grid.WorldPerPx;
+            float scale = sprite != null && sprite.bounds.size.x > 0f ? targetW / sprite.bounds.size.x : fallbackScale;
+            t.localScale = Vector3.one * scale;
+            var local = sprite != null ? new Vector3(sprite.bounds.center.x, sprite.bounds.min.y, 0f) : Vector3.zero;
+            t.position = bottom - local * scale;
+            return scale;
+        }
+
+        /// <summary>底座中心的世界座標（拖曳時手指抓的點）。</summary>
+        public static Vector3 CenterWorld(DecorationItem item, Cell anchor, CampGrid grid) =>
+            grid.ToWorld(GridMath.AnchorPoint(anchor, Mathf.Max(1, item.footprintW), Mathf.Max(1, item.footprintD), Vector2.zero));
 
         /// <summary>底座最下角的世界座標（寵物的腳用同一個高度比前後）。</summary>
         public static Vector3 FootWorld(DecorationItem item, Cell anchor, CampGrid grid)

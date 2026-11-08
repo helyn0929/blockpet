@@ -131,4 +131,36 @@ public partial class FirebaseManager
         if (node == null || string.IsNullOrEmpty(id)) return;
         node.Child("stickers").Child(id).RemoveValueAsync();
     }
+
+    /// <summary>
+    /// 讀營地全部照片的拍立得資料（寄明信片選照片時看哪些裝飾過，5.21）：照片鍵（PolaroidRules.PhotoKey）→ (樣式, 貼紙)。主執行緒。
+    /// </summary>
+    public void GetAllPolaroids(Action<Dictionary<string, (PolaroidStyle style, List<PolaroidSticker> stickers)>> done)
+    {
+        var result = new Dictionary<string, (PolaroidStyle, List<PolaroidSticker>)>();
+        if (dbRef == null || string.IsNullOrEmpty(_roomId)) { done?.Invoke(result); return; }
+        RoomRoot().Child("polaroid").GetValueAsync().ContinueWith(t =>
+        {
+            if (t.IsCompleted && !t.IsFaulted && t.Result != null && t.Result.Exists)
+                foreach (var photo in t.Result.Children)
+                {
+                    var style = new PolaroidStyle();
+                    var st = photo.Child("style");
+                    if (st.Exists) try { style = JsonUtility.FromJson<PolaroidStyle>(st.GetRawJsonValue()) ?? style; } catch { }
+                    var stickers = new List<PolaroidSticker>();
+                    foreach (var c in photo.Child("stickers").Children)
+                        try
+                        {
+                            var sk = JsonUtility.FromJson<PolaroidSticker>(c.GetRawJsonValue());
+                            if (sk == null || string.IsNullOrEmpty(sk.kind)) continue;
+                            sk.id = c.Key;
+                            stickers.Add(sk);
+                        }
+                        catch { }
+                    stickers.Sort((a, b) => a.at != b.at ? a.at.CompareTo(b.at) : string.CompareOrdinal(a.id, b.id));
+                    result[photo.Key] = (style, stickers);
+                }
+            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(result));
+        });
+    }
 }

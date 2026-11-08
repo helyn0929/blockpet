@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9621b8fcd2fae428cae98fdfb210b274, type: 3}
   m_Name: DecorModeSettings
   m_EditorClassIdentifier: 
-  hideTopBar: 0
-  hideHomeButton: 0
-  hideMenuButton: 0
-  hideHand: 0
+  hideTopBar: 1
+  hideHomeButton: 1
+  hideMenuButton: 1
+  hideHand: 1

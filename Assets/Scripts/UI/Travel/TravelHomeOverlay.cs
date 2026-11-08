@@ -12,13 +12,18 @@ namespace BlockPet.UI.Travel
     /// - 自己的寵物出門中（流程 7）：寵物的位置換成「去旅行了！」木牌。
     /// - 別的營地的寵物來玩（流程 10）：營地裡多一隻背背包的客人（只顯示最早到的）。
     /// - 2026-11-06 使用者決定：首頁上方的出門卡片、客人來玩白卡都拿掉（會蓋住 v9 的 Home 鍵和選單），旅行資訊去旅行頁面看。
-    /// - 回家蓋章（流程 11）：時間到了誰先打開 App 誰結算一次；每個成員各看一次蓋章卡，「看護照」打開護照。
+    /// - 寄明信片（5.21，2026-11-08）：好友寄來的明信片送到時彈出「BowBow 送來一張明信片！」；
+    ///   我們的寵物寄完回到家時暗下來「BowBow 帶回一張明信片！」（對方營地的風景明信片，自動產生），明信片彈出、蓋郵戳。
+    ///   兩種都是「收進護照」。回寄已拿掉（2026-11-08 使用者決定，各寄各的）。
+    ///   每個成員各看一次（記在手機上）。推播還沒做，打開 App 時才看到。
+    /// - 回家結算：時間到了誰先打開 App 誰結算一次（好友路 +1 趟＝地圖上郵票的 ×N）。
     /// 執行時自動建立；只在首頁顯示（相機、相簿、聊天、其他頁面時藏起來）。
     /// </summary>
     public class TravelHomeOverlay : MonoBehaviour
     {
         const float DesignW = 390f;
-        const string PrefsSeenReturn = "BlockPet.Travel.SeenReturn.";
+        const string PrefsSeenPostcards = "BlockPet.Postcard.Seen.";
+        const long PopupMaxAgeMs = 3L * 24 * 3600 * 1000; // 太久以前的明信片就不補彈了
 
         static readonly Color Ink = Hex(0x3A2E22);
         static readonly Color SubText = Hex(0x6B5D4E);
@@ -35,13 +40,13 @@ namespace BlockPet.UI.Travel
         TMP_FontAsset _font;
         Canvas _canvas;
         CanvasGroup _group;
-        RectTransform _root, _sign, _guest, _backLayer, _stamp;
+        RectTransform _root, _sign, _guest, _backLayer;
         PageManager _pages;
         CameraUIManager _cameraUI;
         SpriteRenderer[] _hiddenPet;
         /// <summary>寵物出門那一刻的位置：木牌固定插在這裡（寵物藏起來後還會在原地亂走，不能跟著牠）。</summary>
         Vector3? _signWorld;
-        float _nextCheck, _backT;
+        float _nextCheck, _backT, _nextScenic;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -83,6 +88,7 @@ namespace BlockPet.UI.Travel
             var fb = FirebaseManager.Instance;
             if (fb == null || string.IsNullOrEmpty(fb.RoomId) || string.IsNullOrEmpty(fb.GetUserId())) { HideAll(); ShowPet(true); return; }
             fb.StartTravelState();
+            fb.StartCampFriends(); // 也一起聽明信片、抽好友
 
             long now = fb.ServerNowMs;
             var trip = fb.CurrentTrip;
@@ -129,7 +135,12 @@ namespace BlockPet.UI.Travel
                 _guest.GetChild(0).localPosition = new Vector3(0f, 4f * Mathf.Sin(Time.unscaledTime / 2f * Mathf.PI * 2f), 0f);
             }
 
-            UpdateBack(fb);
+            if (Time.unscaledTime >= _nextScenic)
+            {
+                _nextScenic = Time.unscaledTime + 10f;
+                fb.CheckScenicPostcards(PostcardArt.RenderScenery); // 寵物回到家：帶回對方營地的風景明信片
+            }
+            UpdatePopup(fb);
         }
 
         bool IsHome()
@@ -214,7 +225,7 @@ namespace BlockPet.UI.Travel
                 img.raycastTarget = false;
             }
             else UIShapes.AddRounded(Place(rt, "Board", 10, 20, 90, 32).gameObject, Paper, 4).raycastTarget = false;
-            Label(rt, 0, 24, 110, 22, "去旅行了！", 14, Ink, TextAlignmentOptions.Center);
+            Label(rt, 0, 24, 110, 22, "去寄明信片了！", 13, Ink, TextAlignmentOptions.Center);
             rt.gameObject.SetActive(false);
             return rt;
         }
@@ -256,30 +267,67 @@ namespace BlockPet.UI.Travel
             return rt;
         }
 
-        // ─── 回家蓋章（流程 11）───────────────────────────────────────
+        // ─── 明信片彈出（5.21 ④-5、④-7）─────────────────────────────
 
-        void UpdateBack(FirebaseManager fb)
+        RectTransform _popCard, _postmark;
+        string _popId;
+        PostcardSkin _pc;
+
+        string SeenKey(FirebaseManager fb) => PrefsSeenPostcards + fb.RoomId + "." + fb.GetUserId();
+
+        bool Seen(FirebaseManager fb, string id) => ("," + PlayerPrefs.GetString(SeenKey(fb), "") + ",").Contains("," + id + ",");
+
+        void MarkSeen(FirebaseManager fb, string id)
         {
-            var last = fb.LastTripReturn;
-            string key = PrefsSeenReturn + fb.RoomId + "." + fb.GetUserId();
-            bool want = last != null && last.at > 0 && last.at > long.Parse(PlayerPrefs.GetString(key, "0"))
-                        && fb.ServerNowMs - last.at < 3L * 24 * 3600 * 1000 && IsHome(); // 太久以前的就不補了
-            if (want && !_backLayer.gameObject.activeSelf) BuildBack(fb, last, key);
-            if (_backLayer.gameObject.activeSelf && _stamp != null)
+            string key = SeenKey(fb), cur = PlayerPrefs.GetString(key, "");
+            var parts = new System.Collections.Generic.List<string>(cur.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+            parts.Add(id);
+            if (parts.Count > 200) parts.RemoveRange(0, parts.Count - 200);
+            PlayerPrefs.SetString(key, string.Join(",", parts));
+            PlayerPrefs.Save();
+        }
+
+        void UpdatePopup(FirebaseManager fb)
+        {
+            if (_backLayer.gameObject.activeSelf)
             {
-                // 蓋章 0.6 秒（延遲 0.2）：0.5 倍→1.12→1，轉 -20°→-6°→-8°
-                _backT += Time.unscaledDeltaTime;
-                float t = Mathf.Clamp01((_backT - 0.2f) / 0.6f);
-                float sc = t < 0.7f ? Mathf.Lerp(0.5f, 1.12f, t / 0.7f) : Mathf.Lerp(1.12f, 1f, (t - 0.7f) / 0.3f);
-                float rot = t < 0.7f ? Mathf.Lerp(-20f, -6f, t / 0.7f) : Mathf.Lerp(-6f, -8f, (t - 0.7f) / 0.3f);
-                _stamp.localScale = Vector3.one * (t <= 0f ? 0.01f : sc);
-                _stamp.localRotation = Quaternion.Euler(0f, 0f, -rot); // CSS 角度＝順時針
+                AnimatePopup();
+                return;
+            }
+            if (!IsHome()) return;
+            long now = fb.ServerNowMs;
+            foreach (var p in fb.VisiblePostcards())
+            {
+                if (now - p.visibleAt > PopupMaxAgeMs || Seen(fb, p.id)) continue;
+                BuildPopup(fb, p);
+                return;
             }
         }
 
-        void BuildBack(FirebaseManager fb, FirebaseManager.TripReturn last, string key)
+        void AnimatePopup()
         {
-            _backLayer.gameObject.SetActive(true); // 先打開再建：文字要在啟用狀態才量得到幾行高
+            if (_popCard == null) return;
+            // 明信片彈出 0.6 秒（0.6 倍→1.04→1、轉到 −6°）；郵戳 0.5 秒後蓋下（1.5 倍→1）
+            _backT += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(_backT / 0.6f);
+            float sc = t < 0.7f ? Mathf.Lerp(0.6f, 1.04f, t / 0.7f) : Mathf.Lerp(1.04f, 1f, (t - 0.7f) / 0.3f);
+            _popCard.localScale = Vector3.one * sc;
+            _popCard.localRotation = Quaternion.Euler(0f, 0f, 6f * t); // CSS rotate(-6deg)：逆時針
+            if (_postmark != null)
+            {
+                float m = Mathf.Clamp01((_backT - 0.5f) / 0.25f);
+                _postmark.localScale = Vector3.one * (m <= 0f ? 0.01f : Mathf.Lerp(1.5f, 1f, m));
+            }
+        }
+
+        /// <summary>
+        /// 彈出一張明信片（back_card：266 × 324 在 (62,168)，照片 (14,18) 238、標題 y 262、右上郵票、郵戳）。
+        /// 對方寄來的、寵物帶回的風景明信片，都是「收進護照」。
+        /// </summary>
+        void BuildPopup(FirebaseManager fb, FirebaseManager.Postcard p)
+        {
+            if (_pc == null) _pc = PostcardSkin.Load();
+            _backLayer.gameObject.SetActive(true);
             for (int i = _backLayer.childCount - 1; i >= 0; i--) Destroy(_backLayer.GetChild(i).gameObject);
             var dim = _backLayer.gameObject.GetComponent<Image>();
             if (dim == null) dim = _backLayer.gameObject.AddComponent<Image>();
@@ -288,73 +336,80 @@ namespace BlockPet.UI.Travel
             var design = Design(_backLayer, "Design");
             design.localScale = Vector3.one * k;
             design.anchoredPosition = new Vector2(0f, -TopInset());
+            _popId = p.id;
+            bool incoming = p.kind == FirebaseManager.PostcardKindPhoto;
+            string myPet = !string.IsNullOrEmpty(fb.CurrentPetName) ? fb.CurrentPetName : "寵物";
+            string theirPet = string.IsNullOrEmpty(p.fromPet) ? "好友的寵物" : p.fromPet;
+            Label(design, 20, 110, DesignW - 40f, 30, incoming ? $"{theirPet} 送來一張明信片！" : $"{myPet} 帶回一張明信片！", 20, Color.white, TextAlignmentOptions.Center);
+            Label(design, 20, 140, DesignW - 40f, 18, incoming ? $"從{p.fromName}寄來" : $"{p.fromName}的風景", 12, new Color(1f, 1f, 1f, 0.8f), TextAlignmentOptions.Center);
 
-            string pet = !string.IsNullOrEmpty(fb.CurrentPetName) ? fb.CurrentPetName : "寵物";
-            const float W = DesignW - 60f, Inner = W - 36f;
-            var card = Place(design, "Card", 30, 150, W, 420);
-            UIShapes.AddShadow(card, new Color(0f, 0f, 0f, 0.35f), 24, 40, 16);
-            if (_skin != null && _skin.popupCard != null) { var ci = Stretch(card, "Bg").gameObject.AddComponent<Image>(); ci.sprite = _skin.popupCard; ci.type = Image.Type.Sliced; }
-            else UIShapes.AddRounded(Stretch(card, "Bg").gameObject, Paper, 24);
-
-            float y = 18f;
-            Label(card, 18, y, Inner, 17, $"{pet} 回家了", 12, Brown, TextAlignmentOptions.Center); y += 17f + 8f;
-            Label(card, 18, y, Inner, 30, $"去了{last.toName}", 22, Ink, TextAlignmentOptions.Center); y += 30f + 12f;
-
-            // 護照內頁 220 × 170：中間摺線、左邊淡淡的舊章、右邊新章蓋下去
-            var page = Place(card, "Page", (W - 220f) / 2f, y, 220, 170);
-            if (_skin != null && _skin.passportPage != null) { var pi = page.gameObject.AddComponent<Image>(); pi.sprite = _skin.passportPage; pi.type = Image.Type.Sliced; pi.raycastTarget = false; }
-            else UIShapes.AddRounded(page.gameObject, Hex(0xF2E6CB), 8).raycastTarget = false;
-            var fold = Place(page, "Fold", 110, 10, 1, 150).gameObject.AddComponent<Image>();
-            fold.color = Hex(0xD9C79A);
-            fold.raycastTarget = false;
-            var old = Place(page, "Old", 16, 22, 76, 76);
-            old.pivot = new Vector2(0.5f, 0.5f);
-            old.anchoredPosition = new Vector2(16f + 38f, -(22f + 38f));
-            old.localRotation = Quaternion.Euler(0f, 0f, -10f);
-            UIShapes.AddRing(old.gameObject, new Color(0x4F / 255f, 0x8F / 255f, 0x45 / 255f, 0.55f), 38).raycastTarget = false;
-
-            Color col = ColorUtility.TryParseHtmlString(TripRules.StampColor(last.to), out var c) ? c : Hex(0xC2452B);
-            _stamp = Place(page, "Stamp", 118, 26, 92, 92);
-            _stamp.pivot = new Vector2(0.5f, 0.5f);
-            _stamp.anchoredPosition = new Vector2(118f + 46f, -(26f + 46f));
-            if (_skin != null && _skin.stampRing != null) { var si = Stretch(_stamp, "Ring").gameObject.AddComponent<Image>(); si.sprite = _skin.stampRing; si.color = col; si.raycastTarget = false; }
-            else UIShapes.AddRing(Stretch(_stamp, "Ring").gameObject, col, 46).raycastTarget = false;
-            string shortName = last.toName != null && last.toName.Length > 5 ? last.toName.Substring(0, 5) : last.toName;
-            Label(_stamp, 0, 22, 92, 12, shortName, 9, col, TextAlignmentOptions.Center);
-            if (_skin != null && _skin.pet != null)
-            {
-                var pi2 = Place(_stamp, "Pet", 27, 32, 38, 33).gameObject.AddComponent<Image>();
-                pi2.sprite = _skin.pet; pi2.preserveAspect = true; pi2.raycastTarget = false;
-            }
-            Label(_stamp, 0, 68, 92, 12, DateTimeOffset.FromUnixTimeMilliseconds(last.at).ToLocalTime().ToString("MM.dd"), 8, col, TextAlignmentOptions.Center);
-            _stamp.localScale = Vector3.one * 0.01f;
+            _popCard = Place(design, "Card", 62, 168, 266, 324);
+            _popCard.pivot = new Vector2(0.5f, 0.5f);
+            _popCard.anchoredPosition = new Vector2(62f + 133f, -(168f + 162f));
+            UIShapes.AddShadow(_popCard, new Color(0f, 0f, 0f, 0.35f), 4, 30, 12);
+            UIShapes.AddRounded(Stretch(_popCard, "Bg").gameObject, Color.white, 3).raycastTarget = true;
+            var photo = Place(_popCard, "Photo", 14, 18, 238, 238).gameObject.AddComponent<RawImage>();
+            photo.color = Hex(0xE8DFCF);
+            photo.uvRect = PostcardArt.PhotoUv();
+            photo.raycastTarget = false;
+            fb.LoadPostcardImage(p.id, tex => { if (photo != null && tex != null) { photo.texture = tex; photo.color = Color.white; } });
+            string cap = string.IsNullOrEmpty(p.caption) ? p.fromName : p.caption;
+            Label(_popCard, 14, 262, 238, 24, cap, 15, Ink, TextAlignmentOptions.Center);
+            Label(_popCard, 14, 288, 238, 16, BlockPet.Travel.PostcardRules.PostmarkDate(p.visibleAt), 11, Brown, TextAlignmentOptions.Center);
+            // 右上郵票（58，轉 8°）
+            var stamp = Place(_popCard, "Stamp", 186, -14, 58, 58);
+            stamp.pivot = new Vector2(0.5f, 0.5f);
+            stamp.anchoredPosition = new Vector2(186f + 29f, -(-14f + 29f));
+            stamp.localRotation = Quaternion.Euler(0f, 0f, -8f);
+            if (_pc != null && _pc.stamp != null) { var si = stamp.gameObject.AddComponent<Image>(); si.sprite = _pc.stamp; si.raycastTarget = false; }
+            else UIShapes.AddRounded(stamp.gameObject, Hex(0xF7B6C2), 3).raycastTarget = false;
+            // 郵戳（營地名＋日期，0.5 秒後蓋下）
+            _postmark = PostcardArt.Postmark(_popCard, _pc, _font, 150, 6, 92, p.fromName, BlockPet.Travel.PostcardRules.PostmarkDate(p.visibleAt));
+            _postmark.localScale = Vector3.one * 0.01f;
+            _popCard.localScale = Vector3.one * 0.6f;
             _backT = 0f;
-            Label(page, 0, 146, 220, 14, $"旅行護照 第 {Mathf.Max(1, last.stampNo)} 個章", 10, Brown, TextAlignmentOptions.Center);
-            y += 170f + 10f;
 
-            string photos = last.photos > 0 ? $"旅行時大家餵了 {last.photos} 張照片，{pet} 都收到了" : "旅行時沒有人餵照片，下次記得寄照片給牠";
-            var pl = Label(card, 18, y, Inner, 34, photos, 12, SubText, TextAlignmentOptions.Center);
-            pl.enableWordWrapping = true;
-            float ph = Mathf.Ceil(TextHeight(pl, photos, Inner));
-            pl.rectTransform.sizeDelta = new Vector2(Inner, ph);
-            y += ph + 14f;
-
-            var btn = Place(card, "Passport", 18, y, Inner, 53);
-            UIShapes.AddRounded(Place(btn, "Edge", 0, 3, Inner, 50).gameObject, YellowEdge, 15).raycastTarget = false;
-            var bimg = UIShapes.AddRounded(Place(btn, "Fill", 0, 0, Inner, 50).gameObject, Yellow, 15);
-            Label(btn, 0, 0, Inner, 50, "看護照", 15, Ink, TextAlignmentOptions.Center);
-            var b = btn.gameObject.AddComponent<Button>();
-            b.targetGraphic = bimg;
-            b.onClick.AddListener(() =>
+            float y = 168f + 324f + 26f;
+            const float W = 266f;
+            string id = p.id;
+            Btn(design, 62, y, W, true, "收進護照", () =>
             {
-                PlayerPrefs.SetString(key, last.at.ToString());
-                PlayerPrefs.Save();
+                MarkSeen(fb, id);
                 _backLayer.gameObject.SetActive(false);
                 TravelScreen.OpenPassport();
             });
-            y += 53f + 18f;
-            card.sizeDelta = new Vector2(W, y);
+            if (incoming)
+            {
+                y += 53f + 12f;
+                var note = Place(design, "Note", 40, y, DesignW - 80f, 30);
+                if (_pc != null && _pc.note != null) { var ni = note.gameObject.AddComponent<Image>(); ni.sprite = _pc.note; ni.type = Image.Type.Sliced; ni.raycastTarget = false; }
+                else UIShapes.AddRounded(note.gameObject, new Color(Paper.r, Paper.g, Paper.b, 0.92f), 14).raycastTarget = false;
+                Label(note, 0, 0, DesignW - 80f, 30, "收到的明信片放在護照・也可以寄一張過去", 11, SubText, TextAlignmentOptions.Center);
+            }
             _backLayer.gameObject.SetActive(true);
+        }
+
+        void Btn(RectTransform parent, float x, float y, float w, bool yellow, string text, UnityEngine.Events.UnityAction onClick)
+        {
+            var rt = Place(parent, text, x, y, w, 53);
+            Image img;
+            if (yellow)
+            {
+                UIShapes.AddRounded(Place(rt, "Edge", 0, 3, w, 50).gameObject, YellowEdge, 15).raycastTarget = false;
+                var fill = Place(rt, "Fill", 0, 0, w, 50);
+                if (_pc != null && _pc.btnYes != null) { img = fill.gameObject.AddComponent<Image>(); img.sprite = _pc.btnYes; img.type = Image.Type.Sliced; }
+                else img = UIShapes.AddRounded(fill.gameObject, Yellow, 15);
+            }
+            else
+            {
+                var fill = Place(rt, "Fill", 0, 0, w, 50);
+                if (_pc != null && _pc.btnNo != null) { img = fill.gameObject.AddComponent<Image>(); img.sprite = _pc.btnNo; img.type = Image.Type.Sliced; }
+                else img = UIShapes.AddRounded(fill.gameObject, Color.white, 15);
+            }
+            Label(rt, 0, 0, w, 50, text, 15, Ink, TextAlignmentOptions.Center);
+            var b = rt.gameObject.AddComponent<Button>();
+            b.targetGraphic = img;
+            b.onClick.AddListener(onClick);
         }
 
         /// <summary>

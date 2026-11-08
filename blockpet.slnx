@@ -8,7 +8,7 @@
   <Project Path="BlockPet.Economy.csproj" />
   <Project Path="BlockPet.Polaroid.csproj" />
   <Project Path="BlockPet.Home.csproj" />
-  <Project Path="AppleAuth.Editor.csproj" />
   <Project Path="BlockPet.Travel.csproj" />
+  <Project Path="AppleAuth.Editor.csproj" />
   <Project Path="BlockPet.Outfit.csproj" />
 </Solution>

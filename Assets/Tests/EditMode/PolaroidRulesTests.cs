@@ -25,8 +25,10 @@ namespace BlockPet.Tests
         }
 
         [Test]
-        public void 畫框濾鏡標題只有拍照的人能改()
+        public void 標題只有拍照的人能改_畫框濾鏡大家都能換()
         {
+            Assert.IsTrue(PolaroidRules.CanFrameFilter("amy"));
+            Assert.IsFalse(PolaroidRules.CanFrameFilter(""), "沒登入不能換");
             Assert.IsTrue(PolaroidRules.CanStyle("me", "me"));
             Assert.IsFalse(PolaroidRules.CanStyle("amy", "me"));
             Assert.IsFalse(PolaroidRules.CanStyle(null, "me"), "舊照片沒有拍照的人：誰都不能改");
@@ -139,6 +141,18 @@ namespace BlockPet.Tests
             Assert.Greater(ccd[40].r + ccd[40].g + ccd[40].b, 128 * 3, "Y2K 比較亮");
             Assert.Greater(ccd[40].b, ccd[40].r, "Y2K 偏藍");
             Assert.AreEqual(255, ccd[40].a);
+        }
+
+        [Test]
+        public void 裝飾過的拍立得_貼紙畫框濾鏡標題任一個()
+        {
+            Assert.IsFalse(PolaroidRules.IsDecorated(new PolaroidStyle(), 0));
+            Assert.IsFalse(PolaroidRules.IsDecorated(null, 0));
+            Assert.IsTrue(PolaroidRules.IsDecorated(new PolaroidStyle(), 1));
+            Assert.IsTrue(PolaroidRules.IsDecorated(new PolaroidStyle { frame = "kraft" }, 0));
+            Assert.IsTrue(PolaroidRules.IsDecorated(new PolaroidStyle { filter = PolaroidRules.Filters[0].key }, 0));
+            Assert.IsTrue(PolaroidRules.IsDecorated(new PolaroidStyle { caption = "海邊" }, 0));
+            Assert.IsFalse(PolaroidRules.IsDecorated(new PolaroidStyle { caption = "  " }, 0));
         }
     }
 }

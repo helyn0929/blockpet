@@ -129,8 +129,7 @@ namespace BlockPet.EditorTools.TopBar
 
         static DecorationDatabase FindDatabase()
         {
-            foreach (var picker in Object.FindObjectsOfType<DecorationPickerController>(true))
-                if (new SerializedObject(picker).FindProperty("database").objectReferenceValue is DecorationDatabase d) return d;
+            if (Object.FindObjectOfType<DecorationManager>(true) is DecorationManager dm && dm.Database != null) return dm.Database;
             var guids = AssetDatabase.FindAssets("t:DecorationDatabase");
             return guids.Length > 0 ? AssetDatabase.LoadAssetAtPath<DecorationDatabase>(AssetDatabase.GUIDToAssetPath(guids[0])) : null;
         }

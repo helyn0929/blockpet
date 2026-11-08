@@ -4,8 +4,8 @@ namespace BlockPet.UI.TopBar
 {
     /// <summary>
     /// 佈置模式（右上選單「佈置」進入）時要隱藏哪些首頁介面。
-    /// 設計文件 5.7 的建議是全部隱藏、把畫面留給家具，但尚未定案，所以預設全部不隱藏，
-    /// 決定後在 Assets/Data/DecorModeSettings.asset 勾選即可。
+    /// 2026-11-08 使用者決定：佈置時狀態欄、Home 鍵、選單、手牌層（照片貼紙、最新照片、底部按鈕）全部收起來，
+    /// 設定在 Assets/Data/DecorModeSettings.asset（四項都勾）。
     /// </summary>
     [CreateAssetMenu(fileName = "DecorModeSettings", menuName = "BlockPet/Decor Mode Settings")]
     public class DecorModeSettings : ScriptableObject

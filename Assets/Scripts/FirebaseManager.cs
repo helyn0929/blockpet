@@ -1958,9 +1958,9 @@ public partial class FirebaseManager : MonoBehaviour
         });
     }
 
-    // ─── 營地好友（設計文件 5.21 ①、流程 1～3）────────────────────────
-    // Rooms/{對方}/friendInvites/{我} = 邀請；Rooms/{A}/friends/{B} = 好友（slot＝地圖上的格子，放好就固定）。
-    // 同意時兩邊一起寫；對方那邊的 slot 先寫 -1，由對方營地的成員下次載入時自己分格子（看不到別的營地的好友清單）。
+    // ─── 營地好友（設計文件 5.21 ①）────────────────────────────────
+    // Rooms/{A}/friends/{B} = 好友（slot＝地圖上的格子，放好就固定）。好友從抽好友來（FirebaseManager.Postcard）。
+    // 雙方都按「加好友」時兩邊一起寫；對方那邊的 slot 先寫 -1，由對方營地的成員下次載入時自己分格子（看不到別的營地的好友清單）。
 
     [Serializable]
     public class CampFriend
@@ -1975,35 +1975,19 @@ public partial class FirebaseManager : MonoBehaviour
         public int trips;
     }
 
-    [Serializable]
-    public class FriendInvite
-    {
-        public string fromRoom;
-        public string roomName;
-        public string petName;
-        public int petIndex;
-        public int members;
-        public string sender;
-        public long sentAt;
-    }
-
     public static event Action OnCampFriendsChanged;
-    public static event Action OnFriendInvitesChanged;
 
     readonly List<CampFriend> _campFriends = new List<CampFriend>();
-    readonly List<FriendInvite> _friendInvites = new List<FriendInvite>();
-    DatabaseReference _friendsRef, _invitesRef;
+    DatabaseReference _friendsRef;
     string _friendsRoom;
     bool _assigningSlots;
 
     /// <summary>目前營地的營地好友（依格子排）。要先 <see cref="StartCampFriends"/>。</summary>
     public IReadOnlyList<CampFriend> CampFriends => _campFriends;
-    /// <summary>目前營地收到的好友邀請（新的在前）。</summary>
-    public IReadOnlyList<FriendInvite> FriendInvites => _friendInvites;
     /// <summary>好友資料是否已經讀到（避免一開始空清單時誤顯示「剛開始」）。</summary>
     public bool CampFriendsLoaded { get; private set; }
 
-    /// <summary>開始聽目前營地的好友與好友邀請（打開旅行地圖時呼叫；換空間會自動換）。</summary>
+    /// <summary>開始聽目前營地的好友（打開明信片地圖時呼叫；換空間會自動換）。也一起聽抽好友、明信片（FirebaseManager.Postcard）。</summary>
     public void StartCampFriends()
     {
         if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(_roomId)) return;
@@ -2011,19 +1995,17 @@ public partial class FirebaseManager : MonoBehaviour
         StopCampFriends();
         _friendsRoom = _roomId;
         _friendsRef = RoomRoot().Child("friends");
-        _invitesRef = RoomRoot().Child("friendInvites");
         _friendsRef.ValueChanged += HandleFriendsChanged;
-        _invitesRef.ValueChanged += HandleInvitesChanged;
+        StartPostcardState();
     }
 
     void StopCampFriends()
     {
         if (_friendsRef != null) _friendsRef.ValueChanged -= HandleFriendsChanged;
-        if (_invitesRef != null) _invitesRef.ValueChanged -= HandleInvitesChanged;
-        _friendsRef = _invitesRef = null;
+        _friendsRef = null;
         _friendsRoom = null;
         _campFriends.Clear();
-        _friendInvites.Clear();
+        StopPostcardState();
         CampFriendsLoaded = false;
     }
 
@@ -2059,30 +2041,6 @@ public partial class FirebaseManager : MonoBehaviour
         });
     }
 
-    void HandleInvitesChanged(object sender, ValueChangedEventArgs e)
-    {
-        if (e.DatabaseError != null) { Debug.LogWarning("[FirebaseManager] 讀好友邀請失敗：" + e.DatabaseError.Message); return; }
-        var list = new List<FriendInvite>();
-        if (e.Snapshot != null && e.Snapshot.Exists)
-            foreach (var c in e.Snapshot.Children)
-            {
-                FriendInvite inv = null;
-                try { inv = JsonUtility.FromJson<FriendInvite>(c.GetRawJsonValue()); } catch { }
-                if (inv == null) continue;
-                inv.fromRoom = c.Key;
-                list.Add(inv);
-            }
-        list.Sort((a, b) => b.sentAt.CompareTo(a.sentAt));
-        string room = _friendsRoom;
-        lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
-        {
-            if (room != _friendsRoom) return;
-            _friendInvites.Clear();
-            _friendInvites.AddRange(list);
-            OnFriendInvitesChanged?.Invoke();
-        });
-    }
-
     /// <summary>對方同意後，我們這邊的 slot 是 -1：照加入時間依序分到還沒用的最小格子（交易，避免兩台手機分到同一格）。</summary>
     void AssignPendingSlots()
     {
@@ -2103,7 +2061,7 @@ public partial class FirebaseManager : MonoBehaviour
             pending.Sort((a, b) => ReadLongObj(a.Value.ContainsKey("since") ? a.Value["since"] : null).CompareTo(ReadLongObj(b.Value.ContainsKey("since") ? b.Value["since"] : null)));
             foreach (var p in pending)
             {
-                int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used);
+                int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used, FriendCapacity);
                 if (slot < 0) break; // 滿了：留著 -1，不顯示在地圖上
                 p.Value["slot"] = (long)slot;
                 used.Add(slot);
@@ -2114,85 +2072,6 @@ public partial class FirebaseManager : MonoBehaviour
         {
             if (t.IsFaulted) Debug.LogWarning("[FirebaseManager] 分配好友格子失敗：" + t.Exception?.GetBaseException()?.Message);
             lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => _assigningSlots = false);
-        });
-    }
-
-    /// <summary>
-    /// 送出營地好友邀請（輸入對方營地代碼）。done(錯誤提示)：成功是 null；失敗是要顯示的文字（CampFriendRules 的提示）。主執行緒。
-    /// </summary>
-    public void SendFriendInvite(string code, Action<string> done)
-    {
-        string me = _roomId;
-        if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(me)) { done?.Invoke("還沒登入或沒有進空間"); return; }
-        FindRoomByCampCode(code, target =>
-        {
-            var friendIds = new List<string>();
-            foreach (var f in _campFriends) friendIds.Add(f.roomId);
-            string err = BlockPet.Travel.CampFriendRules.Check(target, me, friendIds, false);
-            if (err != null) { done?.Invoke(err); return; }
-            var inviteRef = dbRef.Child("Rooms").Child(target).Child("friendInvites").Child(me);
-            inviteRef.GetValueAsync().ContinueWith(t =>
-            {
-                bool invited = t.IsCompleted && !t.IsFaulted && t.Result != null && t.Result.Exists;
-                lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() =>
-                {
-                    if (invited) { done?.Invoke(BlockPet.Travel.CampFriendRules.MsgAlreadyInvited); return; }
-                    GetRoomMembers(me, members =>
-                    {
-                        var inv = new FriendInvite
-                        {
-                            fromRoom = me,
-                            roomName = CurrentRoomName ?? me,
-                            petName = CurrentPetName ?? "",
-                            petIndex = PetCollectionManager.Instance != null ? PetCollectionManager.Instance.CurrentPetIndex : 0,
-                            members = members != null ? members.Count : 1,
-                            sender = HasDisplayName ? GetDisplayName() : "",
-                            sentAt = ServerNowMs,
-                        };
-                        inviteRef.SetRawJsonValueAsync(JsonUtility.ToJson(inv)).ContinueWith(t2 =>
-                        {
-                            bool ok = t2.IsCompleted && !t2.IsFaulted && !t2.IsCanceled;
-                            if (!ok) Debug.LogWarning("[FirebaseManager] 送出好友邀請失敗（Firebase 規則要允許 friendInvites）：" + t2.Exception?.GetBaseException()?.Message);
-                            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok ? null : "送出失敗，請再試一次"));
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    /// <summary>同意好友邀請：我們這邊分一格、對方那邊先寫 -1（對方自己分），刪掉邀請。done(成功) 在主執行緒。</summary>
-    public void AcceptFriendInvite(FriendInvite inv, Action<bool> done)
-    {
-        string me = _roomId;
-        if (dbRef == null || inv == null || string.IsNullOrEmpty(me) || string.IsNullOrEmpty(inv.fromRoom)) { done?.Invoke(false); return; }
-        var used = new List<int>();
-        foreach (var f in _campFriends) used.Add(f.slot);
-        if (_campFriends.Count >= BlockPet.Travel.CampFriendRules.MaxFriends) { done?.Invoke(false); return; }
-        int slot = BlockPet.Travel.CampFriendRules.NextFreeSlot(used);
-        long now = ServerNowMs;
-        var updates = new Dictionary<string, object>
-        {
-            [$"Rooms/{me}/friends/{inv.fromRoom}"] = new Dictionary<string, object> { { "slot", (long)slot }, { "since", now }, { "name", inv.roomName ?? "" }, { "trips", 0L } },
-            [$"Rooms/{inv.fromRoom}/friends/{me}"] = new Dictionary<string, object> { { "slot", -1L }, { "since", now }, { "name", CurrentRoomName ?? me }, { "trips", 0L } },
-            [$"Rooms/{me}/friendInvites/{inv.fromRoom}"] = null,
-        };
-        dbRef.UpdateChildrenAsync(updates).ContinueWith(t =>
-        {
-            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
-            if (!ok) Debug.LogWarning("[FirebaseManager] 同意好友邀請失敗（Firebase 規則要允許 friends）：" + t.Exception?.GetBaseException()?.Message);
-            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
-        });
-    }
-
-    /// <summary>不要：直接刪掉邀請（不通知對方，2026-11-06 定）。</summary>
-    public void DeclineFriendInvite(FriendInvite inv, Action<bool> done)
-    {
-        if (dbRef == null || inv == null || string.IsNullOrEmpty(_roomId)) { done?.Invoke(false); return; }
-        RoomRoot().Child("friendInvites").Child(inv.fromRoom).RemoveValueAsync().ContinueWith(t =>
-        {
-            bool ok = t.IsCompleted && !t.IsFaulted && !t.IsCanceled;
-            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(ok));
         });
     }
 
@@ -2351,7 +2230,7 @@ public partial class FirebaseManager : MonoBehaviour
     /// <summary>
     /// 派寵物去好友營地。先用交易佔住 trip（已經有人派出去就失敗），再在對方營地留客人資料。done(錯誤提示) 主執行緒，成功是 null。
     /// </summary>
-    public void SendPetOnTrip(CampFriend friend, int oneWayMin, Action<string> done)
+    public void SendPetOnTrip(CampFriend friend, int oneWayMin, Action<string> done, Action<TravelTrip> onTrip = null)
     {
         string me = _roomId;
         if (dbRef == null || auth?.CurrentUser == null || string.IsNullOrEmpty(me) || friend == null) { done?.Invoke("還沒登入或沒有進空間"); return; }
@@ -2398,6 +2277,7 @@ public partial class FirebaseManager : MonoBehaviour
                         {
                             if (tg.IsFaulted) Debug.LogWarning("[FirebaseManager] 對方營地的客人資料寫入失敗（Firebase 規則要允許 guests）：" + tg.Exception?.GetBaseException()?.Message);
                         });
+                        onTrip?.Invoke(trip);
                         done?.Invoke(null);
                     });
                 });
@@ -2523,18 +2403,6 @@ public partial class FirebaseManager : MonoBehaviour
                 var last = new TripReturn { to = tr.to, toName = tr.toName, at = tr.HomeAt, photos = photos, stampNo = stampNo };
                 RoomRoot().Child("tripLast").SetRawJsonValueAsync(JsonUtility.ToJson(last));
             });
-        });
-    }
-
-    /// <summary>用營地代碼找營地（加營地好友用）。回傳空間 id，找不到是 null。callback 在主執行緒。</summary>
-    public void FindRoomByCampCode(string code, Action<string> done)
-    {
-        code = (code ?? "").Trim().ToUpperInvariant();
-        if (dbRef == null || auth?.CurrentUser == null || code.Length != CampCodeLength) { done?.Invoke(null); return; }
-        dbRef.Child(CampCodesNode).Child(code).GetValueAsync().ContinueWith(t =>
-        {
-            string room = t.IsCompleted && !t.IsFaulted && !t.IsCanceled && t.Result != null && t.Result.Exists ? t.Result.Value?.ToString() : null;
-            lock (_mainThreadQueue) _mainThreadQueue.Enqueue(() => done?.Invoke(room));
         });
     }
 

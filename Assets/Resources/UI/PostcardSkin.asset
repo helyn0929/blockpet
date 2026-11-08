@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79753d42e7d144f5d9461f398a843f17, type: 3}
+  m_Name: PostcardSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  iconDraw: {fileID: 21300000, guid: 7adfa4e0315fb4dd983463ebf4c18488, type: 3}
+  btnDraw: {fileID: 21300000, guid: e8c095cd4c78849c9bc2386bf43a1dd2, type: 3}
+  chipFree: {fileID: 21300000, guid: a0fffa97bae4b4e459664b0c87811867, type: 3}
+  dotRed: {fileID: 21300000, guid: 3306f53719c79499f83d2c8f153880cf, type: 3}
+  card: {fileID: 21300000, guid: d2f81a08d8d844aa0bc7fd3f1745b71b, type: 3}
+  btnYes: {fileID: 21300000, guid: 9cce3ea362af2448e88dadb07dd6f82b, type: 3}
+  btnNo: {fileID: 21300000, guid: c022de2d6e066433085160b4bea2f0fc, type: 3}
+  btnWait: {fileID: 21300000, guid: 8b06be0df0a2741189566bdca218f001, type: 3}
+  spinner: {fileID: 21300000, guid: 96c6d04ccdc51459e92438fa333514b7, type: 3}
+  tagCountry: {fileID: 21300000, guid: c532486a0adb14866837772096085b0d, type: 3}
+  tagSame: {fileID: 21300000, guid: c64279a4129a840c0a3ddb681212cd7d, type: 3}
+  iconNoface: {fileID: 21300000, guid: 79554537270f84f14bfdf12b7d05e998, type: 3}
+  nofaceBar: {fileID: 21300000, guid: 462b1d5fe790c41e6be122c1ca2e1925, type: 3}
+  badgeDeco: {fileID: 21300000, guid: f42b99770ba6c41b495a202bfe7bd738, type: 3}
+  check: {fileID: 21300000, guid: 75fe9a4eb21b14cf7ad9760be13fba4e, type: 3}
+  sheet: {fileID: 21300000, guid: 5a67801601b1b4c7794a53246bc16bc8, type: 3}
+  handle: {fileID: 21300000, guid: 14f57d8e2eb9c45a295e9bde73e06b20, type: 3}
+  stamp: {fileID: 21300000, guid: 37a80339e3d55424e92b0b5d55bd86f4, type: 3}
+  postmark: {fileID: 21300000, guid: c0279d7ef8dc44b69bd730573d246693, type: 3}
+  postmarkS: {fileID: 21300000, guid: 47ab321c5bfb04300bf3095281ff0412, type: 3}
+  note: {fileID: 21300000, guid: 25440ea2906ef4a5b9b8219d3c610933, type: 3}
+  passportBg: {fileID: 21300000, guid: 0bba0908ce0a54a3f98dc386402f3a18, type: 3}
+  passportPage: {fileID: 21300000, guid: 7960a8080184448caa373298b72dddae, type: 3}
+  miniPolaroid: {fileID: 21300000, guid: 01dd0722b39874b4f902d1d7cef7fa33, type: 3}
+  emptySlot: {fileID: 21300000, guid: 9c5f2587927cb493f8c3fa65d9ff0a10, type: 3}

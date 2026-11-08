@@ -8,14 +8,14 @@ using UnityEngine.UI;
 namespace BlockPet.UI.Travel
 {
     /// <summary>
-    /// 旅行地圖（設計文件 5.21 ②，設計稿 TravelGrow）：陸地、家、好友營地大頭針、路、地形裝飾（湖、小山丘、樹、小花）、
-    /// 路邊小物、下一塊地的雲霧；頂部（返回、標題、好友邀請、加營地好友）與底部（護照、狀態卡）。
-    /// 派寵物旅行、加好友、護照等流程是下一步（按鈕先不動作）。
-    /// 地圖用營地代碼當種子在執行時生成（<see cref="TravelMapGen"/>）；好友目前是假資料（3 個）。
+    /// 明信片地圖（設計文件 5.21，2026-11-08「寄明信片」取代「旅行」；地圖沿用設計稿 TravelGrow）：陸地、家、好友營地大頭針、路、
+    /// 地形裝飾（湖、小山丘、樹、小花）、路邊小物、下一塊地的雲霧；頂部（返回、「明信片地圖」、黃色「抽好友」）與底部（護照、狀態卡）。
+    /// 抽好友在 TravelScreen.Draw；選照片、寄出、護照（明信片收藏）在 TravelScreen.Postcard。
+    /// 地圖用營地代碼當種子在執行時生成（<see cref="TravelMapGen"/>）。
     /// 介面以 390 × 772 設計座標建立，依螢幕寬度等比縮放、上下置中；海鋪滿整個畫面。
-    /// 入口：首頁右上選單「旅行」（MenuToggle）。
+    /// 入口：首頁右上選單「旅行」（MenuToggle；選單的字維持「旅行」，2026-11-08 使用者決定）。
     /// </summary>
-    public class TravelScreen : MonoBehaviour
+    public partial class TravelScreen : MonoBehaviour
     {
         const float DesignW = 390f;
         const float DesignH = 772f;
@@ -58,13 +58,14 @@ namespace BlockPet.UI.Travel
         const string DemoCampName = "家人營地";
         const int DemoInvites = 1;
 
-        // 設計稿的對方營地／寵物濾鏡（hue-rotate 等）先用上色近似
-        static readonly Color[] FriendPetTint = { new Color(0.8f, 0.8f, 0.8f), new Color(1f, 0.82f, 0.72f), new Color(0.7f, 0.8f, 1f), new Color(0.85f, 1f, 0.78f), new Color(0.78f, 0.95f, 1f) };
-        static readonly Color[] FriendSceneTint = { new Color(0.95f, 0.95f, 0.9f), new Color(1f, 0.95f, 0.85f), new Color(0.85f, 0.95f, 1f), new Color(1f, 1f, 0.92f), new Color(0.9f, 1f, 0.95f) };
+        // 對方營地／寵物的上色（和風景明信片同一套，PostcardArt）
+        static readonly Color[] FriendPetTint = PostcardArt.FriendPetTint;
+        static readonly Color[] FriendSceneTint = PostcardArt.FriendSceneTint;
 
         static TravelScreen _instance;
 
         TravelSkin _skin;
+        PostcardSkin _pc;
         TMP_FontAsset _font;
         Canvas _canvas;
         RectTransform _root, _content, _map, _wave, _headerFill, _header, _bottom, _fogText;
@@ -116,7 +117,7 @@ namespace BlockPet.UI.Travel
         {
             FirebaseManager.OnCampFriendsChanged -= OnFriendsData;
             FirebaseManager.OnTravelChanged -= OnFriendsData;
-            FirebaseManager.OnFriendInvitesChanged -= OnInvitesData;
+            FirebaseManager.OnPostcardChanged -= OnPostcardData;
             FirebaseManager.OnRoomMetaChanged -= OnFriendsData;
             if (_instance == this) _instance = null;
         }
@@ -133,8 +134,9 @@ namespace BlockPet.UI.Travel
                 _homePet.anchoredPosition = new Vector2(18f, -25f + 4f * (0.5f - 0.5f * Mathf.Cos(Time.unscaledTime / 2.4f * Mathf.PI * 2f)));
             AnimateSheet();
             AnimateOverlays();
+            AnimateDraw();
             if (!_capture) TickTrip();
-            // 「加好友後這裡會長出地」左右飄 6px（5 秒）
+            // 「抽到好友後這裡會長出地」左右飄 6px（5 秒）
             if (_fogText != null)
                 _fogText.anchoredPosition = new Vector2(_fogX + 6f * (0.5f - 0.5f * Mathf.Cos(Time.unscaledTime / 5f * Mathf.PI * 2f)), _fogText.anchoredPosition.y);
         }
@@ -179,6 +181,8 @@ namespace BlockPet.UI.Travel
             _skin = TravelSkin.Load();
             if (_skin == null) Debug.LogWarning("[Travel] 找不到 Resources/UI/TravelSkin（執行 BlockPet/Travel/Build Travel Skin）");
             _font = _skin != null ? _skin.font : null;
+            _pc = PostcardSkin.Load();
+            if (_pc == null) Debug.LogWarning("[Postcard] 找不到 Resources/UI/PostcardSkin（執行 BlockPet/Postcard/Build Postcard Skin）");
 
             _content = Stretch(_root, "Content");
             BuildSheetLayer();
@@ -190,18 +194,25 @@ namespace BlockPet.UI.Travel
                 fb?.StartTravelState();
                 FirebaseManager.OnTravelChanged += OnFriendsData;
                 FirebaseManager.OnCampFriendsChanged += OnFriendsData;
-                FirebaseManager.OnFriendInvitesChanged += OnInvitesData;
+                FirebaseManager.OnPostcardChanged += OnPostcardData;
+                fb?.PublishCampProfile();
                 FirebaseManager.OnRoomMetaChanged += OnFriendsData;
             }
         }
 
-        void OnFriendsData() { if (this != null) RebuildContent(); }
+        void OnFriendsData() { if (this != null) { CheckNewFriends(); RebuildContent(); } }
 
-        void OnInvitesData()
+        int _shownMatchIn = -1, _shownPostcards = -1, _shownCost = -1;
+
+        /// <summary>抽好友、明信片的資料變了：頂部紅點、價格、護照張數有變才重畫地圖；抽好友畫面跟著更新。</summary>
+        void OnPostcardData()
         {
             if (this == null) return;
-            RebuildContent();
-            if (_sheetKind == SheetKind.Invites) BuildInvitesSheet();
+            var fb = FirebaseManager.Instance;
+            if (fb == null) return;
+            int mi = fb.MatchIn.Count, pcs = fb.VisiblePostcards().Count, cost = fb.DrawCostNow;
+            if (mi != _shownMatchIn || pcs != _shownPostcards || cost != _shownCost) RebuildContent();
+            OnPostcardDataDraw();
         }
 
         /// <summary>好友、邀請、名字變了：整張地圖和頂部底部重畫（面板留著）。</summary>
@@ -235,7 +246,10 @@ namespace BlockPet.UI.Travel
                 trips.Add(f.trips);
                 _friendRecords.Add(f);
             }
-            invites = fb.FriendInvites.Count;
+            invites = fb.MatchIn.Count;
+            _shownMatchIn = invites;
+            _shownPostcards = fb.VisiblePostcards().Count;
+            _shownCost = fb.DrawCostNow;
         }
 
         readonly List<FirebaseManager.CampFriend> _friendRecords = new List<FirebaseManager.CampFriend>();
@@ -265,11 +279,11 @@ namespace BlockPet.UI.Travel
             _shownPhase = Phase(Trip());
             BuildMap(map, names.ToArray());
 
-            int stamps = 0;
+            int stamps = 0; // 護照裡收到的明信片張數
             var fbS = FirebaseManager.Instance;
-            if (!_capture && fbS != null && !string.IsNullOrEmpty(fbS.RoomId)) foreach (var ps in fbS.Passport) stamps += Mathf.Max(0, ps.times);
+            if (!_capture && fbS != null && !string.IsNullOrEmpty(fbS.RoomId)) stamps = fbS.VisiblePostcards().Count;
             else foreach (var t in trips) if (t > 0) stamps++;
-            BuildHeader(map.friends.Count + 1, invites);
+            BuildHeader(map.friends.Count, invites);
             BuildBottom(map.friends.Count, stamps);
         }
 
@@ -341,7 +355,7 @@ namespace BlockPet.UI.Travel
             switch (phase)
             {
                 case TripPhase.Going:
-                    title = $"{pet} 正在去{to}";
+                    title = $"{pet} 正在送明信片去{to}";
                     sub = $"還要 {TripRules.FormatMinutes(TripRules.MinutesUntil(now, TripRules.ArriveAt(t.departAt, t.oneWayMin)))}到・照片照常餵";
                     break;
                 case TripPhase.There:
@@ -354,7 +368,7 @@ namespace BlockPet.UI.Travel
                     break;
                 default:
                     title = $"{pet} 回家了";
-                    sub = "在護照蓋了一個章";
+                    sub = $"帶回一張{to}的風景明信片，收在護照";
                     break;
             }
         }
@@ -377,7 +391,7 @@ namespace BlockPet.UI.Travel
             return string.IsNullOrEmpty(n) ? "BowBow" : n;
         }
 
-        void BuildHeader(int lands, int invites)
+        void BuildHeader(int friends, int invites)
         {
             // 底 rgba(255,248,236,0.94)＋下緣線 #EFE6D4，延伸到瀏海後面
             _headerFill = new GameObject("HeaderFill", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -406,32 +420,11 @@ namespace BlockPet.UI.Travel
             if (_skin == null || _skin.back == null) Label(back, 0, 0, 44, 44, "‹", 22, Ink);
             Button(back, backImg, Close);
 
-            var title = Label(_header, 68, 12, 160, 28, "旅行", 24, Ink);
+            var title = Label(_header, 68, 12, 160, 28, "明信片地圖", 24, Ink);
             title.alignment = TextAlignmentOptions.Left;
-            var sub = Label(_header, 68, 41, 200, 18, $"{CampName()}的地圖・{lands} 塊地", 12, Brown);
+            var sub = Label(_header, 68, 41, 200, 18, $"{CampName()}・{friends} 個好友", 12, Brown);
             sub.alignment = TextAlignmentOptions.Left;
-
-            // 右邊：「＋ 加營地好友」黃色膠囊（高 38，含下緣 3）、左邊好友邀請信封（38 藍圓，紅點數字）
-            const string addText = "＋ 加營地好友";
-            var addProbe = Label(_header, 0, 0, 10, 38, addText, 13, Ink);
-            float addW = Mathf.Ceil(TextWidth(addProbe, addText)) + 28f;
-            var add = Place(_header, "Add", DesignW - 14f - addW, 17, addW, 41);
-            var addImg = SkinImage(add, _skin?.addButton, Yellow, 19, true);
-            if (_skin == null || _skin.addButton == null) UIShapes.AddRounded(Place(add, "Edge", 0, 3, addW, 38).gameObject, YellowEdge, 19).transform.SetAsFirstSibling();
-            addProbe.rectTransform.SetParent(add, false);
-            addProbe.rectTransform.anchoredPosition = Vector2.zero;
-            addProbe.rectTransform.sizeDelta = new Vector2(addW, 38f);
-            Button(add, addImg, OpenAdd);
-
-            var invite = Place(_header, "Invite", DesignW - 14f - addW - 8f - 38f, 17, 38, 38);
-            var invImg = SkinImage(invite, _skin?.inviteButton, Hex(0xE2E8F8), 19, false);
-            Button(invite, invImg, OpenInvites);
-            if (invites > 0)
-            {
-                var badge = Place(invite, "Badge", 38 - 18 + 4, -4, 18, 18);
-                SkinImage(badge, _skin?.redBadge, Coral, 9, false);
-                Label(badge, 0, 0, 18, 18, invites > 9 ? "9+" : invites.ToString(), 10, Color.white);
-            }
+            BuildDrawButton(invites);
         }
 
         void BuildBottom(int friends, int stamps)
@@ -447,7 +440,7 @@ namespace BlockPet.UI.Travel
             UIShapes.AddShadow(passport, new Color(0f, 0f, 0f, 0.3f), 14, 14, 6);
             var pImg = SkinImage(passport, _skin?.passportButton, PassportBlue, 14, false);
             Label(passport, 6, 34, 58, 16, "護照", 11, PassportGold);
-            Label(passport, 6, 50, 58, 14, $"{stamps} 個章", 10, Color.white);
+            Label(passport, 6, 50, 58, 14, $"{stamps} 張", 10, Color.white);
             Button(passport, pImg, OpenPassportView);
 
             var trip = Trip();
@@ -463,7 +456,7 @@ namespace BlockPet.UI.Travel
             else
             {
                 title = friends == 0 ? "地圖才剛開始" : $"{PetName()} 在家";
-                sub = friends == 0 ? "加營地好友，雲霧就會散開長出新的地" : $"點好友營地派牠去旅行・地圖有 {friends + 1} 塊地";
+                sub = friends == 0 ? "抽好友，雲霧就會散開長出新的地" : "點好友營地，寄一張明信片過去";
             }
             _statusTitle = Label(card, 14, traveling ? 10 : 13, cw - 28f, 20, title, 14, Ink);
             _statusTitle.alignment = TextAlignmentOptions.Left;
@@ -586,7 +579,7 @@ namespace BlockPet.UI.Travel
             if (map.hasNext)
             {
                 _fogX = (float)map.next.x - 60f;
-                var ft = Label(pins, _fogX, (float)map.next.y - 12f, 120, 34, "加好友後\n這裡會長出地", 11, FogText);
+                var ft = Label(pins, _fogX, (float)map.next.y - 12f, 120, 34, "抽到好友後\n這裡會長出地", 11, FogText);
                 ft.lineSpacing = -10f;
                 _fogText = ft.rectTransform;
             }
@@ -722,31 +715,26 @@ namespace BlockPet.UI.Travel
                 probe.transform.SetAsLastSibling();
             }
 
-            // 去過的營地：右上紅色小章「印」，兩次以上「×2」「×3」（整個轉 -10°）
+            // 寄過明信片的營地：大頭針右上一張小郵票（pc_stamp 22，轉 8°），兩次以上旁邊「×2」（2026-11-08 取代紅章）
             if (trips > 0)
             {
-                string t = trips > 1 ? "×" + trips : "印";
-                var probe = Label(parent, 0, 0, 10, 22, t, 9, StampRed);
-                float bw = Mathf.Max(22f, Mathf.Ceil(TextWidth(probe, t)) + 10f);
-                var badge = Place(parent, "Stamp", x + 36f - bw, y - 36f, bw, 22);
-                badge.pivot = new Vector2(0.5f, 0.5f);
-                badge.anchoredPosition = new Vector2(x + 36f - bw / 2f, -(y - 36f + 11f));
-                badge.localRotation = Quaternion.Euler(0f, 0f, 10f); // CSS rotate(-10deg)＝順時針
-                if (_skin != null && _skin.stampBadge != null && bw <= 22f)
+                var stamp = Place(parent, "Stamp", x + 14f, y - 40f, 24, 24);
+                stamp.pivot = new Vector2(0.5f, 0.5f);
+                stamp.anchoredPosition = new Vector2(x + 14f + 12f, -(y - 40f + 12f));
+                stamp.localRotation = Quaternion.Euler(0f, 0f, -8f);
+                if (_pc != null && _pc.stamp != null)
                 {
-                    var img = badge.gameObject.AddComponent<Image>();
-                    img.sprite = _skin.stampBadge;
+                    var img = stamp.gameObject.AddComponent<Image>();
+                    img.sprite = _pc.stamp;
                     img.raycastTarget = false;
                 }
-                else
+                else UIShapes.AddRounded(stamp.gameObject, Hex(0xF7B6C2), 3).raycastTarget = false;
+                string t = PostcardRules.StampLabel(trips);
+                if (t.Length > 0)
                 {
-                    UIShapes.AddRounded(badge.gameObject, StampRed, 11).raycastTarget = false;
-                    UIShapes.AddRounded(Place(badge, "In", 2, 2, bw - 4f, 18).gameObject, Cream, 9).raycastTarget = false;
+                    var times = Label(parent, x + 37f, y - 38f, 30, 16, t, 10, Ink);
+                    times.alignment = TextAlignmentOptions.Left;
                 }
-                probe.rectTransform.SetParent(badge, false);
-                probe.rectTransform.anchoredPosition = Vector2.zero;
-                probe.rectTransform.sizeDelta = new Vector2(bw, 22f);
-                probe.transform.SetAsLastSibling();
             }
         }
 
@@ -850,19 +838,14 @@ namespace BlockPet.UI.Travel
             probe.transform.SetAsLastSibling();
         }
 
-        // ─── 面板：加營地好友（TravelAdd）、好友邀請（TravelInvites）──────────
+        // ─── 面板（下方滑出）────────────────────────────────────────────
 
-        enum SheetKind { None, Add, Invites, Send }
+        enum SheetKind { None, Send }
         SheetKind _sheetKind;
         RectTransform _sheetLayer, _sheetPanel;
         Image _sheetDim;
         float _sheetT;
         bool _sheetOpen;
-        TMP_InputField _codeInput;
-        TMP_Text _addError;
-        Image _sendBg;
-        TMP_Text _sendText;
-        bool _sending, _sent;
         static readonly Color Dim = new Color(20f / 255f, 24f / 255f, 14f / 255f, 1f);
         static readonly Color Beige = Hex(0xF2E9D8);
         static readonly Color Disabled = Hex(0xE2D6C0);
@@ -886,21 +869,6 @@ namespace BlockPet.UI.Travel
             _sheetLayer.gameObject.SetActive(false);
         }
 
-        void OpenAdd()
-        {
-            _sheetKind = SheetKind.Add;
-            _sent = false;
-            ShowSheet(); // 先打開再建：文字要在啟用狀態才量得到幾行高
-            BuildAddSheet();
-        }
-
-        void OpenInvites()
-        {
-            _sheetKind = SheetKind.Invites;
-            ShowSheet();
-            BuildInvitesSheet();
-        }
-
         void ShowSheet()
         {
             bool was = _sheetOpen && _sheetLayer.gameObject.activeSelf;
@@ -913,7 +881,6 @@ namespace BlockPet.UI.Travel
         {
             _sheetOpen = false;
             _sheetKind = SheetKind.None;
-            if (_codeInput != null) _codeInput.DeactivateInputField();
         }
 
         void AnimateSheet()
@@ -954,7 +921,6 @@ namespace BlockPet.UI.Travel
         float SheetBase()
         {
             for (int i = _sheetPanel.childCount - 1; i >= 0; i--) Destroy(_sheetPanel.GetChild(i).gameObject);
-            _codeInput = null;
             var bg = Stretch(_sheetPanel, "Bg");
             UIShapes.AddShadow(bg, new Color(0f, 0f, 0f, 0.25f), 26, 30, -10);
             var bgImg = UIShapes.AddRounded(Stretch(bg, "Fill").gameObject, Paper, 26);
@@ -977,195 +943,7 @@ namespace BlockPet.UI.Travel
         static readonly Color Paper = Hex(0xFFF8EC);
         static readonly Color Line = Hex(0xE2D6C0);
 
-        void BuildAddSheet()
-        {
-            float y = SheetFrame("加營地好友");
-            const float W = DesignW - 36f;
-            if (_sent)
-            {
-                var icon = Place(_sheetPanel, "Plane", (DesignW - 64f) / 2f, y + 10f, 64, 64);
-                UIShapes.AddRounded(icon.gameObject, BlueSoft, 32).raycastTarget = false;
-                if (_skin != null && _skin.paperPlane != null)
-                {
-                    var pi = Place(icon, "Icon", 0, 0, 64, 64).gameObject.AddComponent<Image>();
-                    pi.sprite = _skin.paperPlane;
-                    pi.raycastTarget = false;
-                }
-                y += 10f + 64f + 8f;
-                Label(_sheetPanel, 18, y, W, 28, "已送出邀請", 20, Ink);
-                y += 28f + 8f;
-                Label(_sheetPanel, 18, y, W, 18, "等對方營地的任一成員同意", 13, SubText);
-                y += 18f + 4f + 12f;
-                var ok = Place(_sheetPanel, "OK", 18, y, W, 52);
-                var okImg = YellowButton(ok, W, 52, 15);
-                Label(ok, 0, 0, W, 52, "好", 16, Ink);
-                Button(ok, okImg, CloseSheet);
-                FinishSheet(y + 52f);
-                return;
-            }
-
-            var intro = Label(_sheetPanel, 18, y, W, 20, "輸入對方營地的<color=#4F6FC4>營地代碼</color>（在對方的空間資訊裡）。對方營地同意後，地圖上會長出他們的營地，兩邊的寵物就能互相去旅行。", 13, SubText);
-            intro.richText = true;
-            intro.enableWordWrapping = true;
-            intro.alignment = TextAlignmentOptions.TopLeft;
-            intro.lineSpacing = 12f;
-            float ih = Mathf.Ceil(TextHeight(intro, intro.text, W));
-            intro.rectTransform.sizeDelta = new Vector2(W, ih);
-            y += ih + 12f;
-
-            _codeInput = CodeInput(_sheetPanel, 18, y, W, 56);
-            y += 56f + 6f;
-            _addError = Label(_sheetPanel, 18, y, W, 16, "", 12, ErrorRed);
-            y += 16f + 6f;
-
-            var send = Place(_sheetPanel, "Send", 18, y, W, 52);
-            _sendBg = UIShapes.AddRounded(send.gameObject, Disabled, 15);
-            _sendText = Label(send, 0, 0, W, 52, "送出好友邀請", 16, Ink);
-            Button(send, _sendBg, SendInvite);
-            y += 52f + 12f;
-            Label(_sheetPanel, 18, y, W, 16, "營地代碼只能加好友，不能加入對方營地", 11, Brown);
-            y += 16f;
-            UpdateSendButton();
-            FinishSheet(y);
-        }
-
-        TMP_InputField CodeInput(RectTransform parent, float x, float y, float w, float h)
-        {
-            var rt = Place(parent, "CodeInput", x, y, w, h);
-            rt.gameObject.SetActive(false); // 先設定好 TMP_InputField 再啟用
-            UIShapes.AddRounded(rt.gameObject, InviteBlue, 15).raycastTarget = false;
-            var inner = UIShapes.AddRounded(Place(rt, "Fill", 2, 2, w - 4, h - 4).gameObject, Color.white, 13);
-            var area = Place(rt, "Text Area", 14, 0, w - 28, h);
-            area.gameObject.AddComponent<RectMask2D>();
-            var placeholder = Label(area, 0, 0, w - 28, h, "例如 K7R2PX", 20, new Color(SubText.r, SubText.g, SubText.b, 0.4f));
-            var text = Label(area, 0, 0, w - 28, h, "", 26, Ink);
-            text.characterSpacing = 30f;
-            var input = rt.gameObject.AddComponent<TMP_InputField>();
-            input.targetGraphic = inner;
-            input.textViewport = area;
-            input.textComponent = text;
-            input.placeholder = placeholder;
-            input.characterLimit = 6;
-            input.contentType = TMP_InputField.ContentType.Alphanumeric;
-            input.onValidateInput = (str, i, c) => char.IsLetterOrDigit(c) ? char.ToUpperInvariant(c) : '\0';
-            input.onValueChanged.AddListener(_ => { if (_addError != null) _addError.text = ""; UpdateSendButton(); });
-            input.onSubmit.AddListener(_ => SendInvite());
-            if (_font != null) input.fontAsset = _font;
-            rt.gameObject.SetActive(true);
-            return input;
-        }
-
-        void UpdateSendButton()
-        {
-            if (_sendBg == null || _codeInput == null) return;
-            bool ready = CampFriendRules.NormalizeCode(_codeInput.text).Length == 6 && !_sending;
-            _sendBg.color = ready ? Yellow : Disabled;
-            _sendText.text = _sending ? "送出中…" : "送出好友邀請";
-        }
-
-        void SendInvite()
-        {
-            if (_codeInput == null || _sending) return;
-            string code = CampFriendRules.NormalizeCode(_codeInput.text);
-            if (code.Length != 6) return;
-            var fb = FirebaseManager.Instance;
-            if (fb == null) return;
-            _sending = true;
-            UpdateSendButton();
-            fb.SendFriendInvite(code, err =>
-            {
-                _sending = false;
-                if (this == null || _sheetKind != SheetKind.Add) return;
-                if (err != null) { _addError.text = err; UpdateSendButton(); return; }
-                _sent = true;
-                BuildAddSheet();
-            });
-        }
-
-        void BuildInvitesSheet()
-        {
-            float y = SheetFrame("好友邀請");
-            const float W = DesignW - 36f;
-            var fb = FirebaseManager.Instance;
-            var invites = fb != null ? fb.FriendInvites : null;
-            if (invites == null || invites.Count == 0)
-            {
-                Label(_sheetPanel, 18, y + 20f, W, 20, "目前沒有好友邀請", 14, SubText);
-                FinishSheet(y + 60f);
-                return;
-            }
-            int shown = 0;
-            foreach (var inv in invites)
-            {
-                if (shown++ >= 3) break; // 一次最多 3 張，同意或不要後下一張補上
-                y = InviteCard(inv, y, W) + 12f;
-            }
-            Label(_sheetPanel, 18, y, W, 16, "營地的任一成員都可以同意", 11, Brown);
-            FinishSheet(y + 16f);
-        }
-
-        float InviteCard(FirebaseManager.FriendInvite inv, float top, float W)
-        {
-            var card = Place(_sheetPanel, "Invite", 18, top, W, 200);
-            UIShapes.AddShadow(card, new Color(30f / 255f, 30f / 255f, 20f / 255f, 0.1f), 18, 12, 4);
-            UIShapes.AddRounded(Stretch(card, "Bg").gameObject, Cream, 18).raycastTarget = true;
-
-            // 對方營地縮圖 72（場景＋寵物）
-            var thumb = Place(card, "Thumb", 12, 12, 72, 72);
-            var mask = UIShapes.AddRounded(thumb.gameObject, SceneGreen, 16);
-            mask.raycastTarget = false;
-            thumb.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-            var camp = _skin != null ? _skin.campBackground : null;
-            if (camp != null)
-            {
-                var raw = Stretch(thumb, "Scene").gameObject.AddComponent<RawImage>();
-                raw.texture = camp;
-                raw.raycastTarget = false;
-                raw.color = new Color(1f, 0.92f, 0.85f);
-                raw.uvRect = new Rect(40f / 160f, 1f - (150f + 72f) / 316f, 72f / 160f, 72f / 316f);
-            }
-            if (_skin != null && _skin.pet != null)
-            {
-                var pet = Place(thumb, "Pet", 10, 18, 52, 45).gameObject.AddComponent<Image>();
-                pet.sprite = _skin.pet;
-                pet.preserveAspect = true;
-                pet.raycastTarget = false;
-            }
-
-            float tx = 12f + 72f + 12f, tw = W - tx - 12f;
-            var name = Label(card, tx, 18, tw, 20, string.IsNullOrEmpty(inv.roomName) ? "營地" : inv.roomName, 15, Ink);
-            name.alignment = TextAlignmentOptions.Left;
-            string pet2 = string.IsNullOrEmpty(inv.petName) ? "" : inv.petName + "・";
-            var sub = Label(card, tx, 41, tw, 16, $"{pet2}{Mathf.Max(1, inv.members)} 位成員", 12, SubText);
-            sub.alignment = TextAlignmentOptions.Left;
-            string who = string.IsNullOrEmpty(inv.sender) ? "" : inv.sender + "送出・";
-            var when = Label(card, tx, 60, tw, 16, who + Ago(inv.sentAt), 11, Brown);
-            when.alignment = TextAlignmentOptions.Left;
-
-            float y = 12f + 72f + 10f;
-            string mine = CampName();
-            var desc = Label(card, 12, y, W - 24f, 20, $"想跟「{mine}」當好友。同意後地圖上會長出他們的營地，兩邊的寵物可以互相去旅行（看不到照片和聊天）。", 12, SubText);
-            desc.enableWordWrapping = true;
-            desc.alignment = TextAlignmentOptions.TopLeft;
-            float dh = Mathf.Ceil(TextHeight(desc, desc.text, W - 24f));
-            desc.rectTransform.sizeDelta = new Vector2(W - 24f, dh);
-            y += dh + 10f;
-
-            float bw = W - 24f - 8f, noW = bw / 2.5f, yesW = bw - noW;
-            var no = Place(card, "No", 12, y, noW, 46);
-            var noImg = UIShapes.AddRounded(no.gameObject, Beige, 14);
-            Label(no, 0, 0, noW, 46, "不要", 14, Ink);
-            Button(no, noImg, () => FirebaseManager.Instance?.DeclineFriendInvite(inv, null));
-            var yes = Place(card, "Yes", 12 + noW + 8f, y, yesW, 49);
-            var yesImg = YellowButton(yes, yesW, 46, 14);
-            Label(yes, 0, 0, yesW, 46, "同意", 14, Ink);
-            Button(yes, yesImg, () => FirebaseManager.Instance?.AcceptFriendInvite(inv, ok => { if (ok && this != null && _sheetKind == SheetKind.Invites) CloseSheet(); }));
-            y += 46f + 12f;
-            card.sizeDelta = new Vector2(W, y);
-            return top + y;
-        }
-
-        // ─── 派寵物出發（流程 5，TravelMapSend）────────────────────────
+        // ─── 寄明信片（5.21 ④-1：點好友營地 → 面板 → 選一張照片）──────────
 
         void OnPinTapped(int idx)
         {
@@ -1174,7 +952,7 @@ namespace BlockPet.UI.Travel
             var phase = Phase(t);
             if (phase == TripPhase.None) { OpenSend(idx); return; }
             if (phase == TripPhase.There && TripIndex(t) == idx) { OpenThere(); return; }
-            ShowToast(phase == TripPhase.Done ? "寵物剛回家，等一下再出門" : $"{PetName()} 正在旅行，一次只能去一個地方");
+            ShowToast(phase == TripPhase.Done ? "寵物剛回家，等一下再出門" : $"{PetName()} 正在送明信片，一次只能去一個地方");
         }
 
         int _sendIdx;
@@ -1226,19 +1004,19 @@ namespace BlockPet.UI.Travel
             }
             var hn = Label(hero, 14, 82, W - 28f, 16, f.name, 12, Color.white);
             hn.alignment = TextAlignmentOptions.Left;
-            var ht = Label(hero, 14, 96, W - 28f, 26, $"去過 {f.trips} 次", 20, Color.white);
+            var ht = Label(hero, 14, 96, W - 28f, 26, $"寄過 {f.trips} 次", 20, Color.white);
             ht.alignment = TextAlignmentOptions.Left;
             y += 130f + 12f;
 
-            // 路程／在那邊玩／回到家
+            // 路程／在那邊／回到家
             float cw = (W - 16f) / 3f;
             InfoCell(18, y, cw, "路程", "單程 " + TripRules.FormatMinutes(oneWay));
-            InfoCell(18 + cw + 8f, y, cw, "在那邊玩", TripRules.StayMinutes + " 分");
+            InfoCell(18 + cw + 8f, y, cw, "在那邊", TripRules.StayMinutes + " 分");
             InfoCell(18 + (cw + 8f) * 2f, y, cw, "回到家", "約 " + TripRules.FormatMinutes(oneWay * 2 + TripRules.StayMinutes));
             y += 52f + 12f;
 
             string pet2 = PetName();
-            var desc = Label(_sheetPanel, 18, y, W, 20, $"旅行時大家還是可以餵照片，照片會寄給旅行中的 {pet2}。到了之後，可以點地圖上的營地看牠在那邊玩。", 12, SubText);
+            var desc = Label(_sheetPanel, 18, y, W, 20, $"選一張照片做成拍立得明信片，{pet2} 會帶過去。有人臉的照片不能寄；回家時會帶回一張那裡的風景明信片。", 12, SubText);
             desc.enableWordWrapping = true;
             desc.alignment = TextAlignmentOptions.TopLeft;
             desc.lineSpacing = 12f;
@@ -1249,18 +1027,13 @@ namespace BlockPet.UI.Travel
             var go = Place(_sheetPanel, "Go", 18, y, W, 58);
             UIShapes.AddRounded(Place(go, "Edge", 0, 4, W, 54).gameObject, YellowEdge, 18).raycastTarget = false;
             var goImg = UIShapes.AddRounded(Place(go, "Fill", 0, 0, W, 54).gameObject, Yellow, 18);
-            string goText = _departing ? "出發中…" : $"派 {pet2} 去旅行";
+            string goText = _departing ? "出發中…" : "選一張照片";
             var gl = Label(go, 0, 0, W, 54, goText, 17, Ink);
-            float gw = Mathf.Ceil(TextWidth(gl, goText));
-            if (_skin != null && _skin.backpack != null && !_departing)
-            {
-                var bp = Place(go, "Backpack", (W - gw) / 2f - 28f, 16, 20, 22).gameObject.AddComponent<Image>();
-                bp.sprite = _skin.backpack;
-                bp.raycastTarget = false;
-                gl.rectTransform.anchoredPosition = new Vector2(14f, 0f);
-            }
-            Button(go, goImg, Depart);
-            FinishSheet(y + 58f);
+            Button(go, goImg, () => { if (!_departing) OpenPick(PickMode.Send, _sendIdx, null); });
+            y += 58f + 10f;
+            // 封鎖・檢舉（好友營地的面板，5.21 ⑦）
+            BlockReportLinks(_sheetPanel, y, W, f.roomId, f.name, null, "friend_sheet", SubText);
+            FinishSheet(y + 24f);
         }
 
         void InfoCell(float x, float y, float w, string label, string value)
@@ -1274,22 +1047,6 @@ namespace BlockPet.UI.Travel
             v.enableAutoSizing = true;
             v.fontSizeMin = 11;
             v.fontSizeMax = 15;
-        }
-
-        void Depart()
-        {
-            if (_departing || _sheetKind != SheetKind.Send) return;
-            var fb = FirebaseManager.Instance;
-            if (fb == null || _sendIdx >= _friendRecords.Count) return;
-            _departing = true;
-            BuildSendSheet();
-            fb.SendPetOnTrip(_friendRecords[_sendIdx], OneWayFor(_sendIdx), err =>
-            {
-                _departing = false;
-                if (this == null) return;
-                if (err != null) { ShowToast(err); if (_sheetKind == SheetKind.Send) BuildSendSheet(); return; }
-                CloseSheet();
-            });
         }
 
         static Texture2D _gradient;
@@ -1418,7 +1175,7 @@ namespace BlockPet.UI.Travel
             _thereSub.alignment = TextAlignmentOptions.Left;
             var tag = Place(bar, "Traveling", DesignW - 20f - 12f - 56f, 16, 56, 20);
             SkinImage(tag, _skin?.tagTraveling, InviteBlue, 10, true);
-            Label(tag, 0, 0, 56, 20, "旅行中", 11, Color.white);
+            Label(tag, 0, 0, 56, 20, "送信中", 11, Color.white);
 
             // 底部：只看得到營地和寵物
             var bottom = new GameObject("Note", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -1428,7 +1185,7 @@ namespace BlockPet.UI.Travel
             var fade = bottom.gameObject.AddComponent<RawImage>();
             fade.texture = CreamFadeTex();
             fade.raycastTarget = false;
-            var note = Label(bottom, 0, 0, 10, 10, "只看得到營地和寵物・回家時會在護照蓋章", 12, SubText);
+            var note = Label(bottom, 0, 0, 10, 10, "只看得到營地和寵物・明信片收在對方的護照", 12, SubText);
             note.rectTransform.anchorMin = new Vector2(0f, 0f); note.rectTransform.anchorMax = new Vector2(1f, 0f);
             note.rectTransform.pivot = new Vector2(0.5f, 0f);
             note.rectTransform.anchoredPosition = new Vector2(0f, (26f + BottomInsetDesign()) * k);
@@ -1470,120 +1227,6 @@ namespace BlockPet.UI.Travel
             for (int i = 0; i < 16; i++) _creamFade.SetPixel(0, i, new Color(1f, 248f / 255f, 236f / 255f, 0.96f * Mathf.Clamp01((15f - i) / 10f)));
             _creamFade.Apply();
             return _creamFade;
-        }
-
-        /// <summary>打開旅行地圖並直接顯示護照（回家蓋章卡的「看護照」）。</summary>
-        public static void OpenPassport()
-        {
-            Open();
-            _instance.OpenPassportView();
-        }
-
-        void OpenPassportView()
-        {
-            if (_passportLayer != null) Destroy(_passportLayer.gameObject);
-            _passportLayer = Stretch(_root, "Passport");
-            _passportLayer.SetAsLastSibling();
-            var bgImg = _passportLayer.gameObject.AddComponent<Image>();
-            bgImg.color = Hex(0x2E4686);
-            float k = _root.rect.width / DesignW;
-            float topInset = 0f, bottomInset = 0f;
-            if (!_capture)
-            {
-                float sc = _canvas.rootCanvas.scaleFactor;
-                float px = sc > 0f ? 1f / sc : 1f;
-                topInset = (Screen.height - Screen.safeArea.yMax) * px;
-                bottomInset = Screen.safeArea.yMin * px;
-            }
-            var design = new GameObject("Design", typeof(RectTransform)).GetComponent<RectTransform>();
-            design.SetParent(_passportLayer, false);
-            design.anchorMin = new Vector2(0.5f, 0f); design.anchorMax = new Vector2(0.5f, 1f);
-            design.pivot = new Vector2(0.5f, 1f);
-            design.localScale = Vector3.one * k;
-            design.anchoredPosition = new Vector2(0f, -topInset);
-            float screenH = _root.rect.height / Mathf.Max(0.01f, k);
-            float h = screenH - (topInset + bottomInset) / Mathf.Max(0.01f, k);
-            design.sizeDelta = new Vector2(DesignW, 0f);
-            design.anchorMin = design.anchorMax = new Vector2(0.5f, 1f);
-            design.sizeDelta = new Vector2(DesignW, h);
-
-            // 資料：去過的章（第一次去的順序）＋已加好友但還沒去過的空格
-            var fb = FirebaseManager.Instance;
-            var stamps = new List<FirebaseManager.PassportStamp>();
-            var empties = new List<string>();
-            int total = 0;
-            if (fb != null)
-            {
-                stamps.AddRange(fb.Passport);
-                foreach (var st in stamps) total += Mathf.Max(0, st.times);
-                foreach (var f in fb.CampFriends)
-                    if (!stamps.Exists(st => st.roomId == f.roomId)) empties.Add(string.IsNullOrEmpty(f.name) ? "營地好友" : f.name);
-            }
-
-            var back = Place(design, "Back", 12, 14, 44, 44);
-            var bImg = SkinImage(back, _skin?.passportBack, new Color(1f, 1f, 1f, 0.15f), 22, false);
-            if (_skin == null || _skin.passportBack == null) Label(back, 0, 0, 44, 44, "‹", 22, PassportGold);
-            Button(back, bImg, () => _passportLayer.gameObject.SetActive(false));
-            var title = Label(design, 66, 14, 300, 26, $"{CampName()}的旅行護照", 22, PassportGold);
-            title.alignment = TextAlignmentOptions.Left;
-            var sub = Label(design, 66, 40, 310, 16, $"{total} 個章・去過 {stamps.Count} 個營地・還有 {empties.Count} 個好友營地沒去過", 11, new Color(PassportGold.r, PassportGold.g, PassportGold.b, 0.85f));
-            sub.alignment = TextAlignmentOptions.Left;
-
-            // 內頁（可上下捲動），每排 3 個章
-            float pageH = h - 76f - 20f;
-            var page = Place(design, "Page", 14, 76, DesignW - 28f, pageH);
-            UIShapes.AddShadow(page, new Color(0f, 0f, 0f, 0.35f), 14, 24, 10);
-            SkinImage(page, _skin?.passportPage, Hex(0xF2E6CB), 14, true);
-            var view = Place(page, "View", 0, 0, DesignW - 28f, pageH);
-            view.gameObject.AddComponent<RectMask2D>();
-            var hit = view.gameObject.AddComponent<Image>();
-            hit.color = new Color(0, 0, 0, 0);
-            var content = Place(view, "Content", 0, 0, DesignW - 28f, 0);
-            var sr = view.gameObject.AddComponent<ScrollRect>();
-            sr.content = content; sr.viewport = view; sr.horizontal = false; sr.movementType = ScrollRect.MovementType.Clamped;
-
-            float innerW = DesignW - 28f - 28f, colW = (innerW - 16f) / 3f;
-            int n = 0;
-            foreach (var st in stamps) StampCell(content, n++, colW, st.name, st.roomId, st.first, st.times, false);
-            foreach (var e in empties) StampCell(content, n++, colW, e, e, 0, 0, true);
-            if (n == 0) Label(content, 14, 40, innerW, 20, "還沒有章：派寵物去好友營地，回家就會蓋一個", 12, SubText);
-            int rows = Mathf.Max(1, (n + 2) / 3);
-            content.sizeDelta = new Vector2(DesignW - 28f, 16f + rows * (86f + 4f + 28f) + (rows - 1) * 14f + 16f);
-            _passportLayer.gameObject.SetActive(true);
-        }
-
-        void StampCell(RectTransform content, int i, float colW, string name, string id, long first, int times, bool empty)
-        {
-            float x = 14f + (i % 3) * (colW + 8f), y = 16f + (i / 3) * (86f + 4f + 28f + 14f);
-            var cell = Place(content, "Stamp", x, y, colW, 118);
-            var ring = Place(cell, "Ring", (colW - 86f) / 2f, 0, 86, 86);
-            ring.pivot = new Vector2(0.5f, 0.5f);
-            ring.anchoredPosition = new Vector2(colW / 2f, -43f);
-            var col = empty ? Hex(0xB9AC96) : HexStr(TripRules.StampColor(id));
-            if (!empty) ring.localRotation = Quaternion.Euler(0f, 0f, -TripRules.StampTilt(id)); // CSS 正角度＝順時針
-            var ringImg = SkinImage(Place(ring, "Img", 0, 0, 86, 86), empty ? _skin?.stampEmpty : _skin?.stampRing, new Color(0, 0, 0, 0), 43, false);
-            if (!empty) ringImg.color = new Color(col.r, col.g, col.b, 0.92f);
-            if (empty)
-                Label(ring, 0, 30, 86, 22, "？", 14, Hex(0xB9AC96));
-            else
-            {
-                string shortName = name != null && name.Length > 5 ? name.Substring(0, 5) : name;
-                Label(ring, 0, 20, 86, 12, shortName, 9, col);
-                if (_skin != null && _skin.pet != null) PetImg(ring, 25, 30, 36, 31, Color.white, false);
-                string date = first > 0 ? System.DateTimeOffset.FromUnixTimeMilliseconds(first).ToLocalTime().ToString("MM.dd") : "";
-                Label(ring, 0, 64, 86, 12, date, 8, col);
-                if (times > 1)
-                {
-                    var badge = Place(ring, "Times", 86 - 28f, 86 - 4f - 16f, 28, 16);
-                    badge.localRotation = Quaternion.Euler(0f, 0f, TripRules.StampTilt(id)); // 標籤擺正
-                    SkinImage(badge, _skin?.timesBadge, Ink, 8, true);
-                    Label(badge, 0, 0, 28, 16, "×" + times, 10, Color.white);
-                }
-            }
-            var nl = Label(cell, 0, 90, colW, 28, empty ? name + "\n還沒去過" : name, 10, SubText);
-            nl.enableWordWrapping = true;
-            nl.lineSpacing = -14f;
-            nl.overflowMode = TextOverflowModes.Ellipsis;
         }
 
         static Color HexStr(string s) => ColorUtility.TryParseHtmlString(s, out var c) ? c : Color.white;

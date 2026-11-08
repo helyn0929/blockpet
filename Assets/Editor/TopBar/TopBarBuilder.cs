@@ -37,7 +37,7 @@ namespace BlockPet.EditorTools.TopBar
         const string HudName = "TopBarHUD";
 
         // 先放進字型的字（其他字在執行時動態補）
-        const string PrewarmChars = "BowLv0123456789+%！？…・想吃美食自然城市生活人物寵物進化可點我復活旅行圖鑑設定 ";
+        const string PrewarmChars = "BowLv0123456789+%！？…・想吃美食自然城市生活人物寵物進化可點我復活旅行寄明信片圖鑑設定 ";
 
         [MenuItem("BlockPet/Build TopBar")]
         public static void Build()
@@ -706,7 +706,7 @@ namespace BlockPet.EditorTools.TopBar
             Set(toggle, "items", items);
             Set(toggle, "itemsGroup", itemsGroup);
             if (buttons.TryGetValue("佈置", out var decor)) Set(toggle, "decorButton", decor);
-            if (buttons.TryGetValue("旅行", out var travel)) Set(toggle, "travelButton", travel);
+            if (buttons.TryGetValue("寄明信片", out var travel) || buttons.TryGetValue("旅行", out travel)) Set(toggle, "travelButton", travel);
             if (buttons.TryGetValue("圖鑑", out var dex)) Set(toggle, "dexButton", dex);
             if (buttons.TryGetValue("設定", out var settings)) Set(toggle, "settingsButton", settings);
             return menu;

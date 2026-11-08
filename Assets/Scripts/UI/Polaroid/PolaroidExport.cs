@@ -16,9 +16,28 @@ namespace BlockPet.UI.Polaroid
         const int Layer = 31;          // 只畫這一層，不會畫到營地或其他畫面
         const int JpgQuality = 92;
 
-        public static byte[] Render(Texture photo, PolaroidStyle style, IEnumerable<PolaroidSticker> stickers, PolaroidSkin skin, TMP_FontAsset font, System.DateTime photoTime, bool fisheye = false)
+        public static byte[] Render(Texture photo, PolaroidStyle style, IEnumerable<PolaroidSticker> stickers, PolaroidSkin skin, TMP_FontAsset font, System.DateTime photoTime, bool fisheye = false, int scale = Scale)
         {
-            int w = Mathf.RoundToInt(PolaroidRules.CardW * Scale), h = Mathf.RoundToInt(PolaroidRules.CardH * Scale);
+            int w = Mathf.RoundToInt(PolaroidRules.CardW * scale), h = Mathf.RoundToInt(PolaroidRules.CardH * scale);
+            return RenderUI(w, h, holder =>
+            {
+                var card = new PolaroidCard(holder, skin, font, false);
+                card.root.anchorMin = card.root.anchorMax = new Vector2(0.5f, 0.5f);
+                card.root.pivot = new Vector2(0.5f, 0.5f);
+                card.root.anchoredPosition = Vector2.zero;
+                card.root.localScale = Vector3.one * scale;
+                card.ApplyStyle(style, false, photoTime);
+                card.SetPhoto(photo, fisheye); // 魚眼一起套進下載的圖
+                card.RebuildStickers(stickers);
+            });
+        }
+
+        /// <summary>
+        /// 在畫面外把一組 UI 畫成 w × h 的 JPG（build 在 holder 裡建 UI；holder 是整張圖、中心對齊、1 單位＝1 像素）。
+        /// 寄明信片的風景明信片也用這個（TravelScreen.Postcard）。
+        /// </summary>
+        public static byte[] RenderUI(int w, int h, System.Action<RectTransform> build, int quality = JpgQuality)
+        {
             var rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
             var camGo = new GameObject("PolaroidExportCam");
             camGo.transform.position = new Vector3(100000f, 100000f, -10f);
@@ -39,14 +58,7 @@ namespace BlockPet.UI.Polaroid
             {
                 Canvas.ForceUpdateCanvases();
                 var holder = PUI.Stretch(canvasGo.transform, "Holder");
-                var card = new PolaroidCard(holder, skin, font, false);
-                card.root.anchorMin = card.root.anchorMax = new Vector2(0.5f, 0.5f);
-                card.root.pivot = new Vector2(0.5f, 0.5f);
-                card.root.anchoredPosition = Vector2.zero;
-                card.root.localScale = Vector3.one * Scale;
-                card.ApplyStyle(style, false, photoTime);
-                card.SetPhoto(photo, fisheye); // 魚眼一起套進下載的圖
-                card.RebuildStickers(stickers);
+                build(holder);
                 SetLayer(canvasGo.transform, Layer);
 
                 Canvas.ForceUpdateCanvases();
@@ -60,7 +72,7 @@ namespace BlockPet.UI.Polaroid
                 tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
                 tex.Apply();
                 RenderTexture.active = prev;
-                var jpg = tex.EncodeToJPG(JpgQuality);
+                var jpg = tex.EncodeToJPG(quality);
                 Kill(tex);
                 return jpg;
             }

@@ -133,7 +133,7 @@ namespace BlockPet.UI.TopBar
         public float menuItemWidth = 52;
         public float menuLabelGap = 2;
         public float menuPopSec = 0.22f;
-        public List<string> menuOrder = new List<string> { "佈置", "旅行", "圖鑑", "設定" };
+        public List<string> menuOrder = new List<string> { "佈置", "旅行", "圖鑑", "設定" }; // 「旅行」打開明信片地圖（5.21；2026-11-08 使用者：選單的字維持「旅行」）
 
         [Header("Home 鍵（相對畫面左上；設計文件 5.7）")]
         public float homeLeftMargin = 10;
@@ -191,6 +191,7 @@ namespace BlockPet.UI.TopBar
             switch (label)
             {
                 case "佈置": return iconDecor;
+                case "寄明信片":
                 case "旅行": return iconTravel;
                 case "圖鑑": return iconDex;
                 case "設定": return iconSettings;

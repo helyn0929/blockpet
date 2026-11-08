@@ -1,0 +1,8 @@
+{
+  "drawFreePerDay": 1,
+  "drawPrice": 50,
+  "friendLimit": 10,
+  "unlockPrice": 100,
+  "unlockSlots": 1,
+  "confirmExpireHours": 24
+}

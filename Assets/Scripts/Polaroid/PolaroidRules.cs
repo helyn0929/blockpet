@@ -147,9 +147,12 @@ namespace BlockPet.Polaroid
         /// <summary>Y2K 日期戳「'YY MM DD」（用照片拍的那天）。</summary>
         public static string DateStamp(DateTime t) => $"'{t.Year % 100:00} {t.Month:00} {t.Day:00}";
 
-        /// <summary>畫框、濾鏡、標題只有拍照的人能改（舊照片沒記拍照的人：誰都不能改）。</summary>
+        /// <summary>標題只有拍照的人能改（舊照片沒記拍照的人：誰都不能改）。</summary>
         public static bool CanStyle(string photoOwner, string me) =>
             !string.IsNullOrEmpty(photoOwner) && !string.IsNullOrEmpty(me) && photoOwner == me;
+
+        /// <summary>畫框、濾鏡營地成員都能換（2026-11-08 使用者決定；原本只有拍照的人能換）。</summary>
+        public static bool CanFrameFilter(string me) => !string.IsNullOrEmpty(me);
 
         /// <summary>自己的貼紙才能拖、撕。</summary>
         public static bool CanEditSticker(PolaroidSticker s, string me) =>
@@ -190,6 +193,19 @@ namespace BlockPet.Polaroid
             int n = 0;
             while (e.MoveNext() && n < CaptionMax) { sb.Append(e.GetTextElement()); n++; }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 這張照片在拍立得畫面裝飾過嗎（寄明信片 5.21：裝飾過的直接用、縮圖右下有小拍立得記號）：
+        /// 有貼紙、換過畫框、套了濾鏡、或寫了標題。
+        /// </summary>
+        public static bool IsDecorated(PolaroidStyle style, int stickerCount)
+        {
+            if (stickerCount > 0) return true;
+            if (style == null) return false;
+            return (!string.IsNullOrEmpty(style.frame) && style.frame != DefaultFrame)
+                || HasFilter(style.filter)
+                || !string.IsNullOrWhiteSpace(style.caption);
         }
 
         /// <summary>照片檔名 → Firebase 可以用的鍵（. # $ [ ] / 換成 _xx 十六進位，不會兩個檔名撞在一起）。</summary>

@@ -1,0 +1,83 @@
+{
+ "doc": "設計文件 5.21 寄明信片（2026-11-08）；設計稿頁面「寄明信片」，元件 Postcard（view=draw/waiting/incoming/pick/reply/back/passport）",
+ "rules": {
+  "draw_free_per_day": 1,
+  "draw_extra": "金幣（價格待定，設計稿 50）",
+  "friend_limit": 10,
+  "match": "依興趣（最常拍的類別一樣優先）、國家隨機",
+  "visible_on_match": [
+   "營地名稱",
+   "寵物圖",
+   "品種",
+   "成員數",
+   "最常拍的類別",
+   "國家"
+  ],
+  "both_confirm": true,
+  "confirm_expire_h": "24（暫定）",
+  "face_block": "iOS Vision／Android ML Kit 人臉偵測；有臉的照片變灰不能選",
+  "postcard": "拍立得（5.26）；已裝飾過的直接用裝飾好的版本，寄出當下的版本固定",
+  "reply_timeout_h": 24,
+  "timeout_fallback": "對方營地風景明信片（營地＋寵物畫面，自動產生）",
+  "storage": "護照（不進相簿、不能拿來餵）",
+  "block_report": true
+ },
+ "draw_card": {
+  "x": 40,
+  "y": 128,
+  "w": 310,
+  "h": 456,
+  "radius": 26,
+  "scene_h": 230,
+  "flip": "0.7s rotateY 90→0"
+ },
+ "pick_sheet": {
+  "h": 640,
+  "radius": 26,
+  "grid_cols": 3,
+  "gap": 8,
+  "cell_radius": 12,
+  "face": "grayscale + rgba(240,234,224,0.72) 遮罩",
+  "selected_ring": "3 #F6C945"
+ },
+ "back_card": {
+  "x": 62,
+  "y": 168,
+  "w": 266,
+  "h": 324,
+  "photo": [
+   14,
+   18,
+   238,
+   238
+  ],
+  "caption_y": 262,
+  "pop": "0.6s，轉 −6°",
+  "stamp": [
+   186,
+   -14,
+   58,
+   "rotate 8°"
+  ],
+  "postmark": [
+   150,
+   6,
+   92,
+   "rotate −14°，0.5s 後蓋下"
+  ]
+ },
+ "passport": {
+  "bg": "#2E4686",
+  "page": "#F2E6CB",
+  "row": "每個好友一排：頭像 30＋營地名 14 Black #2E4686＋數量 11",
+  "card": [
+   92,
+   112
+  ],
+  "gap": 12,
+  "tilt_deg": [
+   -4,
+   3
+  ]
+ }
+}

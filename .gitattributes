@@ -1,0 +1,70 @@
+# Mac 和 PC 協作：倉庫和工作目錄的文字檔一律用 LF，避免整檔「全部改過」的假差異。
+* text=auto eol=lf
+
+# Unity 文字資源（YAML）
+*.unity    text eol=lf
+*.prefab   text eol=lf
+*.asset    text eol=lf
+*.meta     text eol=lf
+*.mat      text eol=lf
+*.anim     text eol=lf
+*.controller text eol=lf
+*.overrideController text eol=lf
+*.physicMaterial text eol=lf
+*.playable text eol=lf
+*.mask     text eol=lf
+*.spriteatlas text eol=lf
+
+# 程式與設定
+*.cs       text eol=lf diff=csharp
+*.shader   text eol=lf
+*.cginc    text eol=lf
+*.hlsl     text eol=lf
+*.uss      text eol=lf
+*.uxml     text eol=lf
+*.json     text eol=lf
+*.asmdef   text eol=lf
+*.asmref   text eol=lf
+*.swift    text eol=lf
+*.m        text eol=lf
+*.mm       text eol=lf
+*.h        text eol=lf
+*.md       text eol=lf
+*.sh       text eol=lf
+
+# Windows 專用腳本保留 CRLF
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf
+
+# 二進位檔
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.psd      binary
+*.tga      binary
+*.tif      binary
+*.tiff     binary
+*.exr      binary
+*.hdr      binary
+*.webp     binary
+*.fbx      binary
+*.FBX      binary
+*.obj      binary
+*.blend    binary
+*.wav      binary
+*.mp3      binary
+*.ogg      binary
+*.mp4      binary
+*.mov      binary
+*.ttf      binary
+*.otf      binary
+*.dll      binary
+*.so       binary
+*.a        binary
+*.bundle   binary
+*.skel     binary
+*.bytes    binary
+*.zip      binary
+*.unitypackage binary

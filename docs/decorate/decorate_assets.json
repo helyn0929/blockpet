@@ -1,0 +1,194 @@
+[
+ {
+  "file": "deco_tile_normal",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "一般格子（菱形 60×30，錨點在中心）"
+ },
+ {
+  "file": "deco_tile_ok",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "可以放（Unity 做 1.4 秒閃爍）"
+ },
+ {
+  "file": "deco_tile_target",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "要放的那格"
+ },
+ {
+  "file": "deco_tile_occupied",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "家具佔的格子"
+ },
+ {
+  "file": "deco_tile_selected",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "選到的家具佔的格子"
+ },
+ {
+  "file": "deco_tile_blocked",
+  "size_1x": [
+   60,
+   30
+  ],
+  "png_px": [
+   180,
+   90
+  ],
+  "use": "不能放"
+ },
+ {
+  "file": "deco_dim",
+  "size_1x": [
+   4,
+   4
+  ],
+  "png_px": [
+   12,
+   12
+  ],
+  "use": "佈置時營地變暗的遮罩（拉滿全畫面）"
+ },
+ {
+  "file": "deco_icon_build",
+  "size_1x": [
+   20,
+   20
+  ],
+  "png_px": [
+   60,
+   60
+  ],
+  "use": "「佈置」按鈕圖示"
+ },
+ {
+  "file": "deco_btn_pill",
+  "size_1x": [
+   46,
+   46
+  ],
+  "png_px": [
+   138,
+   138
+  ],
+  "use": "「佈置」按鈕底（9-slice 69；陰影 0 4 12 rgba(30,40,20,0.3) 另加）"
+ },
+ {
+  "file": "deco_btn_done",
+  "size_1x": [
+   38,
+   38
+  ],
+  "png_px": [
+   114,
+   114
+  ],
+  "use": "「完成」按鈕底（9-slice 57；下緣 0 3 0 #4A7A3F 另加）"
+ },
+ {
+  "file": "deco_topbar",
+  "size_1x": [
+   4,
+   64
+  ],
+  "png_px": [
+   12,
+   192
+  ],
+  "use": "佈置中上方列底（拉寬）"
+ },
+ {
+  "file": "deco_panel",
+  "size_1x": [
+   60,
+   60
+  ],
+  "png_px": [
+   180,
+   180
+  ],
+  "use": "下方「還沒擺出來的家具」面板（9-slice 上 66 左右 66）"
+ },
+ {
+  "file": "deco_card",
+  "size_1x": [
+   80,
+   92
+  ],
+  "png_px": [
+   240,
+   276
+  ],
+  "use": "面板裡的家具卡"
+ },
+ {
+  "file": "deco_card_ring",
+  "size_1x": [
+   86,
+   98
+  ],
+  "png_px": [
+   258,
+   294
+  ],
+  "use": "選到的家具卡外框"
+ },
+ {
+  "file": "deco_tag_dark",
+  "size_1x": [
+   20,
+   20
+  ],
+  "png_px": [
+   60,
+   60
+  ],
+  "use": "家具上方小標「營火・點綠色格子移過去」（字 11 Black #FFF8EC）"
+ },
+ {
+  "file": "deco_shadow",
+  "size_1x": [
+   60,
+   12
+  ],
+  "png_px": [
+   180,
+   36
+  ],
+  "use": "家具腳下的影子（寬度跟底座）"
+ }
+]

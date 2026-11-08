@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 291f4f6974e894461a184997a8d1413c, type: 3}
+  m_Name: DecorateSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  tileNormal: {fileID: 21300000, guid: fbc1f2b311e9b48fb9307ce08643daca, type: 3}
+  tileOk: {fileID: 21300000, guid: 2bd422576dcc74545906266fe798a8c1, type: 3}
+  tileTarget: {fileID: 21300000, guid: eac4a97b376314c27a031996b1f38f86, type: 3}
+  tileOccupied: {fileID: 21300000, guid: 368278ece8d2e4f48adb0c4e3d4473af, type: 3}
+  tileSelected: {fileID: 21300000, guid: bd41dc6464db44297bccd2bb8b46742d, type: 3}
+  tileBlocked: {fileID: 21300000, guid: 4d7887e58da4c4fb1ac0c6585eb3ee9d, type: 3}
+  dim: {fileID: 21300000, guid: 7432c8387408548038f65160ba5321c5, type: 3}
+  iconBuild: {fileID: 21300000, guid: 69f7b9cc76d6e488e923ae996d35081d, type: 3}
+  btnPill: {fileID: 21300000, guid: 8eeca3e5e043e49d28b49ce7367ec24d, type: 3}
+  btnDone: {fileID: 21300000, guid: 028fb98f6fa5b428588b5609c1ee7087, type: 3}
+  topbar: {fileID: 21300000, guid: 258412eccebd349258b6e56ae8f28299, type: 3}
+  panel: {fileID: 21300000, guid: b194d6c150a214f7f8e30344ba0da004, type: 3}
+  card: {fileID: 21300000, guid: 99fdf77aead3d45f1971fb7479ab0e66, type: 3}
+  cardRing: {fileID: 21300000, guid: e7641fb5ebc44437488ebee249b1e5b0, type: 3}
+  tagDark: {fileID: 21300000, guid: b86646dfccb404e7b868defd583d8f12, type: 3}
+  shadow: {fileID: 21300000, guid: 3f187d92924954e4aaa98a9b7b893d00, type: 3}

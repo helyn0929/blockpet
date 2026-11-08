@@ -1,0 +1,14 @@
+{
+    "name": "BlockPet.CampGrid",
+    "rootNamespace": "BlockPet.Decoration",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

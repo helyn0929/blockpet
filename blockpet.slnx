@@ -1,6 +1,7 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="AppleAuth.csproj" />
+  <Project Path="BlockPet.CampGrid.csproj" />
   <Project Path="BlockPet.Tests.EditMode.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Firebase.App.Internal.csproj" />

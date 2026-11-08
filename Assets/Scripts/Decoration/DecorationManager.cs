@@ -33,6 +33,23 @@ namespace BlockPet.Decoration
         public bool IsListening => _isListening;
         /// <summary>目前空間擺了幾件裝飾（商店顯示「營地空位」用）。</summary>
         public int PlacedCount => _spawned.Count;
+        /// <summary>目前空間的家具（decorId → 物件）。</summary>
+        public IReadOnlyDictionary<string, DecorationObject> Spawned => _spawned;
+        public DecorationDatabase Database => database;
+
+        /// <summary>這個營地的格子表（設計文件 5.28；Resources/Camp/CampGrid_forest，之後依營地場景換）。</summary>
+        public CampGrid Grid
+        {
+            get
+            {
+                if (_grid == null) _grid = CampGrid.Load("forest");
+                return _grid;
+            }
+        }
+        CampGrid _grid;
+
+        /// <summary>家具擺好、移動、收回時（佈置畫面重算格子用）。</summary>
+        public event Action OnLayoutChanged;
 
         /// <summary>Fired right after a brand-new decoration is instantiated and Init()'d (not on position updates).</summary>
         public event Action<DecorationObject, DecorationItem> OnDecorationSpawned;
@@ -183,6 +200,8 @@ namespace BlockPet.Decoration
             float  rotation     = ParseFloat(snap.Child("rotation").Value);
             int    sortingOrder = ParseInt(snap.Child("sortingOrder").Value);
             string placedBy     = snap.Child("placedBy").Value?.ToString() ?? "";
+            bool   hasGrid      = snap.HasChild("gi") && snap.HasChild("gj");
+            var    anchor       = new Cell(ParseInt(snap.Child("gi").Value), ParseInt(snap.Child("gj").Value));
 
             DecorationItem item = database.GetById(itemId);
             if (item == null) { Debug.LogWarning($"[DecorationManager] Unknown itemId: {itemId}"); return; }
@@ -192,6 +211,9 @@ namespace BlockPet.Decoration
                 existing.transform.position = new Vector3(x, y, 0f);
                 existing.transform.rotation = Quaternion.Euler(0f, 0f, rotation);
                 existing.GetComponent<SpriteRenderer>().sortingOrder = sortingOrder;
+                existing.SetGrid(hasGrid, anchor);
+                DecorationLayout.Apply(existing, item, Grid);
+                OnLayoutChanged?.Invoke();
             }
             else
             {
@@ -204,8 +226,11 @@ namespace BlockPet.Decoration
                 var obj = go.GetComponent<DecorationObject>();
                 obj.Init(decorId, itemId, placedBy, item.worldSprite, sortingOrder);
                 obj.OnDeleteRequested += HandleDeleteRequested;
+                obj.SetGrid(hasGrid, anchor);
+                DecorationLayout.Apply(obj, item, Grid);
                 _spawned[decorId] = obj;
                 OnDecorationSpawned?.Invoke(obj, item);
+                OnLayoutChanged?.Invoke();
             }
         }
 
@@ -216,6 +241,7 @@ namespace BlockPet.Decoration
             OnDecorationRemoved?.Invoke(decorId);
             Destroy(obj.gameObject);
             _spawned.Remove(decorId);
+            OnLayoutChanged?.Invoke();
         }
 
         void HandleDeleteRequested(DecorationObject obj)
@@ -255,6 +281,47 @@ namespace BlockPet.Decoration
                 });
             });
         }
+
+        // ─── 格子（設計文件 5.28）─────────────────────────────────────────
+
+        /// <summary>新家具擺到格子上（從「還沒擺出來的家具」）：寫格子座標，x、y 也寫（舊版相容）。</summary>
+        public void PlaceOnGrid(DecorationItem item, Cell anchor, Action<bool, string> onDone)
+        {
+            var newRef = _decorRef.Push();
+            string decorId = newRef.Key;
+            var world = DecorationLayout.FootWorld(item, anchor, Grid);
+            var data = new Dictionary<string, object>
+            {
+                { "itemId", item.itemId }, { "gi", anchor.i }, { "gj", anchor.j },
+                { "x", world.x }, { "y", world.y }, { "rotation", 0f },
+                { "sortingOrder", 0 }, { "placedBy", _localUserId },
+                { "createdAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
+            };
+            newRef.SetValueAsync(data).ContinueWith(task =>
+            {
+                bool ok = !task.IsFaulted && !task.IsCanceled;
+                lock (_mainQueue) _mainQueue.Enqueue(() => onDone?.Invoke(ok, ok ? decorId : null));
+            });
+        }
+
+        /// <summary>家具移到另一格（或舊的自由擺放家具第一次擺到格子上）。本地先移好，其他成員收到 ChildChanged 跟著移。</summary>
+        public void MoveOnGrid(string decorId, Cell anchor, Action<bool> onDone)
+        {
+            if (!_spawned.TryGetValue(decorId, out var obj)) { onDone?.Invoke(false); return; }
+            var item = database.GetById(obj.ItemId);
+            var world = DecorationLayout.FootWorld(item, anchor, Grid);
+            obj.SetGrid(true, anchor);
+            DecorationLayout.Apply(obj, item, Grid);
+            OnLayoutChanged?.Invoke();
+            var data = new Dictionary<string, object> { { "gi", anchor.i }, { "gj", anchor.j }, { "x", world.x }, { "y", world.y } };
+            _decorRef.Child(decorId).UpdateChildrenAsync(data).ContinueWith(task =>
+            {
+                bool ok = !task.IsFaulted && !task.IsCanceled;
+                lock (_mainQueue) _mainQueue.Enqueue(() => onDone?.Invoke(ok));
+            });
+        }
+
+        public string LocalUserId => _localUserId;
 
         // ─── Move ──────────────────────────────────────────────────────
 

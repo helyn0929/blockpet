@@ -188,7 +188,19 @@ public class AIController : MonoBehaviour, IEditModeFreezable
 
     void ApplyYSort()
     {
-        _sr.sortingOrder = sortingBase - Mathf.RoundToInt(transform.position.y * sortingScale);
+        _sr.sortingOrder = SortOrderForY(transform.position.y);
+    }
+
+    /// <summary>
+    /// 前後順序（設計文件 5.28 ③）：腳越低越前面。家具用底座最下角的高度、寵物用腳的位置，同一套公式，
+    /// 所以和 i + j + 寬 + 深 越大越前面的規則一樣。
+    /// </summary>
+    public static int SortOrderForY(float worldY)
+    {
+        var a = Instance;
+        int b = a != null ? a.sortingBase : 0;
+        float k = a != null ? a.sortingScale : 100f;
+        return b - Mathf.RoundToInt(worldY * k);
     }
 
     public State CurrentState => _state;

@@ -1,0 +1,254 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ae9deef163064e55af08d7a2c4eb3b4, type: 3}
+  m_Name: CampGrid_forest
+  m_EditorClassIdentifier: 
+  sceneId: forest
+  worldOrigin: {x: 0.13224667, y: 0.22461537}
+  tileWorldWidth: 0.79384613
+  cells:
+  - i: -4
+    j: 1
+  - i: -4
+    j: 2
+  - i: -3
+    j: 0
+  - i: -3
+    j: 1
+  - i: -3
+    j: 2
+  - i: -3
+    j: 3
+  - i: -2
+    j: -1
+  - i: -2
+    j: 0
+  - i: -2
+    j: 1
+  - i: -2
+    j: 2
+  - i: -2
+    j: 3
+  - i: -2
+    j: 4
+  - i: -1
+    j: -2
+  - i: -1
+    j: -1
+  - i: -1
+    j: 0
+  - i: -1
+    j: 1
+  - i: -1
+    j: 2
+  - i: -1
+    j: 3
+  - i: -1
+    j: 4
+  - i: -1
+    j: 5
+  - i: 0
+    j: -3
+  - i: 0
+    j: -2
+  - i: 0
+    j: -1
+  - i: 0
+    j: 0
+  - i: 0
+    j: 1
+  - i: 0
+    j: 2
+  - i: 0
+    j: 3
+  - i: 0
+    j: 4
+  - i: 0
+    j: 5
+  - i: 0
+    j: 6
+  - i: 1
+    j: -4
+  - i: 1
+    j: -3
+  - i: 1
+    j: -2
+  - i: 1
+    j: -1
+  - i: 1
+    j: 0
+  - i: 1
+    j: 1
+  - i: 1
+    j: 2
+  - i: 1
+    j: 3
+  - i: 1
+    j: 4
+  - i: 1
+    j: 5
+  - i: 1
+    j: 6
+  - i: 1
+    j: 7
+  - i: 2
+    j: -3
+  - i: 2
+    j: -2
+  - i: 2
+    j: -1
+  - i: 2
+    j: 0
+  - i: 2
+    j: 1
+  - i: 2
+    j: 2
+  - i: 2
+    j: 3
+  - i: 2
+    j: 4
+  - i: 2
+    j: 5
+  - i: 2
+    j: 6
+  - i: 2
+    j: 7
+  - i: 2
+    j: 8
+  - i: 3
+    j: -2
+  - i: 3
+    j: -1
+  - i: 3
+    j: 0
+  - i: 3
+    j: 1
+  - i: 3
+    j: 2
+  - i: 3
+    j: 3
+  - i: 3
+    j: 4
+  - i: 3
+    j: 5
+  - i: 3
+    j: 6
+  - i: 3
+    j: 7
+  - i: 3
+    j: 8
+  - i: 3
+    j: 9
+  - i: 4
+    j: -1
+  - i: 4
+    j: 0
+  - i: 4
+    j: 1
+  - i: 4
+    j: 2
+  - i: 4
+    j: 3
+  - i: 4
+    j: 4
+  - i: 4
+    j: 5
+  - i: 4
+    j: 6
+  - i: 4
+    j: 7
+  - i: 4
+    j: 8
+  - i: 4
+    j: 9
+  - i: 4
+    j: 10
+  - i: 5
+    j: 0
+  - i: 5
+    j: 1
+  - i: 5
+    j: 2
+  - i: 5
+    j: 3
+  - i: 5
+    j: 4
+  - i: 5
+    j: 5
+  - i: 5
+    j: 6
+  - i: 5
+    j: 7
+  - i: 5
+    j: 8
+  - i: 5
+    j: 9
+  - i: 5
+    j: 10
+  - i: 6
+    j: 1
+  - i: 6
+    j: 2
+  - i: 6
+    j: 3
+  - i: 6
+    j: 4
+  - i: 6
+    j: 5
+  - i: 6
+    j: 6
+  - i: 6
+    j: 7
+  - i: 6
+    j: 8
+  - i: 6
+    j: 9
+  - i: 7
+    j: 2
+  - i: 7
+    j: 3
+  - i: 7
+    j: 4
+  - i: 7
+    j: 5
+  - i: 7
+    j: 6
+  - i: 7
+    j: 7
+  - i: 7
+    j: 8
+  - i: 8
+    j: 3
+  - i: 8
+    j: 4
+  - i: 8
+    j: 5
+  - i: 8
+    j: 6
+  - i: 8
+    j: 7
+  - i: 9
+    j: 4
+  - i: 9
+    j: 5
+  - i: 9
+    j: 6
+  - i: 10
+    j: 5
+  blocked: []
+  extensions:
+  - unlockItemId: exp_flower
+    cells: []
+    blocked: []
+  - unlockItemId: exp_lake
+    cells: []
+    blocked: []

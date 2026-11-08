@@ -12,6 +12,18 @@ namespace BlockPet.Decoration
         public string ItemId   { get; private set; }
         public string PlacedBy { get; private set; }
 
+        /// <summary>擺在格子上（設計文件 5.28）：底座最上面那格。沒有格子座標的是舊的自由擺放，佈置時當作還沒擺出來。</summary>
+        public bool HasGrid { get; private set; }
+        public Cell Anchor { get; private set; }
+
+        public void SetGrid(bool has, Cell anchor)
+        {
+            HasGrid = has;
+            Anchor = anchor;
+        }
+
+        public SpriteRenderer Renderer => _sr;
+
         SpriteRenderer _sr;
 
         // ─── Events ────────────────────────────────────────────────────

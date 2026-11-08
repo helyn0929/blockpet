@@ -32,6 +32,8 @@ namespace BlockPet.EditorTools.TopBar
         public const string Home9Folder = "Assets/Art/UI/Home9/Sprites/";
         /// <summary>拍立得分割畫面（設計文件 5.26；docs/polaroid/polaroid_assets.json）</summary>
         public const string PolaroidFolder = "Assets/Art/UI/Polaroid/Sprites/";
+        /// <summary>佈置營地（設計文件 5.28；docs/decorate/decorate_assets.json）</summary>
+        public const string DecorateFolder = "Assets/Art/UI/Decorate/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -142,17 +144,22 @@ namespace BlockPet.EditorTools.TopBar
             { "pl_toast", new Vector4(51, 51, 51, 51) },
             { "pl_pill_comment", new Vector4(45, 45, 45, 45) },
             { "pl_tag_cat", new Vector4(42, 42, 42, 42) },
+            // 佈置營地（decorate_assets.json：佈置鈕 69、完成 57、面板上 66 左右 66）
+            { "deco_btn_pill", new Vector4(69, 69, 69, 69) },
+            { "deco_btn_done", new Vector4(57, 57, 57, 57) },
+            { "deco_panel", new Vector4(66, 0, 66, 66) },
+            { "deco_tag_dark", new Vector4(27, 27, 27, 27) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 14;
+        public override uint GetVersion() => 15;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
             if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
                    || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder) || path.StartsWith(Home9Folder)
-                   || path.StartsWith(PolaroidFolder))
+                   || path.StartsWith(PolaroidFolder) || path.StartsWith(DecorateFolder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -191,6 +198,7 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(TravelFolder);
             ReimportFolder(Home9Folder);
             ReimportFolder(PolaroidFolder);
+            ReimportFolder(DecorateFolder);
         }
 
         public static void ReimportFolder(string folder)

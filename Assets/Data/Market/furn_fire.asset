@@ -21,3 +21,6 @@ MonoBehaviour:
   pivotOffset: {x: 0, y: 0}
   defaultSortingOrder: 0
   worldScale: 2
+  footprintW: 1
+  footprintD: 1
+  hangPoint: 0

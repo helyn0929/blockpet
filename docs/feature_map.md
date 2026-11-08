@@ -122,10 +122,17 @@
 - 畫面：商店穿搭分頁（`MarketScreenController`：試穿預覽、穿上／脫下來）；首頁寵物身上 `Scripts/UI/Home/OutfitHomeOverlay.cs`（執行時自動建立，跟著寵物位置、翻面）；佔位圖 `Scripts/UI/Market/OutfitArt.cs`（正式美術還沒出）
 - 和 11-06 刪除的「從照片撿裝飾」無關
 
-### 佈置家具
-- Scene：Feed.unity
+### 佈置家具（設計文件 5.28 佈置營地：斜角格子）
+- Scene：Feed.unity（`RoomEditorController` 掛在 HomePage；畫面執行時建立，sortingOrder 12）
 - 主要 Prefab：`Assets/Art/UI/Mainroom_UI/DecorationObject.prefab`
-- 主要腳本：`Scripts/Decoration/DecorationManager.cs`、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/UI/Home/RoomEditorController.cs`、`Scripts/UI/Home/DecorationPickerController.cs`（`Art/UI/Mainroom_UI/DecorationPicker.uxml`）、`Scripts/UI/TopBar/DecorModeSettings.cs`
+- 主要腳本：`Scripts/Decoration/DecorationManager.cs`（`PlaceOnGrid`／`MoveOnGrid`、編輯鎖）、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/Decoration/DecorationLayout.cs`（家具在格子上的位置、大小、前後、影子）、`Scripts/UI/Home/RoomEditorController.cs`（右下「佈置」鈕、佈置畫面與流程）、`Scripts/UI/TopBar/DecorModeSettings.cs`
+- 格子規則：`Scripts/Decoration/Grid/CampGridRules.cs`（獨立組件 `BlockPet.CampGrid`：`GridMath` 座標、底座、放得下、前後、圖片位置；測試 `Tests/EditMode/CampGridRulesTests.cs`）
+- 格子表：`Scripts/Decoration/Grid/CampGrid.cs`，檔案 `Assets/Resources/Camp/CampGrid_forest.asset`；在 Unity 選到它，在 Scene 畫面用滑鼠點格子標「存在／不能放／擴建」（`Assets/Editor/Decorate/CampGridEditor.cs`，選單 BlockPet/Decorate/Create Forest Camp Grid）
+- 家具底座：`DecorationItem` 的 `footprintW`／`footprintD`／`hangPoint`（`Assets/Data/Market/furn_*.asset`）
+- 素材：`Assets/Resources/UI/DecorateSkin.asset`（`Assets/Editor/Decorate/DecorateSkinBuilder.cs` 從 `Assets/Art/UI/Decorate/Sprites/` 自動填）
+- 資料：`Rooms/{room}/decorations/{id}` 多了 `gi`、`gj`（底座最上面那格）；沒有格子座標的舊家具不顯示，佈置時列在「還沒擺出來的家具」
+- 寵物和家具前後用同一套：`AIController.SortOrderForY`
+- 舊的自由擺放 `Scripts/UI/Home/DecorationPickerController.cs`（`Art/UI/Mainroom_UI/DecorationPicker.uxml`）不再顯示，保留接線
 - `Assets/Prefabs/Livingroom.prefab` 沒有被引用，待確認
 
 ### 設定

@@ -1,0 +1,101 @@
+{
+ "doc": "設計文件 5.28 佈置營地；設計稿頁面「佈置營地」，元件 Decorate",
+ "tile_1x": [
+  60,
+  30
+ ],
+ "axes": {
+  "i": "down-right (+30, +15)",
+  "j": "down-left (-30, +15)"
+ },
+ "cell_center": "x = OX + (i - j) * 30, y = OY + (i + j + 1) * 15",
+ "origin_mockup": [
+  205,
+  370
+ ],
+ "area_mockup": {
+  "center_x": [
+   15,
+   378
+  ],
+  "center_y": [
+   335,
+   625
+  ],
+  "cells": 120,
+  "placeable": 79,
+  "blocked": 41
+ },
+ "grid_table": "每個場景一張：存在的格子＋不能放的格子，由美術在 Unity 標（建議 ScriptableObject）",
+ "furniture_footprint": {
+  "tent": [
+   2,
+   2
+  ],
+  "hammock": [
+   2,
+   1
+  ],
+  "mat": [
+   2,
+   1
+  ],
+  "screen": [
+   2,
+   1
+  ],
+  "fire": [
+   1,
+   1
+  ],
+  "easel": [
+   1,
+   1
+  ],
+  "lantern": [
+   1,
+   1
+  ],
+  "mailbox": [
+   1,
+   1
+  ],
+  "lights": "hang point"
+ },
+ "anchor": "底座中心；圖片底部對齊底座最下角往上 6，寬約 (w+d)*30*0.86、高＝寬*0.8",
+ "z_order": "依 i + j + w + d，越大越前面",
+ "fits_rule": "底座蓋到的每一格都要存在、不是 blocked、沒被其他家具佔用（自己原本的位置可以）",
+ "edit_mode": {
+  "dim": "rgba(20,30,10,0.18)",
+  "topbar_h": 64,
+  "panel_h": 150,
+  "pet_opacity": 0.5,
+  "ok_pulse_s": 1.4
+ },
+ "colors": {
+  "normal": [
+   "#FFFFFF 55%",
+   "#FFFFFF 12%"
+  ],
+  "ok": [
+   "#B8F5A0",
+   "rgba(140,230,110,0.32)"
+  ],
+  "target": [
+   "#FFFFFF",
+   "rgba(140,230,110,0.75)"
+  ],
+  "occupied": [
+   "#FFF8EC 95%",
+   "rgba(255,248,236,0.45)"
+  ],
+  "selected": [
+   "#F6C945",
+   "rgba(246,201,69,0.45)"
+  ],
+  "blocked": [
+   "rgba(255,180,163,0.45)",
+   "rgba(232,107,79,0.18)"
+  ]
+ }
+}

@@ -99,6 +99,8 @@ namespace BlockPet.Hand
         readonly List<Card> _photoCards = new List<Card>();
         Card _selected;
         bool _dealt;
+        /// <summary>手牌正在展開（首頁右下的「佈置」鈕這時讓開）。</summary>
+        public bool IsDealt => _dealt;
         RectTransform _backdrop;
         CanvasGroup _backdropGroup;
         TMP_Text _hint;

@@ -189,7 +189,7 @@ namespace BlockPet.UI.Polaroid
                 _hearts[i].color = sp != null ? Color.white : (v >= 0.5f ? PUI.Hex(0xF06B5B) : PUI.Hex(0xE6D9C3));
             }
 
-            // 進化條：五色分段（同 5.5），段間隔 1
+            // 進化條：五色分段（同 5.5），段與段緊貼不留白（2026-11-08 改）
             for (int i = _evoFill.childCount - 1; i >= 0; i--) Kill(_evoFill.GetChild(i).gameObject);
             if (cfg != null && cfg.segments.Count > 0)
             {
@@ -200,7 +200,7 @@ namespace BlockPet.UI.Polaroid
                 {
                     float w = 84f * Mathf.Clamp01(e[i] / 100f);
                     if (w < 0.5f) continue;
-                    var seg = PUI.Place(_evoFill, "Seg", x, 0, Mathf.Max(0f, w - 1f), 7).gameObject.AddComponent<Image>();
+                    var seg = PUI.Place(_evoFill, "Seg", x, 0, w, 7).gameObject.AddComponent<Image>();
                     seg.color = cfg.segments[i].color;
                     seg.raycastTarget = false;
                     x += w;

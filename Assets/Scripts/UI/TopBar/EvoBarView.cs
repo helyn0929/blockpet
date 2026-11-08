@@ -136,7 +136,7 @@ namespace BlockPet.UI.TopBar
                 rt.pivot = new Vector2(0f, 0.5f);
                 rt.anchoredPosition = new Vector2(x, 0f);
                 rt.sizeDelta = new Vector2(segW, 0f);
-                // CSS flex gap：每段之間都留 1（包含寬度 0 的段）
+                // 段間距由設定決定（設計 2026-11-08 改為 0：段與段緊貼不留白）
                 x += segW + config.evoSegmentGap;
             }
         }

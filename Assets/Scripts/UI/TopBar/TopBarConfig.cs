@@ -88,7 +88,7 @@ namespace BlockPet.UI.TopBar
 
         [Header("Evo bar")]
         public float evoHeight = 8;
-        public float evoSegmentGap = 1;
+        public float evoSegmentGap = 0;
         public float evoTransitionSec = 0.6f;
         [Tooltip("色段固定順序與顏色")]
         public List<CategoryColor> segments = new List<CategoryColor>();

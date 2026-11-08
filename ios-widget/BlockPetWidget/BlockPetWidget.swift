@@ -205,12 +205,12 @@ struct EvolutionBar: View {
         let total = counts.reduce(0, +)
         let filled = EvolutionBar.width * CGFloat(min(total, EvolutionBar.target) / EvolutionBar.target)
         let used = counts.indices.filter { counts[$0] > 0 }
-        let gaps = CGFloat(max(0, used.count - 1))
-        let available = max(0, filled - gaps)
+        // 段與段緊貼、中間不留白（設計 2026-11-08 改）
+        let available = filled
 
         return ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.75))
-            HStack(spacing: 1) {
+            HStack(spacing: 0) {
                 ForEach(used, id: \.self) { i in
                     Rectangle()
                         .fill(Palette.evolution[i % Palette.evolution.count])

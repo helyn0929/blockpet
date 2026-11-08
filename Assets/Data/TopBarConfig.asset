@@ -75,7 +75,7 @@ MonoBehaviour:
     bg: {r: 0.9843137, g: 0.9411765, b: 0.78431374, a: 1}
     fg: {r: 0.5568628, g: 0.43137255, b: 0.047058824, a: 1}
   evoHeight: 8
-  evoSegmentGap: 1
+  evoSegmentGap: 0
   evoTransitionSec: 0.6
   segments:
   - category: "\u7F8E\u98DF"

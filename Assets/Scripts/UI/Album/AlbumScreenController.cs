@@ -15,7 +15,7 @@ namespace BlockPet.UI.Album
     /// - 照日期分組（今天／昨天／M/D（週）＋張數），兩欄照片卡：誰拍的、時間、說明、emoji 與留言數。
     /// - 上次打開之後的新照片有黃框與「新」。
     /// - 右上「篩選」：類別（照片辨識的結果）、誰拍的；「看 N 張」才套用，有篩選時按鈕變深色並顯示項目數。
-    /// - 右上聊天鈕顯示未讀數；點照片打開拍立得照片檢視（PhotoViewScreen）。
+    /// - 右上聊天鈕顯示未讀數；點照片打開拍立得分割畫面（PolaroidScreen，5.26）。
     /// emoji 與留言數取自聊天室裡同一張照片的那則餵食訊息（FirebaseManager.ChatEntries）。
     /// 介面在執行時以 390 寬設計座標建立，依螢幕寬度等比縮放；照片縮圖逐張載入。
     /// 由「BlockPet/Build Chat And Album」掛到 AlbumPage，並關掉舊的相簿面板。
@@ -300,6 +300,7 @@ namespace BlockPet.UI.Album
             frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             var img = Place(frame, "Img", 0, 0, pw, PhotoH).gameObject.AddComponent<RawImage>();
             img.raycastTarget = false;
+            BlockPet.UI.FisheyeImage.Set(img, s.meta.fisheye); // 拍的時候開了魚眼（5.27）：相簿也顯示魚眼版
             if (_thumbs.TryGetValue(s.meta.fileName, out var tex) && tex != null) SetThumb(img, tex);
             else { img.enabled = false; _pending[s.meta.fileName] = img; }
             var shade = Place(frame, "Shade", 0, PhotoH - 46f, pw, 46).gameObject.AddComponent<RawImage>();
@@ -363,12 +364,12 @@ namespace BlockPet.UI.Album
             b.onClick.AddListener(() => OpenPhoto(meta));
         }
 
-        /// <summary>點照片：打開拍立得照片檢視（5.14 ⑥），可以在目前篩選出來的照片之間左右滑。</summary>
+        /// <summary>點照片：打開拍立得分割畫面（5.26，取代 5.14 ⑥ 照片檢視），照相簿的順序在目前篩選出來的照片之間左右滑。</summary>
         void OpenPhoto(PhotoMeta meta)
         {
             var list = Filtered(_who, _cat);
             var metas = list.ConvertAll(x => x.meta);
-            PhotoViewScreen.Open(metas, Mathf.Max(0, metas.IndexOf(meta)), skin != null ? skin.font : null, background);
+            BlockPet.UI.Polaroid.PolaroidScreen.Open(metas, Mathf.Max(0, metas.IndexOf(meta)));
         }
 
         static void SetThumb(RawImage img, Texture tex)
@@ -606,12 +607,18 @@ namespace BlockPet.UI.Album
             bb.targetGraphic = bbg;
             bb.onClick.AddListener(Back);
 
-            // 聊天（未讀數）
+            // 聊天（未讀數）：米色圓角底同「篩選」；圖示用首頁 v9 底部聊天的「兩個對話框」線條圖示 26（#3A2E22）
             var chat = Place(bar, "Chat", DesignW - 12f - 44f, 10, 44, 44);
             UIShapes.AddShadow(chat, new Color(30f / 255f, 30f / 255f, 20f / 255f, 0.18f), 14, 10, 3);
             var cbg = UIShapes.AddRounded(Place(chat, "Fill", 0, 0, 44, 44).gameObject, Glass, 14);
-            ChatIcon(chat, 11f, 12f, 22f, Ink);
+            var chatIcon = Place(chat, "Icon", 9, 9, 26, 26).gameObject.AddComponent<Image>();
+            chatIcon.sprite = BlockPet.UI.Home.Home9Skin.Load()?.iconChat;
+            chatIcon.color = Color.white; // 圖示本身就是 #3A2E22（上色是乘上去的，用白色保持原色）
+            chatIcon.preserveAspect = true;
+            chatIcon.raycastTarget = false;
+            if (chatIcon.sprite == null) { chatIcon.enabled = false; ChatIcon(chat, 11f, 12f, 22f, Ink); } // 找不到素材時用原本畫的
             _chatBadge = Badge(chat, out _chatBadgeText);
+            _chatBadge.anchoredPosition = new Vector2(9f + 26f - 10f, -(9f - 10f)); // 紅點中心在圖示右上角
             var cb = chat.gameObject.AddComponent<Button>();
             cb.targetGraphic = cbg;
             cb.onClick.AddListener(OpenChat);

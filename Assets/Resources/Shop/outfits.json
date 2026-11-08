@@ -1,0 +1,13 @@
+{
+  "_note": "穿搭品項（設計文件 5.11 ⑧；設計稿示意品項，價格都是暫定，待決 36）。slot：head 頭／face 臉／neck 脖子／side 側邊。months 空＝一直賣。改價格、加品項改這裡就好。",
+  "items": [
+    { "id": "outfit_strawhat", "name": "小草帽",   "slot": "head", "price": 300, "desc": "夏天出門戴的草帽",       "tone": "#FCEFC8" },
+    { "id": "outfit_scarf",    "name": "紅色領巾", "slot": "neck", "price": 220, "desc": "綁在脖子上的紅領巾",     "tone": "#FDE6DE" },
+    { "id": "outfit_glasses",  "name": "圓框眼鏡", "slot": "face", "price": 180, "desc": "看起來很聰明",           "tone": "#E3EAF9" },
+    { "id": "outfit_beanie",   "name": "毛線帽",   "slot": "head", "price": 280, "desc": "冬天的毛線帽",           "tone": "#E3EED9" },
+    { "id": "outfit_bow",      "name": "蝴蝶結",   "slot": "side", "price": 150, "desc": "別在耳朵旁邊",           "tone": "#F6E2F4" },
+    { "id": "outfit_raincap",  "name": "黃色雨帽", "slot": "head", "price": 260, "desc": "下雨天也能出門",         "tone": "#FBF0C4" },
+    { "id": "outfit_party",    "name": "派對帽",   "slot": "head", "price": 200, "desc": "生日、慶祝的時候戴",     "tone": "#DCE5FA" },
+    { "id": "outfit_santa",    "name": "聖誕帽",   "slot": "head", "price": 350, "desc": "聖誕節限定",             "tone": "#FDE6DE", "months": [12], "lockText": "12 月限定" }
+  ]
+}

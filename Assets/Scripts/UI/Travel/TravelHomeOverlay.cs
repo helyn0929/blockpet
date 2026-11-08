@@ -9,8 +9,9 @@ namespace BlockPet.UI.Travel
 {
     /// <summary>
     /// 營地首頁上的旅行畫面（設計文件 5.21 ③；設計稿 TravelTrip 的 away／host／back）：
-    /// - 自己的寵物出門中（流程 7）：寵物的位置換成「去旅行了！」木牌＋上方卡片（還要幾分、幾點回家、進度條）。
-    /// - 別的營地的寵物來玩（流程 10）：上方白卡「BowBow 從○○來玩了！」＋營地裡多一隻背背包的客人（只顯示最早到的）。
+    /// - 自己的寵物出門中（流程 7）：寵物的位置換成「去旅行了！」木牌。
+    /// - 別的營地的寵物來玩（流程 10）：營地裡多一隻背背包的客人（只顯示最早到的）。
+    /// - 2026-11-06 使用者決定：首頁上方的出門卡片、客人來玩白卡都拿掉（會蓋住 v9 的 Home 鍵和選單），旅行資訊去旅行頁面看。
     /// - 回家蓋章（流程 11）：時間到了誰先打開 App 誰結算一次；每個成員各看一次蓋章卡，「看護照」打開護照。
     /// 執行時自動建立；只在首頁顯示（相機、相簿、聊天、其他頁面時藏起來）。
     /// </summary>
@@ -25,7 +26,6 @@ namespace BlockPet.UI.Travel
         static readonly Color Paper = Hex(0xFFF8EC);
         static readonly Color Yellow = Hex(0xF6C945);
         static readonly Color YellowEdge = Hex(0xD9A92C);
-        static readonly Color Track = Hex(0xEFE6D4);
         static readonly Color Blue = Hex(0x6F8FE0);
         static readonly Color Dim = new Color(20f / 255f, 24f / 255f, 14f / 255f, 0.55f);
 
@@ -35,16 +35,12 @@ namespace BlockPet.UI.Travel
         TMP_FontAsset _font;
         Canvas _canvas;
         CanvasGroup _group;
-        RectTransform _root, _top, _sign, _guest, _backLayer, _stamp;
-        RectTransform _awayCard, _hostCard;
-        TMP_Text _awayTitle, _awaySub, _hostTitle, _hostSub;
-        RectTransform _awayFill;
+        RectTransform _root, _sign, _guest, _backLayer, _stamp;
         PageManager _pages;
         CameraUIManager _cameraUI;
         SpriteRenderer[] _hiddenPet;
         /// <summary>寵物出門那一刻的位置：木牌固定插在這裡（寵物藏起來後還會在原地亂走，不能跟著牠）。</summary>
         Vector3? _signWorld;
-        string _hostDismissedFor;
         float _nextCheck, _backT;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -67,9 +63,6 @@ namespace BlockPet.UI.Travel
             _group = gameObject.AddComponent<CanvasGroup>();
             _root = (RectTransform)transform;
 
-            _top = Design(_root, "Top");
-            _awayCard = BuildAwayCard();
-            _hostCard = BuildHostCard();
             _sign = BuildSign();
             _guest = BuildGuest();
             _backLayer = Stretch(_root, "Back");
@@ -109,18 +102,6 @@ namespace BlockPet.UI.Travel
             bool away = phase == TripPhase.Going || phase == TripPhase.There || phase == TripPhase.Returning;
             ShowPet(!away);
             float k = _root.rect.width / DesignW;
-            float topInset = TopInset();
-            _top.localScale = Vector3.one * k;
-            _top.anchoredPosition = new Vector2(0f, -topInset);
-
-            float cardY = 90f;
-            _awayCard.gameObject.SetActive(away);
-            if (away)
-            {
-                UpdateAway(trip, phase, now);
-                _awayCard.anchoredPosition = new Vector2(14f, -cardY);
-                cardY += _awayCard.sizeDelta.y + 10f;
-            }
             _sign.gameObject.SetActive(away);
             if (away)
             {
@@ -131,22 +112,10 @@ namespace BlockPet.UI.Travel
 
             // 客人（只顯示最早到、現在在這裡的那隻）
             FirebaseManager.TravelGuest guest = null;
-            int more = 0;
             foreach (var g in fb.Guests)
             {
                 if (now < g.arriveAt || now >= g.leaveAt) continue;
-                if (guest == null) guest = g; else more++;
-            }
-            bool showHost = guest != null && _hostDismissedFor != guest.from + guest.arriveAt;
-            _hostCard.gameObject.SetActive(showHost);
-            if (showHost)
-            {
-                string pet = string.IsNullOrEmpty(guest.petName) ? "寵物" : guest.petName;
-                _hostTitle.text = $"{pet} 從{guest.fromName}來玩了！";
-                string ours = fb.CurrentPetName;
-                string until = DateTimeOffset.FromUnixTimeMilliseconds(guest.leaveAt).ToLocalTime().ToString("HH:mm");
-                _hostSub.text = $"會在這裡玩到 {until}" + (!string.IsNullOrEmpty(ours) && !away ? $"，跟{ours}一起" : "") + (more > 0 ? $"・還有 {more} 隻" : "");
-                _hostCard.anchoredPosition = new Vector2(14f, -cardY);
+                if (guest == null) guest = g;
             }
             _guest.gameObject.SetActive(guest != null);
             if (guest != null)
@@ -229,39 +198,7 @@ namespace BlockPet.UI.Travel
 
         // ─── 出門中（流程 7）──────────────────────────────────────────
 
-        RectTransform BuildAwayCard()
-        {
-            var card = Place(_top, "AwayCard", 14, 90, DesignW - 28f, 104);
-            UIShapes.AddShadow(card, new Color(0f, 0f, 0f, 0.22f), 20, 20, 8);
-            UIShapes.AddRounded(Stretch(card, "Bg").gameObject, new Color(Paper.r, Paper.g, Paper.b, 0.95f), 20).raycastTarget = false;
-            float w = DesignW - 28f - 28f;
-            _awayTitle = Label(card, 14, 12, w, 20, "", 15, Ink, TextAlignmentOptions.Left);
-            _awaySub = Label(card, 14, 34, w, 16, "", 12, SubText, TextAlignmentOptions.Left);
-            var track = Place(card, "Track", 14, 56, w, 6);
-            UIShapes.AddRounded(track.gameObject, Track, 3).raycastTarget = false;
-            _awayFill = Place(track, "Fill", 0, 0, 6, 6);
-            UIShapes.AddRounded(_awayFill.gameObject, Yellow, 3).raycastTarget = false;
-            _awayNote = Label(card, 14, 70, w, 16, "", 11, Brown, TextAlignmentOptions.Left);
-            card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
-            return card;
-        }
-
-        TMP_Text _awayNote, _guestTag;
-
-        void UpdateAway(FirebaseManager.TravelTrip t, TripPhase phase, long now)
-        {
-            var fb = FirebaseManager.Instance;
-            string pet = fb != null && !string.IsNullOrEmpty(fb.CurrentPetName) ? fb.CurrentPetName : "寵物";
-            string to = string.IsNullOrEmpty(t.toName) ? "好友營地" : t.toName;
-            string homeAt = DateTimeOffset.FromUnixTimeMilliseconds(t.HomeAt).ToLocalTime().ToString("HH:mm");
-            _awayTitle.text = $"{pet} 去{to}旅行了";
-            _awaySub.text = phase == TripPhase.Going
-                ? $"還要 {TripRules.FormatMinutes(TripRules.MinutesUntil(now, TripRules.ArriveAt(t.departAt, t.oneWayMin)))}到，{homeAt} 回家"
-                : phase == TripPhase.There ? $"正在{to}玩，{homeAt} 回家" : $"正在回家，{homeAt} 到家";
-            _awayNote.text = $"照片照常餵，會寄給旅行中的 {pet}（進化、金幣照算）";
-            float w = DesignW - 28f - 28f;
-            _awayFill.sizeDelta = new Vector2(Mathf.Max(6f, w * (float)TripRules.Progress(now, t.departAt, t.oneWayMin, t.stayMin)), 6f);
-        }
+        TMP_Text _guestTag;
 
         RectTransform BuildSign()
         {
@@ -283,39 +220,6 @@ namespace BlockPet.UI.Travel
         }
 
         // ─── 客人來玩（流程 10）───────────────────────────────────────
-
-        RectTransform BuildHostCard()
-        {
-            var card = Place(_top, "HostCard", 14, 90, DesignW - 28f, 72);
-            UIShapes.AddShadow(card, new Color(0f, 0f, 0f, 0.25f), 20, 24, 10);
-            var bg = UIShapes.AddRounded(Stretch(card, "Bg").gameObject, Paper, 20);
-            var av = Place(card, "Avatar", 14, 12, 48, 48);
-            UIShapes.AddRounded(av.gameObject, Hex(0xFCE7A6), 24).raycastTarget = false;
-            av.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-            if (_skin != null && _skin.pet != null)
-            {
-                var pi = Place(av, "Pet", 3, 6, 42, 36).gameObject.AddComponent<Image>();
-                pi.sprite = _skin.pet;
-                pi.preserveAspect = true;
-                pi.raycastTarget = false;
-            }
-            float w = DesignW - 28f - 74f - 14f;
-            _hostTitle = Label(card, 74, 16, w, 20, "", 15, Ink, TextAlignmentOptions.Left);
-            _hostTitle.overflowMode = TextOverflowModes.Ellipsis;
-            _hostSub = Label(card, 74, 38, w, 16, "", 11, SubText, TextAlignmentOptions.Left);
-            var b = card.gameObject.AddComponent<Button>();
-            b.targetGraphic = bg;
-            b.onClick.AddListener(() =>
-            {
-                // 點一下收起來（同一隻客人這次不再跳）
-                var fb = FirebaseManager.Instance;
-                if (fb == null) return;
-                long now = fb.ServerNowMs;
-                foreach (var g in fb.Guests) if (now >= g.arriveAt && now < g.leaveAt) { _hostDismissedFor = g.from + g.arriveAt; break; }
-            });
-            card.anchorMin = card.anchorMax = new Vector2(0f, 1f);
-            return card;
-        }
 
         RectTransform BuildGuest()
         {
@@ -375,6 +279,7 @@ namespace BlockPet.UI.Travel
 
         void BuildBack(FirebaseManager fb, FirebaseManager.TripReturn last, string key)
         {
+            _backLayer.gameObject.SetActive(true); // 先打開再建：文字要在啟用狀態才量得到幾行高
             for (int i = _backLayer.childCount - 1; i >= 0; i--) Destroy(_backLayer.GetChild(i).gameObject);
             var dim = _backLayer.gameObject.GetComponent<Image>();
             if (dim == null) dim = _backLayer.gameObject.AddComponent<Image>();
@@ -461,10 +366,28 @@ namespace BlockPet.UI.Travel
             return t.GetPreferredValues(s).x;
         }
 
+        /// <summary>
+        /// 多行文字的高度：設定寬度、開換行，讓 TextMeshPro 實際排一次版，量第一行頂到最後一行底。
+        /// 文字所在的物件一定要已經啟用（未啟用時 TextMeshPro 量不出來，會只剩一行高）。
+        /// （2026-11-08 修：原本面板「先建內容、再打開」，量到的都是一行高，下面的東西就壓到第二行以後；圖鑑說明則是沒開換行）
+        /// </summary>
         static float TextHeight(TMP_Text t, string s, float width)
         {
             if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
-            return t.GetPreferredValues(s, width, 0f).y;
+            if (!t.gameObject.activeInHierarchy) Debug.LogWarning("[UI] 文字還沒啟用就量高度，會量不準（先 SetActive 再建）：" + s);
+            var rt = t.rectTransform;
+            var old = rt.sizeDelta;
+            t.enableWordWrapping = true;
+            t.text = s;
+            rt.sizeDelta = new Vector2(width, 4000f);
+            t.ForceMeshUpdate(true, true);
+            var info = t.textInfo;
+            float h = info != null && info.lineCount > 0
+                ? info.lineInfo[0].ascender - info.lineInfo[info.lineCount - 1].descender
+                : 0f;
+            rt.sizeDelta = old;
+            if (h <= 0f) h = t.fontSize * 1.3f; // 排不出來（例如字型還沒載入）：至少一行
+            return h + 2f;
         }
 
         // ─── UI helpers ────────────────────────────────────────────────

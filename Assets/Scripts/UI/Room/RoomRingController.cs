@@ -814,9 +814,11 @@ namespace BlockPet.UI.Room
             _dragging = false;
             if (click && !_dragMoved)
             {
-                // 點到哪一格就轉到那一格
+                // 點到哪一格就轉到那一格，並直接進去（2026-11-06 使用者決定：點格子和推搖桿都能進去；
+                // 設計文件 5.8 原本是點格子只換寵物）
                 float a = _hit.AngleOf(design);
                 _sel = Mathf.RoundToInt((a - Mid - _rot) / Step);
+                if (!_entering && !_busy && isActiveAndEnabled) Enter();
             }
             else _sel = Mathf.RoundToInt(-_rot / Step);
         }

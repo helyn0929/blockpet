@@ -23,12 +23,12 @@
 ### 登入與帳號
 - Scene：Feed.unity（LoginPanel）
 - 主要 Prefab：無（`AuthScreenController` 執行時建立；`LoginScreenController` 用 `Art/UI/Login_UI/LoginScreen.uxml`）
-- 主要腳本：`Scripts/FirebaseManager.cs`（Google／Apple／訪客登入）、`Scripts/LoginUIHandler.cs`（登入後流程、自動回上次的空間）、`Scripts/UI/Auth/AuthScreenController.cs`、`Scripts/LoginScreenController.cs`
+- 主要腳本：`Scripts/FirebaseManager.cs`（Google／Apple／訪客登入）、`Scripts/LoginUIHandler.cs`（登入後流程、自動回上次的空間；開 App 自動登入時 LoginPanel 是關著的，由 `Scripts/UI/Navigation/PageManager.cs` 收登入事件後呼叫 `ResumeLastRoomOnLaunch`）、`Scripts/UI/Auth/AuthScreenController.cs`、`Scripts/LoginScreenController.cs`
 
 ### 房間（空間）資料與選擇
 - Scene：Feed.unity（RoomPage）
 - 主要 Prefab：無（執行時建立）
-- 主要腳本：`Scripts/UI/Room/RoomRingController.cs`（轉盤選空間、搖桿、彈幕）、`Scripts/UI/Room/RoomJoystick.cs`、`Scripts/UI/Room/RoomRingInput.cs`、`Scripts/UI/Room/RingSectorGraphic.cs`、`Scripts/FirebaseManager.cs`（建立／加入／離開／刪除空間）
+- 主要腳本：`Scripts/UI/Room/RoomRingController.cs`（轉盤選空間：點格子直接進去、搖桿推過去也能進去；彈幕）、`Scripts/UI/Room/RoomJoystick.cs`、`Scripts/UI/Room/RoomRingInput.cs`、`Scripts/UI/Room/RingSectorGraphic.cs`、`Scripts/FirebaseManager.cs`（建立／加入／離開／刪除空間）
 - 舊版：`Scripts/UI/Room/RoomUIController.cs`、`Scripts/UI/Room/RoomSelectPageController.cs`、`Scripts/UI/Room/WebView/RoomWebViewBridge.cs`、`Art/UI/Room_UI/RoomScreen.uxml`；是否還在使用待確認
 
 ### 空間資訊（點寵物頭像：成員、邀請碼、營地代碼、改名、離開）
@@ -47,10 +47,11 @@
 ### 首頁 v9：點寵物出牌、照片貼紙、底部相簿／相機／聊天（設計文件 5.25）
 - Scene：Feed.unity
 - 主要 Prefab：無（`HandController` 執行時建立）；`Assets/Prefabs/VFX_PhotoFly.prefab` 只在 PetBase.prefab 底下，Feed.unity 已不使用
-- 主要腳本：`Scripts/Hand/HandController.cs`（發牌／收回、舉起照片、餵食飛牌、底部固定三顆鈕）、`Scripts/Hand/HandController.Pet.cs`（點寵物、餓了輕晃、寵物泡泡：好餓／飽飽的／餵食反應／乾淨了）、`Scripts/Hand/HandController.Stickers.cs`（照片貼紙、最新照片貼紙、拖曳位置）、`Scripts/HomeRules/StickerRules.cs`（貼紙規則，獨立組件 `BlockPet.Home`）、`Scripts/Hand/PhotoLibrary.cs`（讀相簿）、`Scripts/Hand/LatestCardDrag.cs`（最新貼紙拖曳）、`Scripts/FeedController.cs`（餵食動畫）、`Scripts/PhotoCooldown.cs`（10 分鐘冷卻）
-- 素材：`Assets/Art/UI/Home9/Sprites/`（匯入設定 `Editor/TopBar/TopBarSpriteImporter.cs`）→ `Resources/UI/Home9Skin.asset`（`Scripts/UI/Home/Home9Skin.cs`，由 `Editor/Home/Home9SkinBuilder.cs` 自動填）；規格 `docs/home9/`
+- 主要腳本：`Scripts/Hand/HandController.cs`（發牌／收回、舉起照片、餵食飛牌、底部固定三顆鈕）、`Scripts/Hand/HandController.Pet.cs`（點寵物、餓了輕晃、寵物泡泡：好餓／飽飽的／餵食反應／乾淨了；餵食反應只有一行＝類別色點＋「是○○！好好吃！」／「是○○耶…」，沒命中歪頭）、`Scripts/Hand/HandController.Stickers.cs`（照片貼紙 85% 半透明、最新照片貼紙：不透明＋細黃邊 2、沒有「最新」標籤、拖曳位置）、`Scripts/HomeRules/StickerRules.cs`（貼紙規則，獨立組件 `BlockPet.Home`）、`Scripts/Hand/PhotoLibrary.cs`（讀相簿）、`Scripts/Hand/LatestCardDrag.cs`（最新貼紙拖曳）、`Scripts/FeedController.cs`（餵食動畫）、`Scripts/PhotoCooldown.cs`（10 分鐘冷卻）
+- 素材：`Assets/Art/UI/Home9/Sprites/`（由 `docs/home9/Tools/make_home9.py` 產生；`tag_latest` 已不使用）（匯入設定 `Editor/TopBar/TopBarSpriteImporter.cs`）→ `Resources/UI/Home9Skin.asset`（`Scripts/UI/Home/Home9Skin.cs`，由 `Editor/Home/Home9SkinBuilder.cs` 自動填）；規格 `docs/home9/`
+- 截圖：Editor 選單 BlockPet/Debug/寵物泡泡截圖（`Assets/Editor/Home/PetBubbleSnapshot.cs`，可 batchmode；輸出 Logs/pet_bubble_hit／miss／unknown.png）
 - 看過的貼紙存在手機 PlayerPrefs（`BlockPet.Home9.Seen.{空間}.{uid}`、第一次使用時間 `BlockPet.Home9.Since.…`、最新貼紙位置 `BlockPet.Home9.LatestPos`）
-- 舊版：`Scripts/Hand/HandSwipe.cs`（首頁不再用；照片檢視、分割畫面左右滑還在用）
+- 舊版：`Scripts/Hand/HandSwipe.cs`（首頁不再用；拍立得分割畫面左右滑換張還在用）
 
 ### 餵食結算（辨識、命中、金幣、愛心）
 - Scene：無（純程式，由餵食流程呼叫）
@@ -70,20 +71,26 @@
 ### 拍照
 - Scene：Feed.unity
 - 主要 Prefab：無
-- 主要腳本：`Scripts/CameraController.cs`（WebCamTexture 拍照）、`Scripts/CameraUIManager.cs`（首頁／相機／相簿／聊天模式切換）
+- 主要腳本：`Scripts/CameraController.cs`（WebCamTexture 拍照；數位縮放 1×～5×（裁切中間，預覽和照片一樣，兩指縮放，翻轉鏡頭回 1×）、魚眼開關（PlayerPrefs 記住））、`Scripts/CameraLensBar.cs`（快門上方的鏡頭列：魚眼｜1× 2× 3×，執行時建立，設計文件 5.27）、`Scripts/CameraUIManager.cs`（首頁／相機／相簿／聊天模式切換）
+- 魚眼（5.27 ③；11-08 改成全片幅魚眼，沒有圓形暗角）：shader `Assets/Resources/Shaders/UIFisheye.shader`＋`Scripts/UI/FisheyeImage.cs`（套在 RawImage 上）；照片存原圖＋`PhotoMeta.fisheye` 標記（同步到營地），辨識用原圖；照片貼紙、最新貼紙、相簿縮圖、拍立得（先裁正方形、套顏色濾鏡，再套魚眼；下載的圖也有）顯示魚眼版
 - 相機模式的按鈕：沿用首頁舊按鈕物件 HomePage / Button(album)、Button(chat)，由 `CameraUIManager` 換圖示和功能：Button(album)＝關閉相機（拍完是重拍），Button(chat)＝翻轉鏡頭。使用中（2026-11-05 確認）；首頁模式下這兩顆不再使用
 
-### 營地分割畫面（大照片、留言、內嵌相機）
-- Scene：Feed.unity
-- 主要 Prefab：無（執行時建立）
-- 主要腳本：`Scripts/Hand/PhotoSplitView.cs`
+### 拍立得分割畫面（設計文件 5.26，2026-11-07，11-08 改版；取代 5.16 分割畫面與 5.14 ⑥ 照片檢視）
+- Scene：無（執行時自動建立，sortingOrder 37）
+- 主要 Prefab：無；素材 `Assets/Art/UI/Polaroid/Sprites/`（匯入設定 `Editor/TopBar/TopBarSpriteImporter.cs`）→ `Resources/UI/PolaroidSkin.asset`（`Scripts/UI/Polaroid/PolaroidSkin.cs`，由 `Editor/Polaroid/PolaroidSkinBuilder.cs` 自動填）；規格 `docs/polaroid/`
+- 主要腳本：`Scripts/UI/Polaroid/PolaroidScreen.cs`（入口 `Open`／`OpenToday`／`OpenLatest`／`OpenPhoto`、上方一排（誰拍的、類別小標籤、分享、下載）、卡片與右下編輯鈕、照片左下留言、留言框與標題輸入、鍵盤）、`PolaroidScreen.Panel.cs`（下方面板兩頁：寵物頁（營地、愛心、進化條、跳／歪頭）／裝飾頁（貼紙、畫框、濾鏡小分頁），左右滑換頁、頁數小點、下載與分享）、`PolaroidScreen.Stickers.cs`（卡片上的貼紙：貼、選取、拖、撕、寵物貼紙輕晃）、`PolaroidCard.cs`（卡片與貼紙的樣子，畫面和下載共用）、`PolaroidPhoto.cs`（裁正方形、套濾鏡）、`PolaroidExport.cs`（下載圖 1062 × 1293）、`PhotoComments.cs`（照片留言＝聊天室回覆這張照片，原本在 PhotoSplitView）
+- 規則：`Scripts/Polaroid/PolaroidRules.cs`（獨立組件 `BlockPet.Polaroid`：每人貼紙上限、誰能換畫框／濾鏡／標題、貼上位置、標題字數、畫框清單、3 種濾鏡（萊卡暗角、富士底片、Y2K 日期戳）、再點一次取消、CSS 濾鏡算法）；待決 35 的暫定值都在這裡
+- 資料：`Scripts/FirebaseManager.Polaroid.cs`，`Rooms/{room}/polaroid/{照片鍵}/style`（畫框、濾鏡、標題）與 `/stickers/{id}`
+- 入口：首頁最新照片貼紙（`HandController.Stickers`）、相簿點照片（`AlbumScreenController`；舊相簿格子 `PhotoItemClick` → `AlbumUIManager`）、聊天室右上「營地照片」與餵食照片下方「到營地看這張 ›」（`ChatScreenController`）；手機桌面小工具、推播還沒有點照片的入口
+- 截圖：Editor 選單 BlockPet/Debug/拍立得截圖（`Assets/Editor/Polaroid/PolaroidSnapshot.cs`，可 batchmode；輸出 Logs/polaroid_*.png 與下載圖 polaroid_export.jpg）
+- 2026-11-07 刪除：`Scripts/Hand/PhotoSplitView.cs`、`Editor/TopBar/SplitViewBuilder.cs`、`Scripts/UI/Album/PhotoViewScreen.cs`、`PhotoViewSkin.cs`（含 `Resources/UI/PhotoViewSkin.asset`）、`Editor/Album/PhotoViewSkinBuilder.cs`、`Scripts/UI/Album/PhotoDetailUIPage.cs`（場景裡的 PhotoDetailPage 物件一起刪）
 - 舊版：`Scripts/BulletinManager.cs`（7 張照片看板，已不使用；2026-11-05 已在場景裡把 BulletinPhoto 物件和腳本都關掉）
 
-### 相簿與照片檢視（拍立得、儲存／分享）
+### 相簿
 - Scene：Feed.unity（AlbumPage）
 - 主要 Prefab：`Assets/Prefabs/PhotoItem.prefab`、`Assets/Prefabs/DateHeader 1.prefab`（舊版相簿用，新版是否還用待確認）；`PhotoItem 1.prefab`、`DateHeader.prefab` 沒有被引用，待確認
-- 主要腳本：`Scripts/UI/Album/AlbumScreenController.cs`、`Scripts/UI/Album/PhotoViewScreen.cs`（拍立得檢視）、`Scripts/UI/Album/PhotoExport.cs`（浮水印、存相簿、分享）、`Scripts/UI/Album/PhotoViewSkin.cs`
-- 舊版：`Scripts/AlbumUI.cs`、`Scripts/AlbumUI_Legacy.cs`、`Scripts/UI/Album/AlbumUIManager.cs`、`Scripts/UI/Album/PhotoDetailUIPage.cs`（是否還在使用待確認）、`Scripts/AlbumPanelToggle.cs`（已不使用：首頁相簿按鈕已拿掉，`CameraUIManager` 執行時會把它關掉）
+- 主要腳本：`Scripts/UI/Album/AlbumScreenController.cs`（點照片開拍立得分割畫面）、`Scripts/UI/Album/PhotoExport.cs`（圖片存相簿、分享；拍立得下載用）
+- 舊版：`Scripts/AlbumUI.cs`、`Scripts/AlbumUI_Legacy.cs`、`Scripts/UI/Album/AlbumUIManager.cs`、`Scripts/UI/Album/PhotoItemClick.cs`（舊相簿格子點照片，改開拍立得）、`Scripts/AlbumPanelToggle.cs`（已不使用：首頁相簿按鈕已拿掉，`CameraUIManager` 執行時會把它關掉）；`Resources/UI/watermark_blockpet.bytes`（舊照片檢視的浮水印，已不使用）
 
 ### 聊天室
 - Scene：Feed.unity（ChatPage）
@@ -104,8 +111,16 @@
 ### 商城
 - Scene：Feed.unity（MarketPage）
 - 主要 Prefab：`Assets/Art/Test/ShopItemCard.prefab`
-- 分頁：家具／環境／寵物蛋（2026-11-06：裝飾、道具分頁刪除）
-- 主要腳本：`Scripts/UI/Market/MarketScreenController.cs`、`Scripts/UI/Market/MarketCatalog.cs`（商品與價格）、`Scripts/UI/Market/MarketInventoryStore.cs`；舊版相關：`MarketPageController.cs`、`MarketUIController.cs`、`ShopGridController.cs`、`Scripts/UI/Market/WebView/MarketWebViewBridge.cs`、`Art/UI/Market_UI/MarketScreen.uxml`，哪些還在用待確認
+- 分頁：家具／環境／穿搭／寵物蛋（2026-11-06：裝飾、道具分頁刪除；11-07 新增穿搭）
+- 主要腳本：`Scripts/UI/Market/MarketScreenController.cs`、`Scripts/UI/Market/MarketCatalog.cs`（商品與價格；穿搭從設定檔讀）、`Scripts/UI/Market/MarketInventoryStore.cs`（舊版配件／裝備，新版商店沒用到）；舊版相關：`MarketPageController.cs`、`MarketUIController.cs`、`ShopGridController.cs`、`Scripts/UI/Market/WebView/MarketWebViewBridge.cs`、`Art/UI/Market_UI/MarketScreen.uxml`，哪些還在用待確認
+
+### 寵物穿搭（設計文件 5.11 ⑧，2026-11-07）
+- Scene：無（商店分頁、首頁寵物身上的穿搭都是執行時建立）
+- 品項與價格：`Assets/Resources/Shop/outfits.json`（設定檔，暫定價格改這裡；部位 head／face／neck／side、months＝限定月份）
+- 規則：`Scripts/Outfit/OutfitRules.cs`（獨立組件 `BlockPet.Outfit`：部位、同部位只能穿一件、限定月份、商店狀態；只是打扮，沒有任何數值）
+- 資料：買過的記在 `Rooms/{room}/shop`（同家具）；正在穿的 `Rooms/{room}/outfit/{部位}`（`Scripts/FirebaseManager.Outfit.cs`，待決 36 暫定營地共用）
+- 畫面：商店穿搭分頁（`MarketScreenController`：試穿預覽、穿上／脫下來）；首頁寵物身上 `Scripts/UI/Home/OutfitHomeOverlay.cs`（執行時自動建立，跟著寵物位置、翻面）；佔位圖 `Scripts/UI/Market/OutfitArt.cs`（正式美術還沒出）
+- 和 11-06 刪除的「從照片撿裝飾」無關
 
 ### 佈置家具
 - Scene：Feed.unity
@@ -162,7 +177,7 @@
 
 ### 測試
 - Scene：無
-- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`、`BlockPet.Travel`、`BlockPet.Home`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）、`StickerRulesTests.cs`（首頁照片貼紙）；執行 `scripts/run-tests.sh`
+- 主要腳本：`Assets/Tests/EditMode/`（`BlockPet.Tests.EditMode.asmdef`，引用 `BlockPet.Economy`、`BlockPet.Travel`、`BlockPet.Home`、`BlockPet.Polaroid`、`BlockPet.Outfit`）：`SampleTest.cs`、`EconomyRulesTests.cs`（經濟規格第 2 節驗收條件）、`WantScheduleTests.cs`（現在想吃時段）、`DexRulesTests.cs`（圖鑑規則）、`TravelMapGenTests.cs`（旅行地圖生成，期望值用設計稿原程式算）、`CampFriendRulesTests.cs`（營地好友規則）、`TripRulesTests.cs`（旅行時間與階段）、`StickerRulesTests.cs`（首頁照片貼紙）、`PolaroidRulesTests.cs`（拍立得規則與濾鏡）、`OutfitRulesTests.cs`（穿搭部位、限定月份、商店狀態）；執行 `scripts/run-tests.sh`
 
 ## 規劃中、專案裡找不到程式的功能
 

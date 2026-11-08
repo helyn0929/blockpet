@@ -6,7 +6,9 @@
         "UnityEditor.TestRunner",
         "BlockPet.Economy",
         "BlockPet.Travel",
-        "BlockPet.Home"
+        "BlockPet.Home",
+        "BlockPet.Polaroid",
+        "BlockPet.Outfit"
     ],
     "includePlatforms": [
         "Editor"

@@ -43,6 +43,6 @@ public class PhotoItemClick : MonoBehaviour
         if (mgr != null)
             mgr.OpenPhotoDetail(_meta);
         else
-            Debug.LogWarning("[PhotoItemClick] No AlbumUIManager in the scene. Add one (e.g. on MainGame) and assign PageManager / PhotoDetailUIPage if needed.");
+            Debug.LogWarning("[PhotoItemClick] No AlbumUIManager in the scene. Add one (e.g. on MainGame).");
     }
 }

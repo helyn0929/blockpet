@@ -30,6 +30,8 @@ namespace BlockPet.EditorTools.TopBar
         public const string TravelFolder = "Assets/Art/UI/Travel/Sprites/";
         /// <summary>首頁 v9（設計文件 5.25；docs/home9/home9_assets.json）</summary>
         public const string Home9Folder = "Assets/Art/UI/Home9/Sprites/";
+        /// <summary>拍立得分割畫面（設計文件 5.26；docs/polaroid/polaroid_assets.json）</summary>
+        public const string PolaroidFolder = "Assets/Art/UI/Polaroid/Sprites/";
         const float PixelsPerUnit = 300f;
 
         static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
@@ -124,16 +126,33 @@ namespace BlockPet.EditorTools.TopBar
             { "tag_latest", new Vector4(24, 30, 24, 24) },
             { "tag_more", new Vector4(33, 33, 33, 33) },
             { "pet_bubble", new Vector4(48, 48, 48, 48) },
+            // 拍立得（docs/polaroid/polaroid_assets.json 的 LTRB，四邊都一樣）
+            { "pl_dtab_on", new Vector4(42, 42, 42, 42) },
+            { "pl_dtab_off", new Vector4(42, 42, 42, 42) },
+            { "pl_cell_alt", new Vector4(42, 42, 42, 42) },
+            { "pl_pet_frame", new Vector4(63, 63, 63, 63) },
+            { "pl_panel_mask", new Vector4(63, 63, 63, 63) },
+            { "pl_status_pill", new Vector4(42, 42, 42, 42) },
+            { "pl_input_bar", new Vector4(69, 69, 69, 69) },
+            { "pl_cell", new Vector4(48, 48, 48, 48) },
+            { "pl_cell_pet", new Vector4(48, 48, 48, 48) },
+            { "pl_cell_ring", new Vector4(60, 60, 60, 60) },
+            { "pl_sel_dash", new Vector4(45, 45, 45, 45) },
+            { "pl_tag_dark", new Vector4(27, 27, 27, 27) },
+            { "pl_toast", new Vector4(51, 51, 51, 51) },
+            { "pl_pill_comment", new Vector4(45, 45, 45, 45) },
+            { "pl_tag_cat", new Vector4(42, 42, 42, 42) },
         };
 
         // 改了設定就把版本 +1，Unity 會自動重新匯入
-        public override uint GetVersion() => 10;
+        public override uint GetVersion() => 14;
 
         void OnPreprocessTexture()
         {
             string path = assetPath.Replace('\\', '/');
             if (!(path.StartsWith(Folder) || path.StartsWith(HandFolder) || path.StartsWith(IconsFolder) || path.StartsWith(MarketFolder) || path.StartsWith(ChatFolder)
-                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder) || path.StartsWith(Home9Folder))
+                   || path.StartsWith(PhotoViewFolder) || path.StartsWith(ShutterFolder) || path.StartsWith(DexFolder) || path.StartsWith(TravelFolder) || path.StartsWith(Home9Folder)
+                   || path.StartsWith(PolaroidFolder))
                 || !path.EndsWith(".png")) return;
 
             var importer = (TextureImporter)assetImporter;
@@ -155,7 +174,9 @@ namespace BlockPet.EditorTools.TopBar
             string name = Path.GetFileNameWithoutExtension(path).Replace("@3x", "");
             importer.spriteBorder = Borders.TryGetValue(name, out var b) ? b : Vector4.zero;
             // 首頁 v9 的 Home、選單箭頭：執行時要讀像素做白色光暈（Home9TopIcons）
-            importer.isReadable = name == "icon_home_line" || name == "icon_menu_chevron";
+            // 拍立得的線條圖示（深色）：執行時做白色版本，才能上畫框字色、做白光（PUI.White）
+            importer.isReadable = name == "icon_home_line" || name == "icon_menu_chevron" || name == "icon_album_line"
+                || name == "pl_icon_edit" || name == "pl_icon_pencil" || name == "pl_icon_back" || name == "pl_icon_share" || name == "pl_icon_download";
         }
 
         [MenuItem("BlockPet/TopBar/Reimport Sprites")]
@@ -169,6 +190,7 @@ namespace BlockPet.EditorTools.TopBar
             ReimportFolder(DexFolder);
             ReimportFolder(TravelFolder);
             ReimportFolder(Home9Folder);
+            ReimportFolder(PolaroidFolder);
         }
 
         public static void ReimportFolder(string folder)

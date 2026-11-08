@@ -721,6 +721,7 @@ namespace BlockPet.UI.Dex
         {
             var f = DexRules.Form(formKey);
             if (f == null) return;
+            _popLayer.gameObject.SetActive(true); // 先打開再建：文字要在啟用狀態才量得到幾行高
             Clear(_popDesign);
             const float W = DesignW - 60f, Inner = W - 36f;
             _popCard = Place(_popDesign, "Card", 30, 230, W, 300);
@@ -913,10 +914,28 @@ namespace BlockPet.UI.Dex
             return t.GetPreferredValues(s).x;
         }
 
+        /// <summary>
+        /// 多行文字的高度：設定寬度、開換行，讓 TextMeshPro 實際排一次版，量第一行頂到最後一行底。
+        /// 文字所在的物件一定要已經啟用（未啟用時 TextMeshPro 量不出來，會只剩一行高）。
+        /// （2026-11-08 修：原本面板「先建內容、再打開」，量到的都是一行高，下面的東西就壓到第二行以後；圖鑑說明則是沒開換行）
+        /// </summary>
         static float TextHeight(TMP_Text t, string s, float width)
         {
             if (t.font != null && !string.IsNullOrEmpty(s)) t.font.TryAddCharacters(s);
-            return t.GetPreferredValues(s, width, 0f).y;
+            if (!t.gameObject.activeInHierarchy) Debug.LogWarning("[UI] 文字還沒啟用就量高度，會量不準（先 SetActive 再建）：" + s);
+            var rt = t.rectTransform;
+            var old = rt.sizeDelta;
+            t.enableWordWrapping = true;
+            t.text = s;
+            rt.sizeDelta = new Vector2(width, 4000f);
+            t.ForceMeshUpdate(true, true);
+            var info = t.textInfo;
+            float h = info != null && info.lineCount > 0
+                ? info.lineInfo[0].ascender - info.lineInfo[info.lineCount - 1].descender
+                : 0f;
+            rt.sizeDelta = old;
+            if (h <= 0f) h = t.fontSize * 1.3f; // 排不出來（例如字型還沒載入）：至少一行
+            return h + 2f;
         }
 
         // ─── UI helpers（與其他新版頁面相同的設計座標寫法）────────────

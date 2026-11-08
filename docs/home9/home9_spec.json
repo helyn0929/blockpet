@@ -1,6 +1,9 @@
 {
  "source": "設計文件 5.25；設計稿「首頁 v8 照片分割」最下面一排 Home9Hungry／Home9Dealt／Home9Raised／Home9Full（元件 Home9）",
- "canvas": [390, 772],
+ "canvas": [
+  390,
+  772
+ ],
  "rules": {
   "hungry": "出牌冷卻結束＝餓了（共用拍照冷卻 10 分鐘）",
   "tap_pet_hungry": "出牌（發牌）",
@@ -8,20 +11,134 @@
   "evolve_first": "可以進化時點寵物先進化，進化完再點才出牌",
   "collect": "點手牌上方空白處收回",
   "stickers": "其他成員發、我沒看過的照片；最多 8 張，更多顯示 +N；沒看過就一直留著；每人各自；點一般貼紙直接撕掉（記為看過）；全部撕完寵物說「乾淨了！」",
-  "latest_sticker": "營地最新一張（含自己的），撕不掉，點了開分割畫面；可以拖到任何位置並記住；有新照片時換掉，被換下的若沒看過變成一般貼紙"
+  "latest_sticker": "營地最新一張（含自己的），撕不掉，點了開分割畫面；可以拖到任何位置並記住；有新照片時換掉，被換下的若沒看過變成一般貼紙；不透明、細黃邊 2、沒有「最新」標籤（2026-11-06）"
  },
  "layout": {
-  "home_icon": {"tap": [8, 76, 44, 44], "icon": 28, "bg": "none", "glow": "#FFFCF4"},
-  "menu_icon": {"tap_right": 10, "y": 76, "size": 44, "icon": 26, "bg": "none", "rotate_open": 180},
-  "pet": [128, 430, 134, 124],
-  "pet_bubble": {"x": 226, "y": 392, "title_font": "Huninn 17 (reaction 19)", "sub_font": "11 Black #6B5D4E"},
-  "bottom_bar": {"x": 50, "y": 664, "w": 290, "align": "center", "labels": false,
-                 "album": {"circle": 50, "icon": 28}, "camera": {"circle": 72}, "chat": {"circle": 50, "icon": 28, "badge": 18, "badge_offset": [-4, -4]}},
-  "hand": {"count_max": 5, "center_x": 156, "spacing": 46, "left_5": [18, 64, 110, 156, 202], "top_5": [638, 629, 620, 629, 638], "rot_5": [-12, -6, 0, 6, 12],
-           "hint": {"y": 584, "text": "選一張餵 BowBow・點空白處收回", "font": "12 Black 白＋陰影"}, "backdrop_from_y": 560},
-  "sticker": {"size": 66, "border": 4, "radius": 10, "photo": 58, "peel": 14, "avatar": 22, "opacity": 0.85, "rotate_range": [-12, 10],
-              "avoid": ["y<120 狀態欄", "寵物與泡泡", "y>640 底部按鈕"]},
-  "latest_sticker": {"size": [88, 92], "border": 5, "photo": 78, "gold": "#F6C945 3", "tag": "最新", "avatar": 26, "rotate": -6, "opacity": 0.85, "default_pos": [284, 470]}
+  "home_icon": {
+   "tap": [
+    8,
+    76,
+    44,
+    44
+   ],
+   "icon": 28,
+   "bg": "none",
+   "glow": "#FFFCF4"
+  },
+  "menu_icon": {
+   "tap_right": 10,
+   "y": 76,
+   "size": 44,
+   "icon": 26,
+   "bg": "none",
+   "rotate_open": 180
+  },
+  "pet": [
+   128,
+   430,
+   134,
+   124
+  ],
+  "pet_bubble": {
+   "x": 226,
+   "y": 392,
+   "title_font": "Huninn 17 (reaction 19)",
+   "sub_font": "11 Black #6B5D4E"
+  },
+  "bottom_bar": {
+   "x": 50,
+   "y": 664,
+   "w": 290,
+   "align": "center",
+   "labels": false,
+   "album": {
+    "circle": 50,
+    "icon": 28
+   },
+   "camera": {
+    "circle": 72
+   },
+   "chat": {
+    "circle": 50,
+    "icon": 28,
+    "badge": 18,
+    "badge_offset": [
+     -4,
+     -4
+    ]
+   }
+  },
+  "hand": {
+   "count_max": 5,
+   "center_x": 156,
+   "spacing": 46,
+   "left_5": [
+    18,
+    64,
+    110,
+    156,
+    202
+   ],
+   "top_5": [
+    638,
+    629,
+    620,
+    629,
+    638
+   ],
+   "rot_5": [
+    -12,
+    -6,
+    0,
+    6,
+    12
+   ],
+   "hint": {
+    "y": 584,
+    "text": "選一張餵 BowBow・點空白處收回",
+    "font": "12 Black 白＋陰影"
+   },
+   "backdrop_from_y": 560
+  },
+  "sticker": {
+   "size": 66,
+   "border": 4,
+   "radius": 10,
+   "photo": 58,
+   "peel": 14,
+   "avatar": 22,
+   "opacity": 0.85,
+   "rotate_range": [
+    -12,
+    10
+   ],
+   "avoid": [
+    "y<120 狀態欄",
+    "寵物與泡泡",
+    "y>640 底部按鈕"
+   ],
+   "scale_range": [
+    0.75,
+    1.3
+   ],
+   "scale_note": "每張隨機大小，以 66 為基準縮放；同一張固定"
+  },
+  "latest_sticker": {
+   "size": [
+    88,
+    92
+   ],
+   "border": 5,
+   "photo": 78,
+   "gold": "#F6C945 2",
+   "avatar": 26,
+   "rotate": -6,
+   "opacity": 1,
+   "default_pos": [
+    284,
+    470
+   ]
+  }
  },
  "animations": {
   "bar_out": "底部三顆往下 160、淡出 0.35 秒",

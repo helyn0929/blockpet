@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b41b4ca548f96443c810264ee10edb21, type: 3}
+  m_Name: PolaroidSkin
+  m_EditorClassIdentifier: 
+  font: {fileID: 11400000, guid: 2a24a02e21a844bb4ac3c3355e2fbf7d, type: 2}
+  pet: {fileID: 21300000, guid: ec0b9b3f7b311495b8cfbf2466f8448d, type: 3}
+  camp: {fileID: 2800000, guid: e1b8f608bd8a847858d38cb8261bd314, type: 3}
+  topBar: {fileID: 11400000, guid: 8fcf4a43f01ed42bb94a850edc86d172, type: 2}
+  iconBack: {fileID: 21300000, guid: 3c174ed7cc7ed479f9f343f30747472b, type: 3}
+  iconDownload: {fileID: 21300000, guid: a3c4e494c3bd1429f94d537be1015a62, type: 3}
+  iconShare: {fileID: 21300000, guid: 278e166ea8bce45549cdb196132f3622, type: 3}
+  iconEdit: {fileID: 21300000, guid: f7935a10497dd49eca6dac84a36a1b42, type: 3}
+  iconPencil: {fileID: 21300000, guid: ee85c703d626b4defa7bb21f95ba68c8, type: 3}
+  iconSend: {fileID: 21300000, guid: b40c0a1d737ef41dea344e952c141cc9, type: 3}
+  iconCheck: {fileID: 21300000, guid: e753c852166f54c658781be647137759, type: 3}
+  iconX: {fileID: 21300000, guid: 0ad5ee271ed494bdb9ee5dd1979ffae9, type: 3}
+  btnSend: {fileID: 21300000, guid: 015ffa21204804b77bbedce2f44ea43e, type: 3}
+  btnPeel: {fileID: 21300000, guid: 4f24b4934aad5459b9de7fecd3b7c33b, type: 3}
+  dtabOn: {fileID: 21300000, guid: 766e9b21737674a2ca2b5c4992773d95, type: 3}
+  dtabOff: {fileID: 21300000, guid: 0f60538319ae440258ee3cfcb12d1ef1, type: 3}
+  inputBar: {fileID: 21300000, guid: 012ce66306fb645c48ca1d8ffb21971b, type: 3}
+  cell: {fileID: 21300000, guid: 3a5daae317ec349a0ab0d4e8c47570a7, type: 3}
+  cellPet: {fileID: 21300000, guid: 942262f72769f4bf2ae1e6b3aa6c7fca, type: 3}
+  cellAlt: {fileID: 21300000, guid: b89a7352311ac4a549b3105f28971e07, type: 3}
+  cellRing: {fileID: 21300000, guid: 916d4db707dd246298c58c4d5c9537f0, type: 3}
+  filterMask: {fileID: 21300000, guid: c472b55b820ae4e8ab6acb1d5c1ff301, type: 3}
+  selDash: {fileID: 21300000, guid: a092fe8126e5f4fb18b95d7d056fff8d, type: 3}
+  tagDark: {fileID: 21300000, guid: 96f3cf7674b1445bd9ea6d53b17c360c, type: 3}
+  toast: {fileID: 21300000, guid: 07991336e56344227909756da11cf707, type: 3}
+  pillComment: {fileID: 21300000, guid: 5c7cb14ba91d3486d9b78fee2bdfa8bb, type: 3}
+  tagCat: {fileID: 21300000, guid: b32a5bfef673c4c4c820cb94bbf37d3f, type: 3}
+  catDot: {fileID: 21300000, guid: 015e91913d2ab4c9ab42239f95e24bfd, type: 3}
+  scrollTrack: {fileID: 21300000, guid: d485ae6cab93a4530a2f12f19d2dccef, type: 3}
+  scrollThumb: {fileID: 21300000, guid: e8f20cc9ff790409bb2f3cdba167cc55, type: 3}
+  photoMask: {fileID: 21300000, guid: 35204dbafbaf2485aa87756cfbe29f45, type: 3}
+  dotYellow: {fileID: 21300000, guid: 386639f671f8b4a35988ffe399370ce0, type: 3}
+  pageOn: {fileID: 21300000, guid: 7b7a7a339859c46faa51555354f257f3, type: 3}
+  pageOff: {fileID: 21300000, guid: 95c72521c0a00420299bd0844d4df008, type: 3}
+  petFrame: {fileID: 21300000, guid: c46535e38677e4f83bcf742dfe540ac1, type: 3}
+  panelMask: {fileID: 21300000, guid: 306ef922cacd64d99973d94b7753d67e, type: 3}
+  statusPill: {fileID: 21300000, guid: 67240b573b76f4d2f9592eb026783949, type: 3}
+  frameGingham: {fileID: 21300000, guid: 6994f858f8af04109b90554dc863a781, type: 3}
+  frameDots: {fileID: 21300000, guid: 410f748c964f24fa9be204adbee9b26c, type: 3}
+  frameStripe: {fileID: 21300000, guid: 1f0bae0047c4f4febadc8b5d0b1e3996, type: 3}
+  stkStar: {fileID: 21300000, guid: 5bc70e5fb8b744e2ca99d4a406d83173, type: 3}
+  stkHeart: {fileID: 21300000, guid: 33abfe146228a4bf999f9962a8a1ae68, type: 3}
+  stkSpark: {fileID: 21300000, guid: 0be24d3aedc524533980123a102bc322, type: 3}
+  stkCloud: {fileID: 21300000, guid: a26f41135950544518ac23878b14765d, type: 3}
+  stkPaw: {fileID: 21300000, guid: 82c620eac8cfe479180b0b7f168883cf, type: 3}
+  stkBolt: {fileID: 21300000, guid: ef6712570990e4453b7d1dc078d7d5fc, type: 3}
+  petOvHeart: {fileID: 21300000, guid: c9472543717c84188a682d6311463d12, type: 3}
+  petOvNote: {fileID: 21300000, guid: 7bc812a1c2c1640bc9fb408b8158644a, type: 3}
+  petOvZz: {fileID: 21300000, guid: 8a293277676be4084b5c927afe2d233e, type: 3}
+  petOvDrop: {fileID: 21300000, guid: 869737aa6675f4302a0dad537743d847, type: 3}

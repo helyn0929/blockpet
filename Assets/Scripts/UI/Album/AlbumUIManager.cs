@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>
-/// Coordinates album grid → full-screen photo detail. Place on <c>MainGame</c> (or Canvas) and assign references.
+/// 舊相簿格子（AlbumUI → PhotoItemClick）點照片的入口：2026-11-07 起改成打開拍立得分割畫面（設計文件 5.26），
+/// 舊的全螢幕照片頁（PhotoDetailUIPage）拿掉。照片順序同舊相簿（新到舊）。
 /// </summary>
 public class AlbumUIManager : MonoBehaviour
 {
     public static AlbumUIManager Instance { get; private set; }
-
-    [SerializeField] PageManager pageManager;
-    [SerializeField] PhotoDetailUIPage photoDetailUIPage;
 
     /// <summary>
     /// Use this from UI callbacks. <see cref="Instance"/> is only set after <c>Awake</c>;
@@ -31,11 +29,6 @@ public class AlbumUIManager : MonoBehaviour
             return;
         }
         Instance = this;
-
-        if (pageManager == null)
-            pageManager = FindObjectOfType<PageManager>();
-        if (photoDetailUIPage == null)
-            photoDetailUIPage = FindObjectOfType<PhotoDetailUIPage>(true);
     }
 
     void OnDestroy()
@@ -44,62 +37,18 @@ public class AlbumUIManager : MonoBehaviour
             Instance = null;
     }
 
-    void EnsureReferences()
-    {
-        if (pageManager == null)
-            pageManager = FindObjectOfType<PageManager>(true);
-        if (photoDetailUIPage == null)
-            photoDetailUIPage = FindObjectOfType<PhotoDetailUIPage>(true);
-    }
-
     public void OpenPhotoDetail(PhotoMeta meta)
     {
         if (meta == null || SaveManager.Instance == null)
             return;
 
-        EnsureReferences();
-
-        if (pageManager == null)
-        {
-            Debug.LogWarning("[AlbumUIManager] PageManager not found.");
-            return;
-        }
-
-        if (!pageManager.HasPhotoDetailPage)
-        {
-            Debug.LogWarning("[AlbumUIManager] PageManager has no Photo Detail Page assigned.");
-            return;
-        }
-
-        // Build sorted list matching AlbumUI's display order (newest first).
+        // 舊相簿的順序：新到舊
         List<PhotoMeta> allPhotos = SaveManager.Instance.data?.photos
             ?.Where(p => p != null && !string.IsNullOrEmpty(p.fileName))
             .OrderByDescending(p => p.timestamp ?? "")
             .ToList() ?? new List<PhotoMeta>();
 
         int index = allPhotos.FindIndex(p => p != null && p.fileName == meta.fileName);
-        if (index < 0) index = 0;
-
-        Texture2D tex = SaveManager.Instance.LoadPhoto(meta);
-        if (tex == null)
-        {
-            Debug.LogWarning("[AlbumUIManager] Could not load photo for detail view.");
-            return;
-        }
-
-        if (photoDetailUIPage != null)
-            photoDetailUIPage.Display(tex, meta, allPhotos, index);
-        else
-            Debug.LogWarning("[AlbumUIManager] PhotoDetailUIPage not found.");
-
-        pageManager.ShowPhotoDetailPage();
-    }
-
-    /// <summary>Back from photo detail to album grid.</summary>
-    public void ClosePhotoDetail()
-    {
-        EnsureReferences();
-        if (pageManager != null)
-            pageManager.ShowAlbumPage();
+        BlockPet.UI.Polaroid.PolaroidScreen.Open(allPhotos, Mathf.Max(0, index));
     }
 }

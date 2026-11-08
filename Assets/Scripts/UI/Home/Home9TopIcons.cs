@@ -79,8 +79,8 @@ namespace BlockPet.UI.Home
             if (rt.name == "Chevron") g.gameObject.AddComponent<FollowRotation>().target = rt;
         }
 
-        /// <summary>依圖示形狀做白色光暈：近的一層模糊 1.5pt×0.95，遠的一層 4pt×0.75。</summary>
-        static Sprite Glow(Sprite src)
+        /// <summary>依圖示形狀做白色光暈：近的一層模糊 1.5pt×0.95，遠的一層 4pt×0.75（聊天室相簿鈕也用）。圖要可讀，不然回傳 null。</summary>
+        public static Sprite Glow(Sprite src)
         {
             if (_glows.TryGetValue(src, out var cached)) return cached;
             var tex = src.texture;

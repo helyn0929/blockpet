@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BlockPet.Decoration;
 using BlockPet.Hand;
+using BlockPet.Outfit;
 using BlockPet.UI.Home;
 using BlockPet.UI.Room;
 using TMPro;
@@ -14,7 +15,8 @@ namespace BlockPet.UI.Market
     /// 商店（設計文件 5.11；設計稿「商店 A 營地試擺」MarketA.dc.html、A-2 寵物蛋）：
     /// - 上方 330：營地預覽。家具／環境放進虛線框「試擺」（可拖曳），寵物在旁邊說喜不喜歡；寵物蛋放在窩裡搖。
     /// - 頂部：返回、「商店」、空間金幣（全空間共用）。
-    /// - 下方面板：家具／環境／寵物蛋三個分頁（2026-11-06：「裝飾」「道具」刪除；復活改成在復活視窗直接付金幣），三欄商品卡；最下方購買列。
+    /// - 下方面板：家具／環境／穿搭／寵物蛋四個分頁（2026-11-06：「裝飾」「道具」刪除；復活改成在復活視窗直接付金幣；
+    ///   11-07 新增「穿搭」：寵物穿戴的東西，只是打扮、不影響數值，見 OutfitRules），三欄商品卡；最下方購買列。
     /// - 全部用空間金幣買（FirebaseManager.SpendRoomCoins），買過的記在 Rooms/{roomId}/shop。
     ///   家具買過後「去擺放」→ 回首頁進佈置模式直接開始擺。
     /// 介面在執行時以 390×772 設計座標建立：預覽與頂部貼齊上方，面板延伸到底部，依螢幕寬度等比縮放。
@@ -29,6 +31,9 @@ namespace BlockPet.UI.Market
         const float GridGap = 10f;
         const float PadX = 16f;
         const float CardW = (DesignW - PadX * 2f - GridGap * 2f) / 3f;
+        // 穿搭試穿：寵物放大置中（設計稿還沒畫，先放在預覽中間）
+        const float OutfitPetW = 168f, OutfitPetH = 145f;
+        const float OutfitPetX = (DesignW - OutfitPetW) / 2f, OutfitPetY = 104f;
 
         static readonly Color Ink = Hex(0x3A2E22);
         static readonly Color Paper = Hex(0xFFF8EC);
@@ -72,7 +77,7 @@ namespace BlockPet.UI.Market
         MarketTab _tab = MarketTab.Furniture;
         readonly Dictionary<MarketTab, int> _sel = new Dictionary<MarketTab, int>
         {
-            { MarketTab.Furniture, 0 }, { MarketTab.Environment, 0 }, { MarketTab.Egg, 0 },
+            { MarketTab.Furniture, 0 }, { MarketTab.Environment, 0 }, { MarketTab.Outfit, 0 }, { MarketTab.Egg, 0 },
         };
         Dictionary<string, int> _owned = new Dictionary<string, int>();
         bool _busy;
@@ -89,7 +94,9 @@ namespace BlockPet.UI.Market
         float _k = 1f;
 
         // 預覽
-        RectTransform _placeLayer, _eggLayer;
+        RectTransform _placeLayer, _eggLayer, _outfitLayer;
+        RectTransform _outfitPet, _outfitWear, _outfitTag;
+        TMP_Text _outfitTagText;
         RectTransform _placePet, _eggImgRt;
         GameObject _eggNest;
         Image _placePetImg, _tryImg, _eggImg;
@@ -117,7 +124,7 @@ namespace BlockPet.UI.Market
         // 購買列
         TMP_Text _buyName, _buyDesc;
         RectTransform _btnMain, _btnSecond;
-        Image _btnMainBg, _btnMainEdge, _btnSecondBg, _btnSecondBorder;
+        Image _btnMainBg, _btnMainEdge, _btnMainBorder, _btnSecondBg, _btnSecondBorder;
         TMP_Text _btnMainText, _btnSecondText;
         Image _btnMainCoin, _btnSecondCoin;
         Button _btnMainButton, _btnSecondButton;
@@ -157,12 +164,21 @@ namespace BlockPet.UI.Market
             RefreshSharedNote();
             ApplyPendingItem();
             LoadOwned();
+            FirebaseManager.Instance?.StartOutfit();
+            FirebaseManager.OnOutfitChanged += OnOutfitChanged;
             ShowTab(_tab);
         }
 
         void OnDisable()
         {
+            FirebaseManager.OnOutfitChanged -= OnOutfitChanged;
             if (_canvas != null) _canvas.gameObject.SetActive(false);
+        }
+
+        /// <summary>營地寵物的穿著變了（自己或其他成員換穿）：穿搭分頁重畫。</summary>
+        void OnOutfitChanged()
+        {
+            if (_tab == MarketTab.Outfit) ShowTab(_tab);
         }
 
         void OnDestroy()
@@ -193,11 +209,13 @@ namespace BlockPet.UI.Market
             float t = Time.unscaledTime;
             float bob = 8f * (0.5f - 0.5f * Mathf.Cos(t / 2.4f * Mathf.PI * 2f));
             _placePet.anchoredPosition = new Vector2(52f, -128f + bob);
+            _outfitPet.anchoredPosition = new Vector2(OutfitPetX, -(OutfitPetY - bob));
             _eggImgRt.localRotation = Quaternion.Euler(0f, 0f, 6f * Mathf.Sin(t / 2.4f * Mathf.PI * 2f));
             _popT = Mathf.Min(1f, _popT + dt / 0.3f);
             float pop = Mathf.Lerp(0.6f, 1f, 1f - (1f - _popT) * (1f - _popT));
             _tryImg.rectTransform.localScale = Vector3.one * pop;
             _bubble.localScale = Vector3.one * pop;
+            _outfitWear.localScale = Vector3.one * Mathf.Lerp(0.85f, 1f, pop);
             _tryDash.color = new Color(1f, 1f, 1f, Mathf.Lerp(1f, 0.45f, 0.5f - 0.5f * Mathf.Cos(t / 1.6f * Mathf.PI * 2f)));
 
             _toastGroup.alpha = Mathf.MoveTowards(_toastGroup.alpha, Time.unscaledTime < _toastUntil ? 1f : 0f, dt / 0.2f);
@@ -231,7 +249,17 @@ namespace BlockPet.UI.Market
 
         bool Owned(MarketEntry e) => e != null && _owned.TryGetValue(e.id, out var n) && n > 0;
         int OwnedCount(string id) => _owned.TryGetValue(id, out var n) ? n : 0;
-        bool Locked(MarketEntry e) => e != null && !string.IsNullOrEmpty(e.requires) && !_owned.ContainsKey(e.requires);
+        bool Locked(MarketEntry e) =>
+            e != null && (e.tab == MarketTab.Outfit ? StateOf(e) == OutfitState.NotOnSale
+                                                    : !string.IsNullOrEmpty(e.requires) && !_owned.ContainsKey(e.requires));
+
+        // ─── 穿搭 ──────────────────────────────────────────────────────
+
+        static IReadOnlyDictionary<string, string> Worn =>
+            FirebaseManager.Instance != null ? FirebaseManager.Instance.WornOutfit : new Dictionary<string, string>();
+
+        OutfitState StateOf(MarketEntry e) =>
+            OutfitRules.StateOf(OutfitArt.Get(e?.id), Owned(e), Worn, System.DateTime.Now);
 
         MarketEntry Current
         {
@@ -272,6 +300,10 @@ namespace BlockPet.UI.Market
                     _section.text = "營地環境";
                     _sectionRight.text = "新環境可以放更多家具";
                     break;
+                case MarketTab.Outfit:
+                    _section.text = PetName() + " 的穿搭";
+                    _sectionRight.text = "只是打扮，不影響數值";
+                    break;
                 default:
                     _section.text = "寵物蛋";
                     _sectionRight.text = $"1 顆 {list[0].price:N0} 金幣";
@@ -283,12 +315,26 @@ namespace BlockPet.UI.Market
                 var have = new List<string>();
                 foreach (var e in list) if (OwnedCount(e.id) > 0) have.Add($"{e.name} {OwnedCount(e.id)} 顆");
                 _footText.text = "・買到的蛋要餵照片才會孵化，進化方向看你餵什麼\n・這個空間有：" + (have.Count > 0 ? string.Join("、", have) : "還沒有蛋");
+                SetFootCard(true);
+                _footNote.gameObject.SetActive(true);
+            }
+            else if (tab == MarketTab.Outfit)
+            {
+                // 清單下方一段說明（12 Bold #6B5D4E，不放白卡）
+                _footText.text = "穿搭只是打扮：隨時可以穿上、脫下，不影響進化、愛心和金幣。寵物身體的長相還是靠餵照片決定。";
+                SetFootCard(false);
                 _footNote.gameObject.SetActive(true);
             }
             else _footNote.gameObject.SetActive(false);
 
             _dirty = true;
             Select(_sel[tab]);
+        }
+
+        void SetFootCard(bool card)
+        {
+            foreach (Transform c in _footNote)
+                if (c.name == "Shadow" || c.name == "Fill") c.gameObject.SetActive(card);
         }
 
         void Select(int index)
@@ -309,8 +355,10 @@ namespace BlockPet.UI.Market
             bool place = _tab == MarketTab.Furniture || _tab == MarketTab.Environment;
             _placeLayer.gameObject.SetActive(place);
             _eggLayer.gameObject.SetActive(_tab == MarketTab.Egg);
+            _outfitLayer.gameObject.SetActive(_tab == MarketTab.Outfit);
             _eggNest.SetActive(true);
             _bubble.gameObject.SetActive(_tab != MarketTab.Egg);
+            if (_tab == MarketTab.Outfit) { UpdateOutfitPreview(e); return; }
             var sprite = SpriteOf(e);
             string pet = PetName();
 
@@ -330,6 +378,40 @@ namespace BlockPet.UI.Market
                 _previewNote.text = "孵出來的樣子每次都不一樣，之後靠餵照片決定進化";
                 _previewNote.gameObject.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// 穿搭的試穿預覽（5.11 ⑧）：寵物放大置中、上下輕輕跳，選中的穿搭直接穿上（同部位換掉、其他部位照現在穿的）；
+        /// 頭上黃色小標籤、旁邊泡泡、下方一行白字依狀態（試穿／已擁有／穿著）。
+        /// </summary>
+        void UpdateOutfitPreview(MarketEntry e)
+        {
+            var item = OutfitArt.Get(e.id);
+            var state = StateOf(e);
+            var tryOn = state == OutfitState.Wearing ? new Dictionary<string, string>(DictOf(Worn)) : OutfitRules.Wear(Worn, item);
+            OutfitArt.Dress(_outfitWear, tryOn, OutfitPetW, OutfitPetH, false);
+
+            string tag = state == OutfitState.Wearing ? "穿著" : (state == OutfitState.Owned ? "已擁有" : "試穿");
+            _outfitTagText.text = tag;
+            float tw = _outfitTagText.GetPreferredValues(tag).x + 16f;
+            _outfitTag.sizeDelta = new Vector2(tw, 18f);
+            _outfitTag.anchoredPosition = new Vector2(OutfitPetX + OutfitPetW / 2f - tw / 2f, -(OutfitPetY - 28f));
+
+            _bubbleText.text = state == OutfitState.Wearing ? "好看嗎？" : (state == OutfitState.Owned ? "要穿這個嗎？" : "這個好可愛…");
+            SetBubble(OutfitPetX + OutfitPetW - 6f, OutfitPetY - 6f, 10f);
+
+            _previewNote.text = state == OutfitState.Wearing ? "穿著呢！大家在營地都看得到"
+                : state == OutfitState.Owned ? "已擁有：按「穿上」就換上"
+                : state == OutfitState.NotOnSale ? (string.IsNullOrEmpty(e.lockText) ? "還沒開賣" : "還沒開賣：" + e.lockText)
+                : "試穿看看：買了才會一直穿著";
+            _previewNote.gameObject.SetActive(true);
+        }
+
+        static Dictionary<string, string> DictOf(IReadOnlyDictionary<string, string> d)
+        {
+            var r = new Dictionary<string, string>();
+            if (d != null) foreach (var kv in d) r[kv.Key] = kv.Value;
+            return r;
         }
 
         void SetBubble(float x, float y, float tailX)
@@ -356,6 +438,16 @@ namespace BlockPet.UI.Market
                 _btnSecondCoin.gameObject.SetActive(true);
                 SetPriceText(_btnSecondText, "買 1 顆", e.price);
             }
+            else if (_tab == MarketTab.Outfit)
+            {
+                switch (StateOf(e))
+                {
+                    case OutfitState.Wearing: SetMain("脫下來", Color.white, Line, Ink, true, border: true); break;
+                    case OutfitState.Owned: SetMain("穿上", Green, GreenEdge, Color.white, true); break;
+                    case OutfitState.NotOnSale: SetMain("還沒開賣", Line, Line, Muted2, false); break;
+                    default: SetMain("買下", Yellow, YellowEdge, Ink, true, e.price); break;
+                }
+            }
             else if (Locked(e)) SetMain("還沒解鎖", Line, Line, Muted2, false);
             else if (Owned(e))
             {
@@ -366,11 +458,14 @@ namespace BlockPet.UI.Market
             LayoutBuyButtons();
         }
 
-        void SetMain(string label, Color bg, Color edge, Color fg, bool interactable, int price = -1)
+        void SetMain(string label, Color bg, Color edge, Color fg, bool interactable, int price = -1, bool border = false)
         {
             _btnMainBg.color = bg;
             _btnMainEdge.color = edge;
-            _btnMainEdge.enabled = bg != Line;
+            _btnMainEdge.enabled = bg != Line && !border;
+            // 白色「脫下來」：邊 1.5 #E2D6C0、沒有下緣立體
+            _btnMainBorder.enabled = border;
+            StretchIn(_btnMainBg.rectTransform, border ? 1.5f : 0f, border ? 1.5f : 0f, border ? 1.5f : 0f, border ? 1.5f : 0f);
             _btnMainText.color = fg;
             _btnMainButton.interactable = interactable;
             _btnMainCoin.gameObject.SetActive(price >= 0);
@@ -420,6 +515,7 @@ namespace BlockPet.UI.Market
             var e = Current;
             if (e == null || _busy) return;
             if (_tab == MarketTab.Egg) { Buy(e, 10, MarketCatalog.EggTenPrice); return; }
+            if (_tab == MarketTab.Outfit) { OnOutfitMain(e); return; }
             if (Locked(e)) return;
             if (Owned(e))
             {
@@ -427,6 +523,29 @@ namespace BlockPet.UI.Market
                 return;
             }
             Buy(e, 1, e.price);
+        }
+
+        /// <summary>穿搭：買下／穿上（同部位換掉）／脫下來；還沒開賣不能按。只換打扮，不動任何數值。</summary>
+        void OnOutfitMain(MarketEntry e)
+        {
+            var item = OutfitArt.Get(e.id);
+            var fb = FirebaseManager.Instance;
+            switch (StateOf(e))
+            {
+                case OutfitState.Buyable: Buy(e, 1, e.price); return;
+                case OutfitState.NotOnSale: return;
+                case OutfitState.Owned:
+                    if (fb == null) return;
+                    fb.SetWornOutfit(OutfitRules.Wear(Worn, item));
+                    Toast("換上" + e.name + "了！");
+                    break;
+                case OutfitState.Wearing:
+                    if (fb == null) return;
+                    fb.SetWornOutfit(OutfitRules.TakeOff(Worn, item));
+                    Toast("脫下" + e.name + "了");
+                    break;
+            }
+            ShowTab(_tab);
         }
 
         void OnSecond()
@@ -459,7 +578,9 @@ namespace BlockPet.UI.Market
                     }
                     _owned[e.id] = OwnedCount(e.id) + count;
                     Toast(e.tab == MarketTab.Egg ? $"買到 {count} 顆{e.name}！"
-                        : (e.tab == MarketTab.Environment ? "新環境解鎖了！" : "買好了！可以去擺放"));
+                        : e.tab == MarketTab.Environment ? "新環境解鎖了！"
+                        : e.tab == MarketTab.Outfit ? "買好了！按「穿上」就換上"
+                        : "買好了！可以去擺放");
                     ShowTab(_tab);
                 });
             });
@@ -667,6 +788,23 @@ namespace BlockPet.UI.Market
             _eggImg.preserveAspect = true;
             _eggImg.raycastTarget = false;
 
+            // 穿搭：寵物放大置中、上下輕輕跳，穿搭直接穿在身上；頭上黃色小標籤（試穿／已擁有／穿著）
+            _outfitLayer = Place(pv, "Outfit", 0, 0, DesignW, PreviewH);
+            UIShapes.AddRounded(Place(_outfitLayer, "PetShadow", OutfitPetX + 24f, OutfitPetY + OutfitPetH - 8f, OutfitPetW - 48f, 20).gameObject,
+                new Color(30f / 255f, 40f / 255f, 20f / 255f, 0.28f), 10).raycastTarget = false;
+            _outfitPet = Place(_outfitLayer, "Pet", OutfitPetX, OutfitPetY, OutfitPetW, OutfitPetH);
+            PetImage(_outfitPet);
+            _outfitWear = Place(_outfitPet, "Wear", 0, 0, OutfitPetW, OutfitPetH);
+            _outfitWear.pivot = new Vector2(0.5f, 0.5f);
+            _outfitWear.anchoredPosition = new Vector2(OutfitPetW / 2f, -OutfitPetH / 2f);
+            _outfitTag = Place(_outfitLayer, "Tag", 0, 0, 40, 18);
+            UIShapes.AddRounded(Place(_outfitTag, "Edge", 0, 2, 0, 0).gameObject, YellowEdge, 8).raycastTarget = false;
+            StretchIn((RectTransform)_outfitTag.GetChild(0), 0, 2, 0, -2);
+            StretchIn(UIShapes.AddRounded(Place(_outfitTag, "Fill", 0, 0, 0, 0).gameObject, Yellow, 8).rectTransform);
+            _outfitTagText = Label(_outfitTag, 0, 0, 0, 0, "", 11, Ink, TextAlignmentOptions.Center);
+            StretchIn(_outfitTagText.rectTransform);
+            _outfitLayer.gameObject.SetActive(false);
+
             // 寵物說話的泡泡（家具／環境在左上、裝飾在右上）
             _bubble = Place(pv, "Bubble", 0, 0, 100, 28);
             _bubble.pivot = new Vector2(0.5f, 0.5f);
@@ -732,10 +870,10 @@ namespace BlockPet.UI.Market
             StretchIn(fill.rectTransform, 0, 0, 0, -30);
             UIShapes.AddRounded(Place(_panel, "Handle", 175, 8, 40, 5).gameObject, Line, 2.5f).raycastTarget = false;
 
-            // 分頁：家具／環境／寵物蛋（順序和 MarketTab 一樣）
+            // 分頁：家具／環境／穿搭／寵物蛋（順序和 MarketTab 一樣），四個平分寬度
             var tabs = Place(_panel, "Tabs", PadX, 22, DesignW - PadX * 2f, 44);
             UIShapes.AddRounded(tabs.gameObject, Beige, 15).raycastTarget = false;
-            string[] labels = { "家具", "環境", "寵物蛋" };
+            string[] labels = { "家具", "環境", "穿搭", "寵物蛋" };
             float tw = (DesignW - PadX * 2f - 8f - 4f * (labels.Length - 1)) / labels.Length;
             for (int i = 0; i < labels.Length; i++)
             {
@@ -798,16 +936,28 @@ namespace BlockPet.UI.Market
             StretchIn(bg.rectTransform);
 
             bool locked = Locked(e);
+            bool outfit = e.tab == MarketTab.Outfit;
             var group = rt.gameObject.AddComponent<CanvasGroup>();
-            group.alpha = locked ? 0.62f : 1f;
+            group.alpha = locked ? (outfit ? 0.55f : 0.62f) : 1f;
 
             float iw = CardW - 14f;
             var imgBox = Place(rt, "ImageBox", 7, 7, iw, 70);
             UIShapes.AddRounded(imgBox.gameObject, e.tone, 12).raycastTarget = false;
-            var img = Place(imgBox, "Image", (iw - 72f) / 2f, 6, 72, 58).gameObject.AddComponent<Image>();
-            img.sprite = SpriteOf(e);
-            img.preserveAspect = true;
-            img.raycastTarget = false;
+            if (outfit) OutfitArt.Thumbnail(imgBox, e.id, 64f, 52f); // 正式美術還沒出：佔位圖
+            else
+            {
+                var img = Place(imgBox, "Image", (iw - 72f) / 2f, 6, 72, 58).gameObject.AddComponent<Image>();
+                img.sprite = SpriteOf(e);
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+            }
+            if (outfit && StateOf(e) == OutfitState.Wearing)
+            {
+                // 正在穿：卡片右上黃色「穿著」
+                var worn = Place(rt, "Wearing", CardW - 7f - 38f, 4, 38, 18);
+                UIShapes.AddRounded(worn.gameObject, Yellow, 8).raycastTarget = false;
+                Label(worn, 0, 0, 38, 18, "穿著", 11, Ink, TextAlignmentOptions.Center);
+            }
             if (e.petLikes)
             {
                 // 寵物喜歡：紅底圓圈裡一顆白色愛心（兩個圓＋轉 45° 的方塊）
@@ -827,7 +977,13 @@ namespace BlockPet.UI.Market
             name.overflowMode = TextOverflowModes.Ellipsis;
 
             float y = 103f;
-            if (Locked(e))
+            if (Locked(e) && outfit)
+            {
+                // 還沒開賣：鎖頭＋原因
+                LockIcon(Place(rt, "Lock", 7, y + 2, 11, 12));
+                Label(rt, 21, y, iw - 14f, 16, string.IsNullOrEmpty(e.lockText) ? "還沒開賣" : e.lockText, 11, Muted2, TextAlignmentOptions.Left).enableWordWrapping = false;
+            }
+            else if (Locked(e))
             {
                 Label(rt, 7, y, iw, 16, "未解鎖・" + e.lockText, 11, Muted2, TextAlignmentOptions.Left).enableWordWrapping = false;
             }
@@ -853,6 +1009,13 @@ namespace BlockPet.UI.Market
             return view;
         }
 
+        /// <summary>小鎖頭（11 × 12）：鎖環＋鎖身。</summary>
+        static void LockIcon(RectTransform rt)
+        {
+            UIShapes.AddRing(Place(rt, "Shackle", 2, 0, 7, 8).gameObject, Muted2, 3.5f).raycastTarget = false;
+            UIShapes.AddRounded(Place(rt, "Body", 0, 5, 11, 7).gameObject, Muted2, 2f).raycastTarget = false;
+        }
+
         void BuildBuyBar()
         {
             _buyBar = Place(_panel, "BuyBar", 0, 0, DesignW, BuyBarH);
@@ -875,6 +1038,10 @@ namespace BlockPet.UI.Market
             _btnMainEdge = UIShapes.AddRounded(Place(_btnMain, "Edge", 0, 3, 0, 0).gameObject, YellowEdge, 15);
             StretchIn(_btnMainEdge.rectTransform, 0, 3, 0, -3);
             _btnMainEdge.raycastTarget = false;
+            _btnMainBorder = UIShapes.AddRounded(Place(_btnMain, "Border", 0, 0, 0, 0).gameObject, Line, 15);
+            StretchIn(_btnMainBorder.rectTransform);
+            _btnMainBorder.raycastTarget = false;
+            _btnMainBorder.enabled = false;
             _btnMainBg = UIShapes.AddRounded(Place(_btnMain, "Fill", 0, 0, 0, 0).gameObject, Yellow, 15);
             StretchIn(_btnMainBg.rectTransform);
             _btnMainText = Label(_btnMain, 0, 0, 0, 0, "", 15, Ink, TextAlignmentOptions.Center);

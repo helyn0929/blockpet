@@ -17,6 +17,8 @@ public class PhotoMeta
     public float categoryConfidence;
     /// <summary>辨識時的類別版本（photo_categories.json 的 version）；和目前版本不同時會重新辨識。</summary>
     public string categoryVersion;
+    /// <summary>拍的時候開了魚眼（設計文件 5.27 ③）：照片存原圖，顯示時再套魚眼（FisheyeImage）。</summary>
+    public bool fisheye;
 
     public PhotoMeta(string fileName)
     {

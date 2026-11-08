@@ -22,7 +22,8 @@ public class FeedController : MonoBehaviour
         if (pet != null) _petStartPos = pet.position;
     }
 
-    public void FeedWithPhoto(Texture2D photo)
+    /// <summary>fisheye＝相機開了魚眼：辨識用的是沒有變形的原圖，照片存原圖＋標記（5.27 ③）。</summary>
+    public void FeedWithPhoto(Texture2D photo, bool fisheye = false)
     {
         if (photo == null)
         {
@@ -41,7 +42,7 @@ public class FeedController : MonoBehaviour
         // 照片辨識（第 3 步），類別跟著照片存、分享到營地
         var vision = BlockPet.Vision.PhotoClassifier.Instance != null ? BlockPet.Vision.PhotoClassifier.Instance.Classify(photo) : default;
         if (vision.Ok) Debug.Log($"[FeedController] 照片辨識：{vision.category}（{vision.confidence:P0}）");
-        SaveManager.Instance.SavePhoto(photo, vision.category, vision.confidence);
+        SaveManager.Instance.SavePhoto(photo, vision.category, vision.confidence, fisheye);
 
         // 2. 顯示飛行的照片
         if (flyingPhotoObject != null) flyingPhotoObject.SetActive(true);

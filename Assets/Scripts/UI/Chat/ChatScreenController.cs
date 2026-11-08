@@ -87,6 +87,12 @@ namespace BlockPet.UI.Chat
         RectTransform _highlightRow;
         readonly Dictionary<string, RectTransform> _rows = new Dictionary<string, RectTransform>();
         readonly Dictionary<string, Texture> _postTex = new Dictionary<string, Texture>();
+        // 打開不卡（2026-11-08）：照片每幀讀一張；一次只建最新 PageSize 則；內容沒變就不重建
+        const int PageSize = 40;
+        int _showCount = PageSize;
+        readonly List<string> _toLoad = new List<string>();
+        readonly HashSet<string> _missing = new HashSet<string>();
+        bool _loadedSome, _scrollBottomNext;
 
         // 點訊息後的選單
         RectTransform _menuLayer;
@@ -106,62 +112,83 @@ namespace BlockPet.UI.Chat
         {
             if (pageManager == null) pageManager = FindObjectOfType<PageManager>(true);
             Build();
+            // 關著的時候也聽：打開時只有內容真的變了才重建（原本每次打開都整份重建，訊息多就卡）
+            FirebaseManager.OnChatEntryAdded += OnEntryAdded;
+            FirebaseManager.OnChatEntryChanged += OnEntryChanged;
+            FirebaseManager.OnChatEntryRemoved += OnEntryRemoved;
+            FirebaseManager.OnChatEntriesReset += OnEntriesReset;
+            SaveManager.OnSaveDataChanged += OnSaveChanged;
         }
 
         void OnEnable()
         {
             if (_canvas != null) _canvas.gameObject.SetActive(true);
             MakeBackground();
-            FirebaseManager.OnChatEntryAdded += OnEntryAdded;
-            FirebaseManager.OnChatEntryChanged += OnEntryChanged;
-            FirebaseManager.OnChatEntryRemoved += OnEntryRemoved;
-            FirebaseManager.OnChatEntriesReset += OnEntriesReset;
-            SaveManager.OnSaveDataChanged += OnSaveChanged;
             FirebaseManager.Instance?.EnsureChatListening();
             CloseMenu(instant: true);
             SetReply(null);
             _stickToBottom = true;
-            _dirty = true;
+            _scrollBottomNext = true;
             RefreshHeader();
             MarkRead();
         }
 
         void OnDisable()
         {
-            FirebaseManager.OnChatEntryAdded -= OnEntryAdded;
-            FirebaseManager.OnChatEntryChanged -= OnEntryChanged;
-            FirebaseManager.OnChatEntryRemoved -= OnEntryRemoved;
-            FirebaseManager.OnChatEntriesReset -= OnEntriesReset;
-            SaveManager.OnSaveDataChanged -= OnSaveChanged;
             MarkRead();
             if (_canvas != null) _canvas.gameObject.SetActive(false);
         }
 
         void OnDestroy()
         {
+            FirebaseManager.OnChatEntryAdded -= OnEntryAdded;
+            FirebaseManager.OnChatEntryChanged -= OnEntryChanged;
+            FirebaseManager.OnChatEntryRemoved -= OnEntryRemoved;
+            FirebaseManager.OnChatEntriesReset -= OnEntriesReset;
+            SaveManager.OnSaveDataChanged -= OnSaveChanged;
             foreach (var t in _postTex.Values) if (t != null) Destroy(t);
             _postTex.Clear();
             if (_blurred != null) { _blurred.Release(); Destroy(_blurred); }
             if (_canvas != null) Destroy(_canvas.gameObject);
         }
 
-        void OnEntryAdded(ChatEntry e) { _dirty = true; MarkRead(); }
+        void OnEntryAdded(ChatEntry e) { _dirty = true; if (isActiveAndEnabled) MarkRead(); }
         void OnEntryChanged(ChatEntry e) => _dirty = true;
         void OnEntryRemoved(string key) { _dirty = true; if (key == _replyKey) SetReply(null); if (key == _menuKey) CloseMenu(); }
-        void OnEntriesReset() { _dirty = true; SetReply(null); CloseMenu(); }
-        void OnSaveChanged() => _dirty = true; // 別人的餵食照片同步下來了
+        void OnEntriesReset() { _dirty = true; _showCount = PageSize; _missing.Clear(); SetReply(null); CloseMenu(); }
+        /// <summary>別人的餵食照片同步下來了：只有畫面上有「照片同步中」的才需要重建。</summary>
+        void OnSaveChanged()
+        {
+            if (_missing.Count == 0) return;
+            var photos = SaveManager.Instance?.data?.photos;
+            if (photos == null) return;
+            foreach (var f in _missing)
+                if (photos.Exists(p => p != null && p.fileName == f)) { _dirty = true; return; }
+        }
 
         void Update()
         {
             float dt = Time.unscaledDeltaTime;
             Relayout();
+            // 照片每幀讀一張；全部讀好再更新一次畫面
+            if (_toLoad.Count > 0)
+            {
+                LoadOnePostPhoto();
+                if (_toLoad.Count == 0 && _loadedSome) { _loadedSome = false; _dirty = true; }
+            }
             if (_dirty)
             {
                 _dirty = false;
-                bool atBottom = _stickToBottom || _scroll.verticalNormalizedPosition <= 0.02f;
+                bool atBottom = _stickToBottom || _scrollBottomNext || _scroll.verticalNormalizedPosition <= 0.02f;
                 RebuildMessages();
                 if (atBottom) ScrollToBottom();
                 _stickToBottom = false;
+                _scrollBottomNext = false;
+            }
+            else if (_scrollBottomNext)
+            {
+                _scrollBottomNext = false;
+                ScrollToBottom();
             }
 
             // 送出鈕：有字才亮
@@ -227,16 +254,6 @@ namespace BlockPet.UI.Chat
 
         public static string Initial(string name, bool mine) =>
             mine ? "我" : (string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1));
-
-        PhotoSplitView _splitView;
-
-        /// <summary>右上「營地照片」：打開分割畫面（從最新一張開始，蓋在聊天室上面，返回就回聊天室）。</summary>
-        void OpenSplitView()
-        {
-            if (_splitView == null) _splitView = FindObjectOfType<PhotoSplitView>(true);
-            if (_splitView != null && _splitView.Open()) return;
-            Toast(_splitView == null ? "分割畫面還沒設定" : "營地還沒有照片");
-        }
 
         /// <summary>照片左上角的類別標籤（照片辨識結果）：白底膠囊＋類別色圓點。</summary>
         void CategoryTag(RectTransform frame, string category)
@@ -332,19 +349,37 @@ namespace BlockPet.UI.Chat
         }
 
         /// <summary>餵食照片：從本機相簿（含同步下來的）讀，縮成 432px 寬存著。還沒同步到就先空白。</summary>
-        Texture PostTexture(string fileName)
+        /// <summary>
+        /// 餵食照片的小圖：讀過的直接用；還沒讀的排進佇列（Update 每幀讀一張，全部好了再重建一次），先回傳 null。
+        /// 照片還沒同步到相簿的記在 _missing，同步下來時（OnSaveChanged）再重建。
+        /// </summary>
+        Texture PostTexture(string fileName) => PostTexture(fileName, out _);
+
+        Texture PostTexture(string fileName, out bool loading)
         {
+            loading = false;
             if (string.IsNullOrEmpty(fileName)) return null;
             if (_postTex.TryGetValue(fileName, out var t) && t != null) return t;
             var photos = SaveManager.Instance?.data?.photos;
-            var meta = photos?.Find(p => p != null && p.fileName == fileName);
-            if (meta == null) return null;
-            var full = SaveManager.Instance.LoadPhoto(meta);
-            if (full == null) return null;
-            var small = Downscale(full, 432);
+            if (photos == null || !photos.Exists(p => p != null && p.fileName == fileName)) { _missing.Add(fileName); return null; }
+            _missing.Remove(fileName);
+            if (!_toLoad.Contains(fileName)) _toLoad.Add(fileName);
+            loading = true;
+            return null;
+        }
+
+        void LoadOnePostPhoto()
+        {
+            // 最新的先讀（畫面一打開就在最下面）
+            string fileName = _toLoad[_toLoad.Count - 1];
+            _toLoad.RemoveAt(_toLoad.Count - 1);
+            if (_postTex.ContainsKey(fileName)) return;
+            var meta = SaveManager.Instance?.data?.photos?.Find(p => p != null && p.fileName == fileName);
+            var full = meta != null ? SaveManager.Instance.LoadPhoto(meta) : null;
+            if (full == null) return;
+            _postTex[fileName] = Downscale(full, 432);
             Destroy(full);
-            _postTex[fileName] = small;
-            return small;
+            _loadedSome = true;
         }
 
         public static Texture Downscale(Texture2D src, int maxW)
@@ -366,8 +401,12 @@ namespace BlockPet.UI.Chat
 
             float y = 10f;
             DateTime? lastDay = null;
-            foreach (var e in Entries)
+            // 一次只建最新 _showCount 則；更早的點「看更早的訊息」再建
+            int start = Mathf.Max(0, Entries.Count - _showCount);
+            if (start > 0) y += BuildLoadEarlier(y) + 12f;
+            for (int i = start; i < Entries.Count; i++)
             {
+                var e = Entries[i];
                 var day = LocalTime(e.msg.timestamp).Date;
                 if (lastDay == null || day != lastDay.Value)
                 {
@@ -385,6 +424,32 @@ namespace BlockPet.UI.Chat
                 y = 120f;
             }
             _content.sizeDelta = new Vector2(DesignW, y);
+        }
+
+        /// <summary>最上面的「看更早的訊息」：再多建 PageSize 則，畫面停在原本看的地方。</summary>
+        float BuildLoadEarlier(float y)
+        {
+            var b = Place(_content, "LoadEarlier", (DesignW - 140f) / 2f, y, 140, 30);
+            var bg = UIShapes.AddRounded(b.gameObject, Beige, 15);
+            Label(b, 0, 0, 140, 30, "看更早的訊息", 12, Muted2, TextAlignmentOptions.Center).enableWordWrapping = false;
+            var btn = b.gameObject.AddComponent<Button>();
+            btn.targetGraphic = bg;
+            btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() =>
+            {
+                float oldH = _content.rect.height, oldPos = 1f - _scroll.verticalNormalizedPosition;
+                _showCount += PageSize;
+                RebuildMessages();
+                Canvas.ForceUpdateCanvases();
+                // 維持原本看的那則在同一個位置
+                float viewH = _viewport.rect.height, newH = _content.rect.height;
+                if (newH > viewH)
+                {
+                    float offset = oldPos * Mathf.Max(0f, oldH - viewH) + (newH - oldH);
+                    _scroll.verticalNormalizedPosition = 1f - Mathf.Clamp01(offset / (newH - viewH));
+                }
+            });
+            return 30f;
         }
 
         float BuildDate(string text, float y)
@@ -446,7 +511,7 @@ namespace BlockPet.UI.Chat
                 var frame = Place(bubble, "Photo", 0, 0, PostImgW, PostImgH);
                 UIShapes.AddRounded(frame.gameObject, Beige, 12).raycastTarget = false;
                 frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-                var tex = PostTexture(e.msg.photoFileName);
+                var tex = PostTexture(e.msg.photoFileName, out bool loading);
                 if (tex != null)
                 {
                     var img = Place(frame, "Img", 0, 0, PostImgW, PostImgH).gameObject.AddComponent<RawImage>();
@@ -454,7 +519,7 @@ namespace BlockPet.UI.Chat
                     img.uvRect = AspectFill(tex.width, tex.height, PostImgW, PostImgH);
                     img.raycastTarget = false;
                 }
-                else Label(frame, 0, 0, PostImgW, PostImgH, "照片同步中…", 12, Muted2, TextAlignmentOptions.Center);
+                else if (!loading) Label(frame, 0, 0, PostImgW, PostImgH, "照片同步中…", 12, Muted2, TextAlignmentOptions.Center);
                 if (!string.IsNullOrEmpty(e.msg.category)) CategoryTag(frame, e.msg.category);
                 items.Add((frame, PostImgH));
                 bw = Mathf.Max(bw, PostImgW);
@@ -506,6 +571,14 @@ namespace BlockPet.UI.Chat
             time.rectTransform.anchoredPosition = new Vector2(tx, -(top + bubbleH - 16f));
 
             float h = top + bubbleH;
+            // 餵食照片：泡泡下方「到營地看這張 ›」→ 拍立得分割畫面（5.13、5.26 ①）
+            if (e.IsPost && !string.IsNullOrEmpty(e.msg.photoFileName))
+            {
+                h += 6f;
+                var go = BuildSeePhoto(row, e.msg.photoFileName);
+                go.anchoredPosition = new Vector2(mine ? DesignW - SidePad - go.sizeDelta.x : colX, -h);
+                h += 28f;
+            }
             // emoji
             if (e.reactions.Count > 0)
             {
@@ -541,6 +614,39 @@ namespace BlockPet.UI.Chat
             }
             row.sizeDelta = new Vector2(DesignW, h);
             return row;
+        }
+
+        /// <summary>黃色小按鈕「到營地看這張 ›」：底 #FFF1C9、邊 1.5 #F6C945、高 28、圓角 14、寵物小圖 18＋12 Black。</summary>
+        RectTransform BuildSeePhoto(RectTransform row, string fileName)
+        {
+            const string text = "到營地看這張 ›";
+            var b = Place(row, "SeePhoto", 0, 0, 120, 28);
+            UIShapes.AddRounded(b.gameObject, Yellow, 14).raycastTarget = false;
+            var fill = UIShapes.AddRounded(Place(b, "Fill", 0, 0, 0, 0).gameObject, new Color(1f, 241f / 255f, 201f / 255f, 1f), 12.5f);
+            StretchIn(fill.rectTransform, 1.5f, 1.5f, 1.5f, 1.5f);
+            float x = 10f;
+            var pet = PetSprite();
+            if (pet != null)
+            {
+                var pi = Place(b, "Pet", x, 5, 18, 18).gameObject.AddComponent<Image>();
+                pi.sprite = pet;
+                pi.preserveAspect = true;
+                pi.raycastTarget = false;
+                x += 18f + 4f;
+            }
+            var t = Label(b, x, 0, 100, 28, text, 12, Ink, TextAlignmentOptions.Left);
+            t.enableWordWrapping = false;
+            float tw = Mathf.Ceil(t.GetPreferredValues(text).x);
+            t.rectTransform.sizeDelta = new Vector2(tw, 28f);
+            b.sizeDelta = new Vector2(x + tw + 12f, 28f);
+            var btn = b.gameObject.AddComponent<Button>();
+            btn.targetGraphic = fill;
+            btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() =>
+            {
+                if (!BlockPet.UI.Polaroid.PolaroidScreen.OpenPhoto(fileName)) Toast("照片還在同步，等一下再看");
+            });
+            return b;
         }
 
         RectTransform BuildQuote(RectTransform parent, ChatEntry quoted, ChatMessage msg, bool mine, float maxW)
@@ -591,7 +697,16 @@ namespace BlockPet.UI.Chat
 
         void JumpTo(string key)
         {
-            if (!_rows.TryGetValue(key, out var row)) return;
+            if (!_rows.TryGetValue(key, out var row))
+            {
+                // 被引用的訊息比較早、還沒建：往前多建到它那則再跳
+                int idx = -1;
+                for (int i = 0; i < Entries.Count; i++) if (Entries[i].key == key) { idx = i; break; }
+                if (idx < 0) return;
+                _showCount = Mathf.Max(_showCount, Entries.Count - idx + 5);
+                RebuildMessages();
+                if (!_rows.TryGetValue(key, out row)) return;
+            }
             Canvas.ForceUpdateCanvases();
             float contentH = _content.rect.height, viewH = _viewport.rect.height;
             if (contentH > viewH)
@@ -828,7 +943,7 @@ namespace BlockPet.UI.Chat
             _viewport.sizeDelta = new Vector2(DesignW, _screenH - vpTop - kbDesign - bottomH);
 
             _toast.anchoredPosition = new Vector2(_toast.anchoredPosition.x, -(_screenH - kbDesign - bottomH - 52f));
-            if (kbChanged) _dirty = true; // 保持在最新訊息
+            if (kbChanged) _scrollBottomNext = true; // 保持在最新訊息（不用整份重建）
         }
 
         // ─── 建立介面 ──────────────────────────────────────────────────
@@ -892,31 +1007,42 @@ namespace BlockPet.UI.Chat
             _petAvatar.preserveAspect = true;
             _petAvatar.raycastTarget = false;
 
-            _roomName = Label(row, 116, 13, 150, 22, "", 16, Ink, TextAlignmentOptions.Left);
+            // 第一行營地名稱 16 Black；第二行「N 位成員・一起養 寵物名」11 Bold #8A6A4E（RefreshHeader 填）。
+            // 文字框高度要比字的行高高，不然 TMP 的「…」截斷會把整行藏起來（之前名稱是空的就是這個原因）
+            float textW = DesignW - 12f - 44f - 8f - 116f;
+            _roomName = Label(row, 116, 9, textW, 25, "", 16, Ink, TextAlignmentOptions.Left);
             _roomName.enableWordWrapping = false;
             _roomName.overflowMode = TextOverflowModes.Ellipsis;
-            _roomSub = Label(row, 116, 35, 158, 16, "", 11, Muted2, TextAlignmentOptions.Left);
+            _roomSub = Label(row, 116, 34, textW, 19, "", 11, Muted2, TextAlignmentOptions.Left);
             _roomSub.enableWordWrapping = false;
             _roomSub.overflowMode = TextOverflowModes.Ellipsis;
 
-            // 相簿鈕：兩張疊起來的照片
+            // 相簿鈕：首頁 v9 底部相簿的「拍立得疊」線條圖示 26，#3A2E22，沒有底、加白光（同首頁上方圖示）；點擊範圍 44 × 44
             var album = Place(row, "Album", DesignW - 12f - 44f, 10, 44, 44);
-            var abg = UIShapes.AddRounded(album.gameObject, Beige, 14);
-            UIShapes.AddRing(Place(album, "Back", 16, 11, 17, 17).gameObject, Ink, 3.5f);
-            UIShapes.AddRounded(Place(album, "FrontFill", 10, 16, 18, 18).gameObject, Beige, 3.5f).raycastTarget = false;
-            UIShapes.AddRing(Place(album, "Front", 10, 16, 18, 18).gameObject, Ink, 3.5f);
+            var hit = album.gameObject.AddComponent<Image>();
+            hit.color = new Color(1, 1, 1, 0);
+            var albumSprite = BlockPet.UI.Home.Home9Skin.Load()?.iconAlbum;
+            var glowSprite = albumSprite != null ? BlockPet.UI.Home.Home9TopIcons.Glow(albumSprite) : null;
+            if (glowSprite != null)
+            {
+                float gk = 26f / albumSprite.rect.width;
+                var glow = Place(album, "Glow", 0, 0, glowSprite.rect.width * gk, glowSprite.rect.height * gk);
+                glow.anchorMin = glow.anchorMax = glow.pivot = new Vector2(0.5f, 0.5f);
+                glow.anchoredPosition = Vector2.zero;
+                var gi = glow.gameObject.AddComponent<Image>();
+                gi.sprite = glowSprite;
+                gi.raycastTarget = false;
+            }
+            var icon = Place(album, "Icon", 9, 9, 26, 26).gameObject.AddComponent<Image>();
+            icon.sprite = albumSprite;
+            icon.color = Color.white; // 圖示本身就是 #3A2E22（上色是乘上去的，用白色保持原色）
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.enabled = albumSprite != null;
             var ab = album.gameObject.AddComponent<Button>();
-            ab.targetGraphic = abg;
+            ab.targetGraphic = hit;
+            ab.transition = Selectable.Transition.None;
             ab.onClick.AddListener(OpenAlbum);
-
-            // 分割畫面鈕（相簿左邊）：上面一張大照片、下面一塊營地
-            var split = Place(row, "Split", DesignW - 12f - 44f - 8f - 44f, 10, 44, 44);
-            var sbg = UIShapes.AddRounded(split.gameObject, Beige, 14);
-            UIShapes.AddRing(Place(split, "Photo", 12, 10, 20, 15).gameObject, Ink, 3.5f);
-            UIShapes.AddRounded(Place(split, "Camp", 12, 27, 20, 7).gameObject, Ink, 2.5f).raycastTarget = false;
-            var sb = split.gameObject.AddComponent<Button>();
-            sb.targetGraphic = sbg;
-            sb.onClick.AddListener(OpenSplitView);
         }
 
         void BuildMessagesArea()

@@ -11,7 +11,6 @@ public class PageManager : MonoBehaviour
     [SerializeField] GameObject roomPage;
     [SerializeField] GameObject chatPage;
     [SerializeField] GameObject albumPage;
-    [SerializeField] GameObject photoDetailPage;
     [SerializeField] GameObject marketPage;
     [SerializeField] GameObject settingsPage;
     [SerializeField] GameObject petSettingPage;
@@ -33,9 +32,51 @@ public class PageManager : MonoBehaviour
     /// <summary>首頁目前是否顯示中（手牌只在首頁出現）。</summary>
     public bool IsHomePageActive => homePage != null && homePage.activeInHierarchy;
 
+    // 開遊戲時的「回上次空間」（2026-11-08）：手機記得上次的空間、也沒有登出時，先不顯示選空間轉盤，
+    // 等自動登入＋確認空間有結果再決定（進得去直接到首頁），不然轉盤會先閃一下。
+    // 最多等 LaunchWaitSeconds 秒（例如沒網路、沒登入），之後照常顯示轉盤。
+    const float LaunchWaitSeconds = 6f;
+    static bool _launchWait;
+    static float _launchWaitUntil;
+
+    /// <summary>還在等「回上次空間」的結果（這時不顯示轉盤）。</summary>
+    public static bool WaitingForLaunchResume => _launchWait && Time.realtimeSinceStartup < _launchWaitUntil;
+
     void Awake()
     {
         ResolveHudManagers();
+        bool hasRoom = !string.IsNullOrEmpty(PlayerPrefs.GetString("Blockpet.RoomId", ""));
+        bool signedOut = PlayerPrefs.GetInt("Blockpet.UserSignedOut", 0) == 1;
+        _launchWait = hasRoom && !signedOut;
+        _launchWaitUntil = Time.realtimeSinceStartup + LaunchWaitSeconds;
+    }
+
+    /// <summary>「回上次空間」有結果了（進去了，或要去選空間）：之後照常顯示頁面。</summary>
+    public void EndLaunchWait() => _launchWait = false;
+
+    void Update()
+    {
+        // 等太久（沒網路、沒自動登入）：照常顯示選空間轉盤
+        if (_launchWait && Time.realtimeSinceStartup >= _launchWaitUntil)
+        {
+            _launchWait = false;
+            if (!LoginUIHandler.GameplayHudReleased) ShowRoomPage();
+        }
+    }
+
+    void OnEnable() => FirebaseManager.OnLoginSuccess += OnLoginAtLaunch;
+    void OnDisable() => FirebaseManager.OnLoginSuccess -= OnLoginAtLaunch;
+
+    /// <summary>
+    /// 開 App 自動登入：LoginPanel（LoginUIHandler 和登入頁）在場景裡是關著的，收不到登入事件，
+    /// 由這裡請它進上次的空間。LoginPanel 開著時（登出後重新登入）由登入頁自己處理，這裡不重複做。
+    /// </summary>
+    void OnLoginAtLaunch(bool success)
+    {
+        if (!success || LoginUIHandler.GameplayHudReleased) return;
+        var login = FindObjectOfType<LoginUIHandler>(true);
+        if (login == null || login.isActiveAndEnabled) return;
+        login.ResumeLastRoomOnLaunch(this);
     }
 
     void Start()
@@ -91,6 +132,12 @@ public class PageManager : MonoBehaviour
         if (roomPage == null)
         {
             Debug.LogWarning("[PageManager] Assign Room Page in the Inspector (GameObject named 'RoomPage' also works).");
+            return;
+        }
+        if (WaitingForLaunchResume && !LoginUIHandler.GameplayHudReleased)
+        {
+            // 還在等「回上次空間」：先什麼頁都不顯示，避免轉盤閃一下
+            HideAllPages();
             return;
         }
         // Ensure its parents are active so the page can actually render.
@@ -153,56 +200,6 @@ public class PageManager : MonoBehaviour
         ShowOnly(marketPage, false);
     }
 
-    /// <summary>True when the Photo Detail root is assigned (for diagnostics).</summary>
-    public bool HasPhotoDetailPage => photoDetailPage != null;
-
-    /// <summary>Full-screen single photo (from album). HUD stays off like other sub-pages.</summary>
-    public void ShowPhotoDetailPage()
-    {
-        if (photoDetailPage == null)
-        {
-            Debug.LogWarning("[PageManager] Assign Photo Detail Page in the Inspector (sibling of AlbumPage under MainGame, not nested inside AlbumPage).");
-            return;
-        }
-
-        HoistPhotoDetailPageIfNestedUnderAlbum();
-        ShowOnly(photoDetailPage, false);
-    }
-
-    /// <summary>
-    /// If PhotoDetailPage is a child of AlbumPage, turning Album off would keep Detail off too.
-    /// Move it to the same parent as AlbumPage (e.g. MainGame) so it can show alone.
-    /// </summary>
-    void HoistPhotoDetailPageIfNestedUnderAlbum()
-    {
-        if (photoDetailPage == null || albumPage == null)
-            return;
-
-        Transform detail = photoDetailPage.transform;
-        Transform album = albumPage.transform;
-        if (detail == album || !detail.IsChildOf(album))
-            return;
-
-        Transform sharedParent = album.parent;
-        if (sharedParent == null)
-            return;
-
-        detail.SetParent(sharedParent, false);
-        detail.SetAsLastSibling();
-
-        if (detail is RectTransform rt)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            rt.localScale = Vector3.one;
-        }
-
-        Debug.Log("[PageManager] Moved PhotoDetailPage out from under AlbumPage so it can display when the album is hidden.");
-    }
-
     void ResolveHudManagers()
     {
         if (economyManager == null)
@@ -258,7 +255,6 @@ public class PageManager : MonoBehaviour
         SetActiveSafe(roomPage, false);
         SetActiveSafe(chatPage, false);
         SetActiveSafe(albumPage, false);
-        SetActiveSafe(photoDetailPage, false);
         SetActiveSafe(marketPage, false);
         SetActiveSafe(settingsPage, false);
         SetActiveSafe(petSettingPage, false);

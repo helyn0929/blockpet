@@ -66,6 +66,9 @@ public class CameraUIManager : MonoBehaviour
     public UIMode CurrentMode => mode;
 
     /// <summary>Home 狀態且不在冷卻中時為 true（給手牌的「拍照」牌用）。</summary>
+    /// <summary>中間的快門鈕（相機模式時）；鏡頭列放在它正上方（5.27）。</summary>
+    public RectTransform ShutterRect => cameraButton != null ? (RectTransform)cameraButton.transform : null;
+
     public bool IsCameraReady => mode == UIMode.Home && (cameraButton == null || cameraButton.interactable);
 
     /// <summary>冷卻倒數文字（例如 "00:12"），沒有冷卻時為空字串。</summary>

@@ -17,7 +17,7 @@ using AppleAuth.Interfaces;
 using AppleAuth.Native;
 #endif
 
-public class FirebaseManager : MonoBehaviour
+public partial class FirebaseManager : MonoBehaviour
 {
     public static FirebaseManager Instance;
     public static System.Action<bool> OnLoginSuccess;
@@ -1622,6 +1622,7 @@ public class FirebaseManager : MonoBehaviour
         public string category;
         public float categoryConfidence;
         public string categoryVersion;
+        public bool fisheye;        // 拍的時候開了魚眼（5.27）：照片是原圖，顯示時再套
         public string imageBase64Jpg;
     }
 
@@ -1676,6 +1677,7 @@ public class FirebaseManager : MonoBehaviour
             category = meta.category,
             categoryConfidence = meta.categoryConfidence,
             categoryVersion = meta.categoryVersion,
+            fisheye = meta.fisheye,
             imageBase64Jpg = Convert.ToBase64String(jpg)
         };
 
@@ -1741,6 +1743,7 @@ public class FirebaseManager : MonoBehaviour
                 meta.category = rec.category;
                 meta.categoryConfidence = rec.categoryConfidence;
                 meta.categoryVersion = rec.categoryVersion;
+                meta.fisheye = rec.fisheye;
                 SaveManager.Instance.ImportPhotoFromCloud(meta, bytes);
             });
         }
@@ -1792,6 +1795,8 @@ public class FirebaseManager : MonoBehaviour
         ResetChatListenState();
         StopCampFriends();
         StopTravelState();
+        StopPolaroid();
+        StopOutfit();
         StopPhotoListening();
         StopPetListening();
         StopEquipListening();

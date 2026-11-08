@@ -1,0 +1,449 @@
+{
+ "doc": "設計文件 5.26 拍立得分割畫面；設計稿頁面「拍立得分割畫面」，元件 Polaroid",
+ "frame_1x": [
+  390,
+  772
+ ],
+ "background": "#F1ECE3",
+ "back": {
+  "hit": [
+   6,
+   6,
+   44,
+   44
+  ],
+  "icon": "pl_icon_back",
+  "icon_size": 28
+ },
+ "owner_label": {
+  "x": 48,
+  "y": 10,
+  "h": 36,
+  "avatar": 24,
+  "line1": "13 Black #3A2E22 {名字}拍的",
+  "line2": "11 Bold #8A7B68 {時間}",
+  "gap": 7
+ },
+ "category_tag": {
+  "h": 22,
+  "radius": 11,
+  "padding_LR": [
+   7,
+   9
+  ],
+  "dot": 8,
+  "font": "12 Black",
+  "colors": {
+   "美食": {
+    "bg": "#FFE3C7",
+    "fg": "#A4511B",
+    "dot": "#F29A3A"
+   },
+   "自然": {
+    "bg": "#DDEFD6",
+    "fg": "#3F6E33",
+    "dot": "#6FA45F"
+   },
+   "城市": {
+    "bg": "#DCE5FA",
+    "fg": "#3E5CA8",
+    "dot": "#6F8FE0"
+   },
+   "生活人物": {
+    "bg": "#F6E2F4",
+    "fg": "#8A3F84",
+    "dot": "#D78AD0"
+   },
+   "寵物": {
+    "bg": "#FBF0C4",
+    "fg": "#8A6A12",
+    "dot": "#E8C33A"
+   }
+  },
+  "colors_note": "美食、生活人物、寵物同 5.5／home9；自然、城市是補的，以素材包 config 為準",
+  "position": "inline after owner_label"
+ },
+ "card": {
+  "x": 18,
+  "y": 54,
+  "w": 354,
+  "h": 431,
+  "ratio": "88:107 (Polaroid)",
+  "shadow": "0 12 26 rgba(60,45,25,0.22)",
+  "photo": {
+   "x": 18,
+   "y": 24,
+   "w": 318,
+   "h": 318,
+   "crop": "square, cover"
+  },
+  "caption": {
+   "x": 22,
+   "y": 352,
+   "w": 310,
+   "h": 70,
+   "font": "LXGW WenKai TC 24 Bold（暫定）",
+   "rotate_deg": -2,
+   "color": "frame.ink",
+   "max_chars": 16
+  },
+  "comments": {
+   "inset": 10,
+   "anchor": "photo bottom-left",
+   "gap": 6,
+   "count": 2,
+   "pill": "pl_pill_comment",
+   "avatar": 22,
+   "font": "13 Bold #FFFFFF",
+   "blur": 6,
+   "on_photo": true
+  },
+  "edit_button": {
+   "right": 8,
+   "bottom": 8,
+   "hit": 34,
+   "icon": "pl_icon_edit 20, color=frame.ink, opacity 0.7, no background",
+   "active_dot": "pl_dot_yellow below",
+   "toggles": "pet <-> deco",
+   "export": "excluded"
+  }
+ },
+ "stickers": {
+  "limit_per_person_per_photo": 3,
+  "pet_size": 92,
+  "draw_size": 66,
+  "pet_wobble": "±3° 2.2s loop（App 內；下載靜止）",
+  "spawn_spots": [
+   [
+    196,
+    30
+   ],
+   [
+    40,
+    120
+   ],
+   [
+    150,
+    170
+   ]
+  ],
+  "spawn_rotate_deg": [
+   8,
+   -8
+  ],
+  "overflow_card": true,
+  "export_clip_to_card": true,
+  "selected": {
+   "dash": "pl_sel_dash, outset 6",
+   "peel_btn": "pl_btn_peel 26 at right -16 top -16"
+  },
+  "owner_tag": {
+   "text": "{名字}貼的",
+   "show_s": 1.5,
+   "below": 24
+  },
+  "tray": [
+   "pet:happy(ov heart)",
+   "pet:tilt(flip, rotate -14, ov note)",
+   "pet:sleep(brightness .92, ov zz)",
+   "pet:drool(flip, ov drop)",
+   "pet:rainbow(filter)",
+   "pet:extreme(filter)",
+   "star",
+   "heart",
+   "spark",
+   "cloud",
+   "paw",
+   "bolt"
+  ]
+ },
+ "input": {
+  "left": 14,
+  "right": 14,
+  "y": 706,
+  "y_typing": "鍵盤上方（設計稿 456）",
+  "h": 46,
+  "radius": 23,
+  "font": "15 Bold",
+  "send": 36,
+  "placeholder": {
+   "comment": "留言給{名字}…",
+   "caption": "寫一句標題…"
+  }
+ },
+ "frames": [
+  {
+   "k": "white",
+   "name": "白",
+   "bg": "#FFFFFF",
+   "ink": "#3A2E22"
+  },
+  {
+   "k": "cream",
+   "name": "奶油",
+   "bg": "#FFF4DC",
+   "ink": "#3A2E22"
+  },
+  {
+   "k": "pink",
+   "name": "粉紅",
+   "bg": "#F9D9E2",
+   "ink": "#8A3F5C"
+  },
+  {
+   "k": "mint",
+   "name": "薄荷",
+   "bg": "#D6EEDC",
+   "ink": "#2F5E3A"
+  },
+  {
+   "k": "sky",
+   "name": "天空",
+   "bg": "#D8E6FA",
+   "ink": "#2F4C8A"
+  },
+  {
+   "k": "black",
+   "name": "黑",
+   "bg": "#2B2622",
+   "ink": "#FFF8EC"
+  },
+  {
+   "k": "gingham",
+   "name": "格紋",
+   "tile": "pl_frame_gingham",
+   "ink": "#8A3F5C"
+  },
+  {
+   "k": "dots",
+   "name": "星點",
+   "tile": "pl_frame_dots",
+   "ink": "#3A2E22"
+  },
+  {
+   "k": "food",
+   "name": "美食色",
+   "bg": "#FFE3C7",
+   "ink": "#A4511B"
+  },
+  {
+   "k": "stripe",
+   "name": "條紋",
+   "tile": "pl_frame_stripe",
+   "ink": "#2F4C8A"
+  }
+ ],
+ "filters_css_reference": [
+  {
+   "k": "leica",
+   "name": "萊卡",
+   "css": "contrast(1.25) saturate(0.85) brightness(0.96) sepia(0.08)",
+   "overlay": "vignette radial-gradient(ellipse, transparent 55%, rgba(0,0,0,0.38) 100%)"
+  },
+  {
+   "k": "fuji",
+   "name": "富士底片",
+   "css": "contrast(0.92) saturate(1.1) brightness(1.05) hue-rotate(-6deg)",
+   "tint": "rgba(120,200,170,0.12)"
+  },
+  {
+   "k": "ccd",
+   "name": "Y2K（CCD）",
+   "css": "brightness(1.12) contrast(1.05) saturate(1.25) hue-rotate(8deg)",
+   "tint": "rgba(150,180,255,0.14)",
+   "date_stamp": {
+    "text": "'YY MM DD",
+    "font": "monospace 15 bold",
+    "color": "#FF9A3C",
+    "glow": "0 0 4 rgba(255,120,30,0.8)",
+    "pos": "photo right 12, bottom 10",
+    "included_in_export": true
+   }
+  }
+ ],
+ "export": {
+  "size_px": [
+   1062,
+   1293
+  ],
+  "includes": [
+   "photo+filter",
+   "frame",
+   "caption",
+   "stickers (clipped to card)"
+  ],
+  "excludes": [
+   "comments",
+   "owner label",
+   "category tag",
+   "UI"
+  ]
+ },
+ "toast": {
+  "y": 250,
+  "pad": [
+   11,
+   18
+  ],
+  "font": "15 Black #FFFFFF",
+  "show_s": 2.6,
+  "flash": "card white 0.9→0 in 0.5s"
+ },
+ "top_right": {
+  "right": 4,
+  "top": 6,
+  "buttons": [
+   "share",
+   "download"
+  ],
+  "hit": [
+   38,
+   44
+  ],
+  "icon": 23,
+  "stroke": 2.1,
+  "bg": "none, white glow"
+ },
+ "panel": {
+  "x": 14,
+  "y": 497,
+  "w": 362,
+  "h": 199,
+  "radius": 20,
+  "pages": [
+   "pet (default)",
+   "deco"
+  ],
+  "swipe_threshold": 40,
+  "swipe_ignored_on": "sticker/frame/filter scroller",
+  "page_dots": {
+   "center_x": 195,
+   "y": 699,
+   "gap": 6,
+   "on": [
+    16,
+    5
+   ],
+   "off": [
+    5,
+    5
+   ]
+  },
+  "pet": {
+   "border": "3 #FFFCF4",
+   "shadow": "0 8 20 rgba(60,45,25,0.22)",
+   "camp_bg": {
+    "w": 356,
+    "h": 704,
+    "offset_y": -372
+   },
+   "status": {
+    "x": 8,
+    "y": 8,
+    "pill": "pl_status_pill",
+    "padding": [
+     5,
+     10
+    ],
+    "gap": 8,
+    "hearts": {
+     "n": 5,
+     "size": [
+      12,
+      11
+     ],
+     "full": "#F06B5B",
+     "empty": "#E6D9C3"
+    },
+    "evo_bar": {
+     "w": 84,
+     "h": 7,
+     "segments": "5.5 colors, gap 1"
+    }
+   },
+   "pet": {
+    "x": 128,
+    "y": 80,
+    "w": 100,
+    "h": 88,
+    "shadow": [
+     72,
+     11
+    ],
+    "anim": {
+     "hit": "jump 1s loop",
+     "miss": "tilt 2s loop"
+    },
+    "speech": false
+   }
+  },
+  "deco": {
+   "bg": "#FFFCF4",
+   "tabs": {
+    "x": 10,
+    "y": 8,
+    "h": 28,
+    "radius": 14,
+    "padding_LR": 12,
+    "font": "13 Black",
+    "items": [
+     "貼紙",
+     "畫框",
+     "濾鏡"
+    ],
+    "on": "pl_dtab_on",
+    "off": "pl_dtab_off",
+    "note": {
+     "font": "11 Bold #8A7B68",
+     "stk": "還能貼 {n} 個",
+     "locked": "拍照的人才能換",
+     "mine": "大家都會看到"
+    }
+   },
+   "sticker_tray": {
+    "y": 52,
+    "rows": 2,
+    "cell": 52,
+    "gap": 8,
+    "padding_LR": 12,
+    "pet_cell": "pl_cell_pet",
+    "other_cell": "pl_cell_alt",
+    "full_opacity": 0.4
+   },
+   "frame_tray": {
+    "y": 52,
+    "rows": 2,
+    "cell": 52,
+    "gap": 8,
+    "preview": [
+     25,
+     30
+    ],
+    "label": "9 Black"
+   },
+   "filter_tray": {
+    "y": 56,
+    "thumb": [
+     84,
+     72
+    ],
+    "radius": 13,
+    "gap": 8,
+    "label": "11 Black nowrap"
+   },
+   "scroll_indicator": {
+    "bottom": 6,
+    "track": [
+     44,
+     4
+    ],
+    "thumb": [
+     18,
+     4
+    ],
+    "thumb_travel": 26
+   }
+  }
+ },
+ "filters_note": "預設不用濾鏡；再點一次選到的濾鏡＝取消"
+}

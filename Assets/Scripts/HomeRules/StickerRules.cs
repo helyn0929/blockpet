@@ -31,13 +31,16 @@ namespace BlockPet.Home
     /// - 第一次用 v9 之前的照片都當作看過（2026-11-06 使用者決定），用 baseline 時間判斷。
     /// - 最多 8 張，多的顯示 +N；新照片進來就貼最新的、擠掉最舊的（2026-11-06 使用者決定，像以前公布欄的最新照片）。
     /// - 位置依照片 id 固定，隨機貼滿畫面、可以蓋到寵物，只避開狀態欄（y &lt; 120）和底部按鈕（y &gt; 640）；
-    ///   大小 56～96 隨機（2026-11-06 使用者決定：有大有小、佔版面沒關係，逼大家清）；隨機歪 −12°～10°。
+    ///   大小三種 66／88／106，小的多、大的少（約 50%／30%／20%）（2026-11-06 使用者決定，取代 56～96 隨機；
+    ///   最新貼紙另外固定 88 × 92）；隨機歪 −12°～10°。
     /// </summary>
     public static class StickerRules
     {
         public const int MaxStickers = 8;
         public const float Size = 66f;          // 貼紙設計稿的尺寸（素材、版面以這個為準再縮放）
-        public const float MinSize = 56f, MaxSize = 96f;
+        /// <summary>一般貼紙的三種尺寸與出現比例（2026-11-06 使用者決定）。</summary>
+        public static readonly float[] Sizes = { 66f, 88f, 106f };
+        public static readonly float[] SizeWeights = { 0.5f, 0.3f, 0.2f };
         public const float DesignW = 390f;
         public const float TopLimit = 120f;     // 狀態欄以下
         public const float BottomLimit = 640f;  // 底部三顆按鈕以上
@@ -79,13 +82,25 @@ namespace BlockPet.Home
             uint s = Hash(id ?? "");
             if (s == 0) s = 0x9E3779B9u;
             var spot = new StickerSpot();
-            spot.size = (float)Math.Round(MinSize + Next(ref s) * (MaxSize - MinSize));
+            spot.size = PickSize(Next(ref s));
             float minX = SideMargin, maxX = DesignW - SideMargin - spot.size;
             float minY = TopLimit, maxY = BottomLimit - spot.size;
             spot.x = (float)Math.Round(minX + Next(ref s) * (maxX - minX));
             spot.y = (float)Math.Round(minY + Next(ref s) * (maxY - minY));
             spot.rot = (float)Math.Round(MinRot + Next(ref s) * (MaxRot - MinRot));
             return spot;
+        }
+
+        /// <summary>依比例挑尺寸；r 是 0～1 的亂數。</summary>
+        static float PickSize(double r)
+        {
+            double acc = 0;
+            for (int i = 0; i < Sizes.Length; i++)
+            {
+                acc += SizeWeights[i];
+                if (r < acc) return Sizes[i];
+            }
+            return Sizes[Sizes.Length - 1];
         }
 
         /// <summary>FNV-1a 32 位元。</summary>

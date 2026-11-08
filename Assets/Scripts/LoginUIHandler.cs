@@ -267,14 +267,29 @@ public class LoginUIHandler : MonoBehaviour
             mainRoomBackground.SetActive(false);
         ResolveHudManagers();
         SetGameplayHudVisible(false);
-        // 上次待的空間還在 → 直接進去（不要每次都從選空間頁進，會錯過拍照時機）
+        RouteAfterLogin(pageManager);
+    }
+
+    /// <summary>
+    /// 開 App 自動登入時由 <see cref="PageManager"/> 呼叫：LoginPanel 在場景裡是關著的，自動登入不會打開它，
+    /// 這個元件的協程不會跑，所以改由一直開著的 PageManager 來進上次的空間（同 AvatarManager 的做法）。
+    /// </summary>
+    public void ResumeLastRoomOnLaunch(PageManager pageManager)
+    {
+        if (GameplayHudReleased || pageManager == null) return;
+        RouteAfterLogin(pageManager);
+    }
+
+    /// <summary>上次待的空間還在 → 直接進去（不要每次都從選空間頁進，會錯過拍照時機）；沒有就留在選空間頁。</summary>
+    void RouteAfterLogin(PageManager pageManager)
+    {
         var fb = FirebaseManager.Instance;
         string lastRoom = fb != null ? fb.RoomId : "";
         Debug.Log($"[LoginUIHandler] Post-login: last room='{lastRoom}' uid='{fb?.GetUserId()}' saved='{PlayerPrefs.GetString("Blockpet.RoomId", "")}'");
         if (pageManager != null && !string.IsNullOrEmpty(lastRoom) && !string.IsNullOrEmpty(fb.GetUserId()))
         {
             pageManager.StartCoroutine(EnterLastRoomOrPick(pageManager, lastRoom));
-            yield break;
+            return;
         }
 
         ShowRoomPick(pageManager);
@@ -296,6 +311,7 @@ public class LoginUIHandler : MonoBehaviour
             Debug.Log($"[LoginUIHandler] Post-login: entering last room {roomId}");
             fb.SetRoomId(roomId);
             EnterMainGame();
+            pageManager.EndLaunchWait();
             pageManager.ShowHomePage();
             yield break;
         }
@@ -306,6 +322,7 @@ public class LoginUIHandler : MonoBehaviour
     {
         if (pageManager != null)
         {
+            pageManager.EndLaunchWait(); // 回不了上次的空間：現在才顯示選空間轉盤
             pageManager.ShowRoomPage();
             Debug.Log("[LoginUIHandler] Post-login: requested ShowRoomPage()");
             // If this component lives under LoginPanel, the panel may be deactivated right after fade-out.

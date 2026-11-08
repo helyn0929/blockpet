@@ -14,8 +14,26 @@ namespace BlockPet.Hand
     /// </summary>
     public partial class HandController
     {
-        static readonly Color ReactHit = Hex(0xC2621A);
         static readonly Color CleanGreen = Hex(0x4F8F45);
+        const float DotSize = 12f, DotGap = 7f;
+
+        /// <summary>
+        /// 餵完泡泡的類別色點與字色（設計文件 5.25 ③、設計稿 Home9 catStyle）：點＝類別色，字＝那一類的深色。
+        /// 自然、城市的深色設計稿沒有，沿用想吃膠囊的字色（2026-11-06 使用者決定）。
+        /// </summary>
+        static bool CategoryColors(string category, out Color dot, out Color ink)
+        {
+            switch (category)
+            {
+                case "美食": dot = Hex(0xF29A3A); ink = Hex(0xC2621A); return true;
+                case "自然": dot = Hex(0x6FA45F); ink = Hex(0x4A7A3F); return true;
+                case "城市": dot = Hex(0x6F8FE0); ink = Hex(0x3F5BA8); return true;
+                case "生活人物": dot = Hex(0xD78AD0); ink = Hex(0x8A3F84); return true;
+                case "寵物": dot = Hex(0xE8C33A); ink = Hex(0x8A6A12); return true;
+            }
+            dot = ink = Ink;
+            return false;
+        }
         const float FullHold = 1.6f;
         const float ReactionHold = 2.4f;
         const float CleanHold = 2.2f;
@@ -35,12 +53,17 @@ namespace BlockPet.Hand
         float _bubblePop = -1f;
         string _reactTitle, _reactSub;
         Color _reactColor;
+        Color? _reactDot;   // 餵完泡泡的類別色點（辨識失敗、昏倒沒有）
+        bool _reactTilt;    // 沒命中：寵物歪頭
+        RectTransform _bubbleDot;
+        Image _bubbleDotOuter, _bubbleDotInner;
         BlockPet.Feed.FeedResult? _pendingLine;
         float _pendingAt;
 
         Transform _wobbleTarget;
         Quaternion _wobbleBase;
         float _wobbleTime;
+        bool _wobbleIsTilt;
         PetHealthManager _health;
 
         void BuildPetHit()
@@ -70,6 +93,14 @@ namespace BlockPet.Hand
             var sprite = H9(s => s.petBubble);
             if (sprite != null) Fill(Stretch(_bubble, "Bg"), sprite, true, Color.white, 16).raycastTarget = false;
             else UIShapes.AddRounded(Stretch(_bubble, "Bg").gameObject, Color.white, 16).raycastTarget = false;
+            // 類別色點 12 圓，外面一圈白 2＋同色 1（CSS box-shadow 往外畫，不佔排版位置）
+            _bubbleDot = Place(_bubble, "Dot", 12f - 3f, 0, DotSize + 6f, DotSize + 6f);
+            _bubbleDotOuter = UIShapes.AddRounded(_bubbleDot.gameObject, Color.white, (DotSize + 6f) / 2f);
+            _bubbleDotOuter.raycastTarget = false;
+            UIShapes.AddRounded(Place(_bubbleDot, "White", 1, 1, DotSize + 4f, DotSize + 4f).gameObject, Color.white, (DotSize + 4f) / 2f).raycastTarget = false;
+            _bubbleDotInner = UIShapes.AddRounded(Place(_bubbleDot, "Fill", 3, 3, DotSize, DotSize).gameObject, Color.white, DotSize / 2f);
+            _bubbleDotInner.raycastTarget = false;
+            _bubbleDot.gameObject.SetActive(false);
             _bubbleTitle = Label(_bubble, 12, 7, 100, 22, "", 17, Ink, TextAlignmentOptions.Left);
             _bubbleTitle.enableWordWrapping = false;
             _bubbleSub = Label(_bubble, 12, 29, 100, 15, "", 11, Muted, TextAlignmentOptions.Left);
@@ -114,12 +145,32 @@ namespace BlockPet.Hand
 
         void ShowReaction(BlockPet.Feed.FeedResult r)
         {
-            // 命中：開心跳起；沒命中：中性的「嗯…？」（不用難過的表情）
-            _reactTitle = r.dead ? "……" : (r.hit ? "好好吃！" : "嗯…？");
-            _reactSub = r.dead ? "昏倒了，點想吃膠囊復活" : r.hit
-                ? $"命中現在想吃・+{r.coins} 金幣"
-                : (string.IsNullOrEmpty(r.want) ? $"+{r.coins} 金幣" : $"現在想吃{r.want}・+{r.coins} 金幣");
-            _reactColor = r.dead ? Ink : (r.hit ? ReactHit : Muted);
+            // 設計文件 5.25 ③（2026-11-06）：寵物說出照片是什麼，只有一行＋類別色點；不寫類別名稱、愛心、金幣。
+            // 命中「● 是拉麵！好好吃！」跳起來；沒命中「● 是兔子耶…」歪頭；辨識失敗「這是什麼呀？」不放色點。
+            // 照片是什麼要用辨識的細項，現在的模型（PhotoClassifier）只有五大類，所以說大類（「是美食！」）。
+            _reactDot = null;
+            _reactTilt = false;
+            _reactSub = null;
+            if (r.dead)
+            {
+                _reactTitle = "……";
+                _reactSub = "昏倒了，點想吃膠囊復活";
+                _reactColor = Ink;
+            }
+            else if (CategoryColors(r.category, out var dot, out var ink))
+            {
+                string what = r.category;
+                _reactTitle = r.hit ? $"是{what}！好好吃！" : $"是{what}耶…";
+                _reactColor = ink;
+                _reactDot = dot;
+                _reactTilt = !r.hit;
+            }
+            else
+            {
+                _reactTitle = "這是什麼呀？";
+                _reactColor = Ink;
+                _reactTilt = !r.hit;
+            }
             SayFor(Say.Reaction, ReactionHold);
             _shownBubble = null; // 同樣的字也重新彈一次
             if (r.hit && !r.dead && AIController.Instance != null) BlockPet.Feed.PetHop.Play(AIController.Instance.gameObject);
@@ -156,10 +207,11 @@ namespace BlockPet.Hand
             Say say = _say != Say.None ? _say : (hungry ? Say.Hungry : Say.None);
             string title = null, sub = null;
             Color color = Ink;
+            Color? dot = null;
             float size = 17f;
             switch (say)
             {
-                case Say.Reaction: title = _reactTitle; sub = _reactSub; color = _reactColor; size = 19f; break;
+                case Say.Reaction: title = _reactTitle; sub = _reactSub; color = _reactColor; dot = _reactDot; size = 19f; break;
                 case Say.Clean: title = "乾淨了！"; sub = "大家的照片都看過囉"; color = CleanGreen; size = 19f; break;
                 case Say.Full: title = "飽飽的～"; sub = "等一下再餵我"; break;
                 case Say.Hungry:
@@ -169,14 +221,15 @@ namespace BlockPet.Hand
                     break;
             }
             if (!petVisible) title = null;
-            UpdateBubble(title, sub, color, size, r);
+            UpdateBubble(title, sub, color, dot, size, r);
 
-            // 餓了左右輕晃；有反應、出牌中就停
-            if (hungry && say == Say.Hungry) Wobble();
+            // 餓了左右輕晃；沒命中的反應歪頭；其他時候停
+            if (say == Say.Reaction && _reactTilt && petVisible) Wobble(tilt: true);
+            else if (hungry && say == Say.Hungry) Wobble(tilt: false);
             else StopWobble();
         }
 
-        void UpdateBubble(string title, string sub, Color color, float size, Rect pet)
+        void UpdateBubble(string title, string sub, Color color, Color? dot, float size, Rect pet)
         {
             float dt = Time.unscaledDeltaTime;
             if (title == null)
@@ -187,7 +240,7 @@ namespace BlockPet.Hand
                 return;
             }
 
-            string key = title + "\n" + sub + "\n" + size;
+            string key = title + "\n" + sub + "\n" + size + "\n" + (dot.HasValue ? ColorUtility.ToHtmlStringRGB(dot.Value) : "");
             if (key != _shownBubble)
             {
                 _shownBubble = key;
@@ -196,10 +249,20 @@ namespace BlockPet.Hand
                 _bubbleTitle.color = color;
                 _bubbleSub.text = sub ?? "";
                 float titleH = Mathf.Round(size * 1.3f), subH = string.IsNullOrEmpty(sub) ? 0f : 15f;
-                float textW = Mathf.Max(TextW(_bubbleTitle, title), string.IsNullOrEmpty(sub) ? 0f : TextW(_bubbleSub, sub));
+                // 色點在字的前面（12＋間距 7），和那行字垂直置中
+                float dotW = dot.HasValue ? DotSize + DotGap : 0f;
+                _bubbleDot.gameObject.SetActive(dot.HasValue);
+                if (dot.HasValue)
+                {
+                    _bubbleDotOuter.color = dot.Value;
+                    _bubbleDotInner.color = dot.Value;
+                    _bubbleDot.anchoredPosition = new Vector2(12f - 3f, -(7f + (titleH - DotSize) / 2f - 3f));
+                }
+                _bubbleTitle.rectTransform.anchoredPosition = new Vector2(12f + dotW, -7f);
+                float textW = Mathf.Max(dotW + TextW(_bubbleTitle, title), string.IsNullOrEmpty(sub) ? 0f : TextW(_bubbleSub, sub));
                 float bw = Mathf.Ceil(textW) + 24f, bh = 7f + titleH + subH + 7f;
                 _bubble.sizeDelta = new Vector2(bw, bh);
-                _bubbleTitle.rectTransform.sizeDelta = new Vector2(bw - 24f, titleH);
+                _bubbleTitle.rectTransform.sizeDelta = new Vector2(bw - 24f - dotW, titleH);
                 _bubbleSub.rectTransform.anchoredPosition = new Vector2(12f, -(7f + titleH));
                 _bubbleSub.rectTransform.sizeDelta = new Vector2(bw - 24f, subH);
                 _bubbleSub.gameObject.SetActive(subH > 0f);
@@ -226,23 +289,37 @@ namespace BlockPet.Hand
             _bubble.anchoredPosition = new Vector2(Mathf.Round(x), Mathf.Round(y));
         }
 
-        void Wobble()
+        /// <summary>餓了輕晃（tilt=false）或沒命中歪頭（tilt=true）；同一個寵物圖、同一個原始角度。</summary>
+        void Wobble(bool tilt)
         {
             var pet = AIController.Instance;
             if (pet == null) return;
             var r = pet.GetComponentInChildren<Renderer>();
             var target = r != null ? r.transform : pet.transform;
-            if (_wobbleTarget != target)
+            if (_wobbleTarget != target || _wobbleIsTilt != tilt)
             {
                 StopWobble();
                 _wobbleTarget = target;
                 _wobbleBase = target.localRotation;
                 _wobbleTime = 0f;
+                _wobbleIsTilt = tilt;
             }
-            // 設計稿 hHungry：1.2 秒一次，−3° → +3° → −3°（CSS 角度；Unity 正角度＝逆時針）
             _wobbleTime += Time.unscaledDeltaTime;
-            float a = 3f * Mathf.Cos(_wobbleTime * Mathf.PI * 2f / 1.2f);
+            float a = tilt ? TiltAngle(_wobbleTime)
+                // 設計稿 hHungry：1.2 秒一次，−3° → +3° → −3°（CSS 角度；Unity 正角度＝逆時針）
+                : 3f * Mathf.Cos(_wobbleTime * Mathf.PI * 2f / 1.2f);
             target.localRotation = _wobbleBase * Quaternion.Euler(0f, 0f, a);
+        }
+
+        /// <summary>設計稿 c5Tilt 1.6 秒循環：0° → 30% −8° → 60% +6° → 0°（CSS 順時針為正，換成 Unity 角度要變號）。</summary>
+        static float TiltAngle(float time)
+        {
+            float p = Mathf.Repeat(time / 1.6f, 1f);
+            float css;
+            if (p < 0.3f) css = Mathf.Lerp(0f, -8f, Mathf.SmoothStep(0f, 1f, p / 0.3f));
+            else if (p < 0.6f) css = Mathf.Lerp(-8f, 6f, Mathf.SmoothStep(0f, 1f, (p - 0.3f) / 0.3f));
+            else css = Mathf.Lerp(6f, 0f, Mathf.SmoothStep(0f, 1f, (p - 0.6f) / 0.4f));
+            return -css;
         }
 
         void StopWobble()
@@ -251,6 +328,26 @@ namespace BlockPet.Hand
             _wobbleTarget.localRotation = _wobbleBase;
             _wobbleTarget = null;
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Editor 截圖用（BlockPet/Debug/寵物泡泡截圖）：在指定的 390 × 772 設計框裡只建泡泡，照餵完結果顯示（不按 Play）。
+        /// </summary>
+        public void CaptureReaction(RectTransform design, HandSkin handSkin, BlockPet.Feed.FeedResult r)
+        {
+            skin = handSkin;
+            _h9 = BlockPet.UI.Home.Home9Skin.Load();
+            _design = design;
+            BuildBubble();
+            ShowReaction(r);
+            UpdateBubble(_reactTitle, _reactSub, _reactColor, _reactDot, 19f, DefaultPetRect);
+            _bubblePop = -1f;
+            _bubble.localScale = Vector3.one;
+            _bubbleGroup.alpha = 1f;
+        }
+
+        public static Rect CapturePetRect => DefaultPetRect;
+#endif
 
         /// <summary>文字寬度（動態字型要先把字加進去才量得準）。</summary>
         static float TextW(TMP_Text t, string s)

@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace BlockPet.UI.Market
 {
-    /// <summary>商店分頁（2026-11-06：「裝飾」「道具」分頁刪除，剩家具／環境／寵物蛋）。</summary>
-    public enum MarketTab { Furniture, Environment, Egg }
+    /// <summary>商店分頁（2026-11-06：「裝飾」「道具」分頁刪除；11-07 新增「穿搭」）。順序就是畫面上的順序。</summary>
+    public enum MarketTab { Furniture, Environment, Outfit, Egg }
 
     /// <summary>商店一件商品（設計稿「商店 A」MarketA.dc.html 的 DATA）。價格全部是空間金幣。</summary>
     public class MarketEntry
@@ -19,6 +19,7 @@ namespace BlockPet.UI.Market
         public bool petLikes;      // 寵物喜歡（左上愛心、試擺時「好喜歡！」）
         public string requires;    // 要先買過哪個商品才解鎖（例如投影幕要先有湖畔環境）
         public string lockText;
+        public string outfitSlot;  // 穿搭：部位（head／face／neck／side）；其他分頁是 null
     }
 
     /// <summary>
@@ -66,13 +67,35 @@ namespace BlockPet.UI.Market
             return n;
         }
 
-        public static MarketEntry Get(string id) => All.Find(e => e.id == id);
+        public static MarketEntry Get(string id) => All.Find(e => e.id == id) ?? Outfits.Find(e => e.id == id);
 
         /// <summary>這個家具（DecorationItem.itemId）要先在商店買過才能擺。</summary>
         public static bool IsShopFurniture(string itemId) =>
             All.Exists(e => e.tab == MarketTab.Furniture && e.id == itemId);
 
-        public static List<MarketEntry> InTab(MarketTab tab) => All.FindAll(e => e.tab == tab);
+        public static List<MarketEntry> InTab(MarketTab tab) => tab == MarketTab.Outfit ? Outfits : All.FindAll(e => e.tab == tab);
+
+        static List<MarketEntry> _outfits;
+
+        /// <summary>
+        /// 穿搭（5.11 ⑧）：品項和價格在設定檔 Resources/Shop/outfits.json（OutfitArt.Items），不寫在程式裡。
+        /// 還沒開賣（例如聖誕帽 12 月限定）由 OutfitRules 判斷。
+        /// </summary>
+        public static List<MarketEntry> Outfits
+        {
+            get
+            {
+                if (_outfits != null) return _outfits;
+                _outfits = new List<MarketEntry>();
+                foreach (var o in OutfitArt.Items)
+                    _outfits.Add(new MarketEntry
+                    {
+                        id = o.id, tab = MarketTab.Outfit, name = o.name, desc = o.desc ?? "", price = o.price,
+                        tone = OutfitArt.Parse(o.tone, Hex(0xF4ECDD)), lockText = o.lockText, outfitSlot = o.slot,
+                    });
+                return _outfits;
+            }
+        }
 
         static MarketEntry F(string id, string name, string desc, int price, int tone, bool like = false) =>
             new MarketEntry { id = id, tab = MarketTab.Furniture, name = name, desc = desc, price = price, sprite = id, tone = Hex(tone), petLikes = like };

@@ -152,8 +152,9 @@ public class SaveManager : MonoBehaviour
 
     public void SavePhoto(Texture2D photo) => SavePhoto(photo, null, 0f);
 
-    /// <summary>存照片並記下辨識類別（要在通知 OnPhotoSavedMeta 前寫好，雲端同步與聊天貼文才會帶到類別）。</summary>
-    public void SavePhoto(Texture2D photo, string category, float confidence)
+    /// <summary>存照片並記下辨識類別（要在通知 OnPhotoSavedMeta 前寫好，雲端同步與聊天貼文才會帶到類別）。
+    /// fisheye＝相機開了魚眼：存的還是原圖，只記標記（5.27 ③）。</summary>
+    public void SavePhoto(Texture2D photo, string category, float confidence, bool fisheye = false)
     {
         if (photo == null) { Debug.LogWarning("[SaveManager] SavePhoto called with null photo"); return; }
         try
@@ -166,6 +167,7 @@ public class SaveManager : MonoBehaviour
             PhotoMeta meta = new PhotoMeta(fileName, _globalData.avatarFileName);
             meta.category = category;
             meta.categoryConfidence = confidence;
+            meta.fisheye = fisheye;
             if (!string.IsNullOrEmpty(category)) meta.categoryVersion = BlockPet.Vision.PhotoClassifier.Instance?.Version;
             data.photos.Add(meta);
             LastSavedPhotoMeta = meta;

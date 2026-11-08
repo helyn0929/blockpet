@@ -28,15 +28,24 @@ emit('home_btn_round', 50, 50, "<circle cx='25' cy='25' r='24.25' fill='#FFF8EC'
 emit('home_btn_camera', 72, 72, "<circle cx='36' cy='36' r='34' fill='#FFFCF4'/><circle cx='36' cy='36' r='30' fill='#E86B4F'/><path d='M6 36a30 30 0 0 0 60 0a30 30 0 0 1-60 3Z' fill='#000' fill-opacity='0.08'/><g transform='translate(20 20) scale(0.8)'><rect x='4' y='11' width='32' height='23' rx='6' fill='#FFFFFF'/><path d='M14 11l3-5h6l3 5' fill='#FFFFFF'/><circle cx='20' cy='22' r='6.5' fill='#E86B4F'/><circle cx='20' cy='22' r='3.6' fill='#FFFFFF'/></g>", use='底部相機 72（陰影 0 6 14 另加）')
 emit('badge_red', 18, 18, "<circle cx='9' cy='9' r='9' fill='#FFFFFF'/><circle cx='9' cy='9' r='7' fill='#E86B4F'/>", use='未讀數字／新照片紅點（數字 TMP 10 Black 白）')
 # 貼紙
+def shape(x, y, S, rad, cut):
+    """貼紙外形：圓角正方形，右下角切掉 cut（翹起的地方）。"""
+    return (f"M{x+rad} {y}H{x+S-rad}A{rad} {rad} 0 0 1 {x+S} {y+rad}V{y+S-cut}L{x+S-cut} {y+S}"
+            f"H{x+rad}A{rad} {rad} 0 0 1 {x} {y+S-rad}V{y+rad}A{rad} {rad} 0 0 1 {x+rad} {y}Z")
 def sticker(S, b, rad, peel, gold=False):
     cut = S * 0.2 if not gold else S * 0.22
-    path = f"M{rad} 0H{S-rad}A{rad} {rad} 0 0 1 {S} {rad}V{S-cut}L{S-cut} {S}H{rad}A{rad} {rad} 0 0 1 0 {S-rad}V{rad}A{rad} {rad} 0 0 1 {rad} 0Z"
-    g = f"<path d='{path}' fill='none' stroke='#F6C945' stroke-width='3'/>" if gold else ''
+    path = shape(0, 0, S, rad, cut)
     pe = f"<defs><linearGradient id='p' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#FFFFFF'/><stop offset='0.55' stop-color='#EDE6D8'/><stop offset='1' stop-color='#D8CFBE'/></linearGradient></defs><path d='M{S-cut} {S}L{S} {S-cut}L{S-cut} {S-cut}Z' fill='url(#p)'/>"
-    return pe + f"<path d='{path}' fill='#FFFFFF'/>" + g + pe.split('</defs>')[1]
+    if gold:
+        # 2026-11-06 設計文件 5.25 ④：細黃邊 2 #F6C945，畫在貼紙內側（黃色底＋往內縮 2 的白色貼紙）
+        e = 2
+        body = f"<path d='{path}' fill='#F6C945'/><path d='{shape(e, e, S - 2*e, rad - e, cut - e*0.586)}' fill='#FFFFFF'/>"
+    else:
+        body = f"<path d='{path}' fill='#FFFFFF'/>"
+    return pe + body + pe.split('</defs>')[1]
 emit('sticker_frame', 66, 66, sticker(66, 4, 10, 14), use='一般照片貼紙的白邊（照片 58×58 圓角 7 放在 (4,4)，用 sticker_photo_mask 裁）；右下角翹起；整張不透明度 85%')
 emit('sticker_photo_mask', 58, 58, "<rect width='58' height='58' rx='7' fill='#FFFFFF'/>", use='一般貼紙照片遮罩')
-emit('sticker_latest_frame', 88, 88, sticker(88, 5, 12, 19, gold=True), use='最新照片貼紙（金邊 3 #F6C945；照片 78×78 放在 (5,5)）')
+emit('sticker_latest_frame', 88, 88, sticker(88, 5, 12, 19, gold=True), use='最新照片貼紙（細黃邊 2 #F6C945 在內側；照片 78×78 放在 (5,5)；不透明）')
 emit('sticker_latest_mask', 78, 78, "<rect width='78' height='78' rx='8' fill='#FFFFFF'/>", use='最新貼紙照片遮罩')
 emit('sticker_avatar_ring', 26, 26, "<circle cx='13' cy='13' r='11.75' fill='none' stroke='#FFFFFF' stroke-width='2.5'/>", use='貼紙左下頭像的白圈（一般用 22、最新用 26，頭像圓形裁切放裡面）')
 emit('tag_latest', 36, 18, "<rect y='2' width='36' height='16' rx='8' fill='#D9A92C'/><rect width='36' height='16' rx='8' fill='#F6C945'/>", use='「最新」標籤（字 TMP 10 Black #3A2E22）', s9=[24, 24, 24, 30])

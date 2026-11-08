@@ -83,23 +83,25 @@ namespace BlockPet.Tests
         }
 
         [Test]
-        public void 有大有小_避開狀態欄和底部按鈕()
+        public void 三種尺寸_避開狀態欄和底部按鈕()
         {
-            float min = 999, max = 0;
-            for (int i = 0; i < 500; i++)
+            var count = new Dictionary<float, int> { { 66f, 0 }, { 88f, 0 }, { 106f, 0 } };
+            const int N = 3000;
+            for (int i = 0; i < N; i++)
             {
                 var s = StickerRules.Spot("photo_" + i + ".jpg");
-                Assert.That(s.size, Is.InRange(StickerRules.MinSize, StickerRules.MaxSize));
-                min = System.Math.Min(min, s.size);
-                max = System.Math.Max(max, s.size);
+                Assert.That(count.ContainsKey(s.size), $"尺寸只能是 66／88／106，拿到 {s.size}");
+                count[s.size]++;
                 Assert.That(s.y, Is.GreaterThanOrEqualTo(StickerRules.TopLimit));
                 Assert.That(s.y + s.size, Is.LessThanOrEqualTo(StickerRules.BottomLimit));
                 Assert.That(s.x, Is.GreaterThanOrEqualTo(StickerRules.SideMargin));
                 Assert.That(s.x + s.size, Is.LessThanOrEqualTo(StickerRules.DesignW - StickerRules.SideMargin));
                 Assert.That(s.rot, Is.InRange(StickerRules.MinRot, StickerRules.MaxRot));
             }
-            Assert.Less(min, 62f, "要有小的");
-            Assert.Greater(max, 90f, "要有大的");
+            // 小的多、大的少：66 約 50%、88 約 30%、106 約 20%（2026-11-06 使用者決定）
+            Assert.That(count[66f] / (float)N, Is.InRange(0.45f, 0.55f));
+            Assert.That(count[88f] / (float)N, Is.InRange(0.25f, 0.35f));
+            Assert.That(count[106f] / (float)N, Is.InRange(0.15f, 0.25f));
         }
 
         static List<string> Ids(List<StickerPhoto> list)

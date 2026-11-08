@@ -9,10 +9,10 @@ namespace BlockPet.Hand
 {
     /// <summary>
     /// 首頁 v9 的照片貼紙（設計文件 5.25 ④；規則在 <see cref="StickerRules"/>）：
-    /// - 其他成員發的、我還沒撕掉的照片變成貼紙散在營地上（最新的 8 張，多的顯示 +N；大小 56～96，可以蓋到寵物）；點一張撕一張（記為看過）。
+    /// - 其他成員發的、我還沒撕掉的照片變成貼紙散在營地上（最新的 8 張，多的顯示 +N；大小 66／88／106，小的多大的少，可以蓋到寵物）；點一張撕一張（記為看過）。
     ///   看過的記在手機上（PlayerPrefs，每個空間、每個帳號各自一份）；第一次用 v9 之前的照片都當作看過。
     /// - 全部撕完 → 寵物泡泡「乾淨了！」。
-    /// - 營地最新一張（含自己的）一直黏著、撕不掉；點了開分割畫面；可以拖到任何地方，位置記在手機上。
+    /// - 營地最新一張（含自己的）一直黏著、撕不掉；點了開拍立得分割畫面（5.26）；可以拖到任何地方，位置記在手機上。
     ///   有新照片時換掉並播「啪」的貼上動畫；被換下來的那張如果還沒看過，就變成一般貼紙。
     /// </summary>
     public partial class HandController
@@ -22,6 +22,7 @@ namespace BlockPet.Hand
         const string PrefsLatestSticker = "BlockPet.Home9.LatestPos";
         const int MaxSeenIds = 400;
         const float LatestW = 88f, LatestH = 92f;
+        const float LatestAlpha = 1f; // 最新貼紙不透明（一般貼紙 85%）
         static readonly Vector2 LatestDefault = new Vector2(284f, 470f);
         static readonly Color MoreBg = Hex(0x3A2E22);
         static readonly Color[] AvatarColors = { Hex(0xE88AA8), Hex(0x6F8FE0), Hex(0x6FA45F), Hex(0xF29A3A) };
@@ -63,7 +64,6 @@ namespace BlockPet.Hand
         Vector2 _latestPos = LatestDefault;
         Vector2 _latestDragFrom;
         bool _latestDragging;
-        PhotoSplitView _splitView;
 
         // ─── 建立 ──────────────────────────────────────────────────────
 
@@ -83,12 +83,13 @@ namespace BlockPet.Hand
 
         void BuildLatestSticker()
         {
-            // 88×92；貼紙邊 5、照片 78×78；金邊 3；頂端置中「最新」；頭像 26；歪 −6°；不透明度 85%；右下角翹起
+            // 88×92；貼紙邊 5、照片 78×78；細黃邊 2 #F6C945；頭像 26；歪 −6°；不透明；右下角翹起
+            // （設計文件 5.25 ④，2026-11-06：拿掉「最新」標籤、改成不透明，一般貼紙才是 85%）
             _latest = Place(_design, "LatestSticker", LatestDefault.x, LatestDefault.y, LatestW, LatestH);
             _latestBody = Stretch(_latest, "Body");
             _latestBody.localRotation = Quaternion.Euler(0f, 0f, 6f);
             _latestGroup = _latestBody.gameObject.AddComponent<CanvasGroup>();
-            _latestGroup.alpha = 0.85f;
+            _latestGroup.alpha = LatestAlpha;
 
             var frame = Place(_latestBody, "Frame", 0, 0, 88, 88);
             UIShapes.AddShadow(frame, new Color(0.12f, 0.12f, 0.08f, 0.3f), 12, 8, 4);
@@ -97,8 +98,8 @@ namespace BlockPet.Hand
             if (frameSprite != null) bg = Fill(Stretch(frame, "Bg"), frameSprite, false, Color.white, 12);
             else
             {
-                UIShapes.AddRounded(Place(frame, "Gold", -3, -3, 94, 94).gameObject, Yellow, 15).raycastTarget = false;
-                bg = UIShapes.AddRounded(Stretch(frame, "Bg").gameObject, Color.white, 12);
+                bg = UIShapes.AddRounded(Stretch(frame, "Gold").gameObject, Yellow, 12);
+                UIShapes.AddRounded(Place(frame, "Bg", 2, 2, 84, 84).gameObject, Color.white, 10).raycastTarget = false;
             }
             _latestPhoto = MaskedPhoto(frame, 5, 5, 78, 78, H9(s => s.stickerLatestMask), 8, null);
             PeelCorner(frame, frameSprite, 88f, 68.64f);
@@ -107,9 +108,6 @@ namespace BlockPet.Hand
             _latestAvatarPhoto = AvatarPhoto.Attach(_latestAvatar, null);
             RingOver(_latestAvatar, 26);
 
-            var tag = Place(_latestBody, "Tag", 26, -12, 36, 18);
-            Fill(Stretch(tag, "Bg"), H9(s => s.tagLatest), true, Yellow, 8).raycastTarget = false;
-            Label(tag, 0, 0, 36, 16, "最新", 10, Ink, TextAlignmentOptions.Center).enableWordWrapping = false;
 
             bg.raycastTarget = true;
             var btn = _latest.gameObject.AddComponent<Button>();
@@ -150,6 +148,7 @@ namespace BlockPet.Hand
             var bg = frameSprite != null ? Fill(Stretch(body, "Bg"), frameSprite, false, Color.white, 10)
                                          : UIShapes.AddRounded(Stretch(body, "Bg").gameObject, Color.white, 10);
             var photo = MaskedPhoto(body, 4, 4, 58, 58, H9(s => s.stickerPhotoMask), 7, tex);
+            BlockPet.UI.FisheyeImage.Set(photo, meta != null && meta.fisheye); // 拍的時候開了魚眼（5.27）
             PeelCorner(body, frameSprite, 66f, 52.8f);
 
             var (circle, circleBg, initial) = AvatarCircle(body, -5, 46, 22, 10);
@@ -472,6 +471,7 @@ namespace BlockPet.Hand
             _latestTexture = tex;
             _latestPhoto.texture = tex;
             if (tex != null) _latestPhoto.uvRect = AspectFillUv(tex.width, tex.height, 78f, 78f);
+            BlockPet.UI.FisheyeImage.Set(_latestPhoto, meta != null && meta.fisheye);
             if (meta != null)
             {
                 Decorate(_latestAvatarBg, _latestInitial, meta);
@@ -497,14 +497,14 @@ namespace BlockPet.Hand
                 float u = DealEase(t / 0.6f);
                 scale = Mathf.LerpUnclamped(1.35f, 0.94f, u);
                 rot = Mathf.LerpUnclamped(-14f, -4f, u);
-                alpha = Mathf.LerpUnclamped(0f, 0.85f, u);
+                alpha = Mathf.LerpUnclamped(0f, LatestAlpha, u);
             }
             else
             {
                 float u = DealEase((t - 0.6f) / 0.4f);
                 scale = Mathf.LerpUnclamped(0.94f, 1f, u);
                 rot = Mathf.LerpUnclamped(-4f, -6f, u);
-                alpha = 0.85f;
+                alpha = LatestAlpha;
             }
             _latestBody.localScale = Vector3.one * scale;
             _latestBody.localRotation = Quaternion.Euler(0f, 0f, -rot);
@@ -546,13 +546,11 @@ namespace BlockPet.Hand
             PlayerPrefs.Save();
         }
 
-        /// <summary>最新貼紙：打開分割畫面（大照片＋留言＋縮小的營地）；沒有掛 PhotoSplitView 時改開相簿頁。</summary>
+        /// <summary>最新貼紙：打開拍立得分割畫面（5.26，今天的新照片，從這張開始）；照片還沒同步到相簿時改開相簿頁。</summary>
         void OnLatestClicked()
         {
             if (_latestDragging || _dealt) return;
-            if (_splitView == null) _splitView = GetComponent<PhotoSplitView>();
-            if (_splitView == null) _splitView = FindObjectOfType<PhotoSplitView>(true);
-            if (_splitView != null && _splitView.Open()) return;
+            if (BlockPet.UI.Polaroid.PolaroidScreen.OpenToday(_latestId)) return;
             cameraUI?.OpenAlbumFromHand();
         }
     }

@@ -1,0 +1,26 @@
+{
+  "visitChance": 0.3,
+  "staySeconds": 6,
+  "cooldownSeconds": 60,
+  "maxLikes": 5,
+  "juvenileCount": 2,
+  "breeds": [
+    {
+      "breed": "bowbow",
+      "sets": [
+        { "key": "自然", "likes": [ { "item": "furn_hammock", "action": "sleep", "weight": 1 }, { "item": "furn_fire", "action": "look", "weight": 1 } ] },
+        { "key": "美食", "likes": [ { "item": "furn_mat", "action": "sit", "weight": 1 }, { "item": "furn_lantern", "action": "look", "weight": 1 } ] },
+        { "key": "juvenile", "likes": [
+          { "item": "furn_tent", "action": "sleep", "weight": 1 },
+          { "item": "furn_hammock", "action": "sleep", "weight": 1 },
+          { "item": "furn_mat", "action": "sit", "weight": 1 },
+          { "item": "furn_fire", "action": "look", "weight": 1 },
+          { "item": "furn_easel", "action": "look", "weight": 1 },
+          { "item": "furn_lantern", "action": "look", "weight": 1 },
+          { "item": "furn_mailbox", "action": "look", "weight": 1 },
+          { "item": "furn_screen", "action": "look", "weight": 1 }
+        ] }
+      ]
+    }
+  ]
+}

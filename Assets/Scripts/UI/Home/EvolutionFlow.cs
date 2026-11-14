@@ -43,6 +43,9 @@ namespace BlockPet.UI.Home
         float _t;
         string _playRoom;
         FirebaseManager.EvolutionRecord _rec;
+        // 畫面 B（圖鑑新增）等畫面 A 按「好」之後才顯示（設計文件 5.17 ④-2 第 4 點：一次只顯示一個畫面）
+        FirebaseManager.DexRecordResult? _pendingDex;
+        string _pendingDexType;
         EvoBarView _hookedBar;
         PageManager _pages;
         CameraUIManager _cameraUI;
@@ -163,7 +166,9 @@ namespace BlockPet.UI.Home
                 var entry = new DexEntry { evolvedAt = rec.at, days = days, palette = (int[])rec.palette.Clone() };
                 fb.RecordDex(DexRules.DefaultSeries, rec.type, entry, r =>
                 {
-                    if (r.isNewCell) BlockPet.UI.Dex.DexScreen.ShowNew(DexRules.DefaultSeries, rec.type, r);
+                    if (!r.isNewCell) return;
+                    if (_playing) { _pendingDex = r; _pendingDexType = rec.type; } // 等「好」
+                    else BlockPet.UI.Dex.DexScreen.ShowNew(DexRules.DefaultSeries, rec.type, r);
                 });
             });
         }
@@ -232,6 +237,9 @@ namespace BlockPet.UI.Home
             }
             _playing = false;
             _anim.gameObject.SetActive(false);
+            if (seen && _pendingDex.HasValue) BlockPet.UI.Dex.DexScreen.ShowNew(DexRules.DefaultSeries, _pendingDexType, _pendingDex.Value);
+            _pendingDex = null;
+            _pendingDexType = null;
             if (seen && AIController.Instance != null) PetHop.Play(AIController.Instance.gameObject, 2);
             if (fb != null && fb.RoomId != _playRoom) _rec = null;
         }

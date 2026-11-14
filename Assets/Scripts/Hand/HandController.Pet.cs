@@ -15,7 +15,7 @@ namespace BlockPet.Hand
     public partial class HandController
     {
         static readonly Color CleanGreen = Hex(0x4F8F45);
-        const float DotSize = 12f, DotGap = 7f;
+        const float DotSize = 10f, DotGap = 5f; // 第二行的類別色點 10（5.25 ③，2026-11-07）
 
         /// <summary>
         /// 餵完泡泡的類別色點與字色（設計文件 5.25 ③、設計稿 Home9 catStyle）：點＝類別色，字＝那一類的深色。
@@ -25,7 +25,7 @@ namespace BlockPet.Hand
         {
             switch (category)
             {
-                case "美食": dot = Hex(0xF29A3A); ink = Hex(0xC2621A); return true;
+                case "美食": dot = Hex(0xF29A3A); ink = Hex(0xA4511B); return true;
                 case "自然": dot = Hex(0x6FA45F); ink = Hex(0x4A7A3F); return true;
                 case "城市": dot = Hex(0x6F8FE0); ink = Hex(0x3F5BA8); return true;
                 case "生活人物": dot = Hex(0xD78AD0); ink = Hex(0x8A3F84); return true;
@@ -52,7 +52,7 @@ namespace BlockPet.Hand
         string _shownBubble;
         float _bubblePop = -1f;
         string _reactTitle, _reactSub;
-        Color _reactColor;
+        Color _reactColor, _reactSubColor;
         Color? _reactDot;   // 餵完泡泡的類別色點（辨識失敗、昏倒沒有）
         bool _reactTilt;    // 沒命中：寵物歪頭
         RectTransform _bubbleDot;
@@ -143,14 +143,19 @@ namespace BlockPet.Hand
             _pendingAt = Time.unscaledTime;
         }
 
+        /// <summary>餵完寵物隨機說一句（設計文件 5.25 ③，2026-11-07）。</summary>
+        static readonly string[] HitLines = { "好好吃！", "超好吃～", "還要還要！" };
+        static readonly string[] MissLines = { "嗯…？", "這是什麼…", "好像不是我想吃的" };
+
         void ShowReaction(BlockPet.Feed.FeedResult r)
         {
-            // 設計文件 5.25 ③（2026-11-06）：寵物說出照片是什麼，只有一行＋類別色點；不寫類別名稱、愛心、金幣。
-            // 命中「● 是拉麵！好好吃！」跳起來；沒命中「● 是兔子耶…」歪頭；辨識失敗「這是什麼呀？」不放色點。
-            // 照片是什麼要用辨識的細項，現在的模型（PhotoClassifier）只有五大類，所以說大類（「是美食！」）。
+            // 設計文件 5.25 ③（2026-11-07 改；取代 11-06 寵物唸出「是美食！好好吃！」）：泡泡兩行——
+            // 第一行寵物隨機說一句（Huninn 19 #3A2E22）：命中跳起來、沒命中歪頭；
+            // 第二行小字 12：類別色點 10＋類別名，字用那一類的深色。辨識失敗只有第一行「這是什麼呀？」。不寫細項、愛心、金幣。
             _reactDot = null;
             _reactTilt = false;
             _reactSub = null;
+            _reactSubColor = Muted;
             if (r.dead)
             {
                 _reactTitle = "……";
@@ -159,9 +164,11 @@ namespace BlockPet.Hand
             }
             else if (CategoryColors(r.category, out var dot, out var ink))
             {
-                string what = r.category;
-                _reactTitle = r.hit ? $"是{what}！好好吃！" : $"是{what}耶…";
-                _reactColor = ink;
+                var lines = r.hit ? HitLines : MissLines;
+                _reactTitle = lines[UnityEngine.Random.Range(0, lines.Length)];
+                _reactColor = Ink;
+                _reactSub = r.category;
+                _reactSubColor = ink;
                 _reactDot = dot;
                 _reactTilt = !r.hit;
             }
@@ -206,12 +213,15 @@ namespace BlockPet.Hand
             // 泡泡要說什麼：反應 > 乾淨了 > 飽飽的 > 好餓
             Say say = _say != Say.None ? _say : (hungry ? Say.Hungry : Say.None);
             string title = null, sub = null;
-            Color color = Ink;
+            Color color = Ink, subColor = Muted;
             Color? dot = null;
-            float size = 17f;
+            float size = 17f, subSize = 11f;
             switch (say)
             {
-                case Say.Reaction: title = _reactTitle; sub = _reactSub; color = _reactColor; dot = _reactDot; size = 19f; break;
+                case Say.Reaction:
+                    title = _reactTitle; sub = _reactSub; color = _reactColor; subColor = _reactSubColor; dot = _reactDot; size = 19f;
+                    if (dot.HasValue) subSize = 12f; // 第二行辨識結果 12 Black
+                    break;
                 case Say.Clean: title = "乾淨了！"; sub = "大家的照片都看過囉"; color = CleanGreen; size = 19f; break;
                 case Say.Full: title = "飽飽的～"; sub = "等一下再餵我"; break;
                 case Say.Hungry:
@@ -221,7 +231,7 @@ namespace BlockPet.Hand
                     break;
             }
             if (!petVisible) title = null;
-            UpdateBubble(title, sub, color, dot, size, r);
+            UpdateBubble(title, sub, color, subColor, subSize, dot, size, r);
 
             // 餓了左右輕晃；沒命中的反應歪頭；其他時候停
             if (say == Say.Reaction && _reactTilt && petVisible) Wobble(tilt: true);
@@ -229,7 +239,8 @@ namespace BlockPet.Hand
             else StopWobble();
         }
 
-        void UpdateBubble(string title, string sub, Color color, Color? dot, float size, Rect pet)
+        /// <summary>泡泡：標題一行＋說明一行；dot＝說明那行前面的類別色點（餵完的辨識結果）。</summary>
+        void UpdateBubble(string title, string sub, Color color, Color subColor, float subSize, Color? dot, float size, Rect pet)
         {
             float dt = Time.unscaledDeltaTime;
             if (title == null)
@@ -240,7 +251,7 @@ namespace BlockPet.Hand
                 return;
             }
 
-            string key = title + "\n" + sub + "\n" + size + "\n" + (dot.HasValue ? ColorUtility.ToHtmlStringRGB(dot.Value) : "");
+            string key = title + "\n" + sub + "\n" + size + "\n" + (dot.HasValue ? ColorUtility.ToHtmlStringRGB(dot.Value) : "") + ColorUtility.ToHtmlStringRGB(subColor);
             if (key != _shownBubble)
             {
                 _shownBubble = key;
@@ -248,23 +259,25 @@ namespace BlockPet.Hand
                 _bubbleTitle.fontSize = size;
                 _bubbleTitle.color = color;
                 _bubbleSub.text = sub ?? "";
-                float titleH = Mathf.Round(size * 1.3f), subH = string.IsNullOrEmpty(sub) ? 0f : 15f;
-                // 色點在字的前面（12＋間距 7），和那行字垂直置中
-                float dotW = dot.HasValue ? DotSize + DotGap : 0f;
-                _bubbleDot.gameObject.SetActive(dot.HasValue);
-                if (dot.HasValue)
+                _bubbleSub.fontSize = subSize;
+                _bubbleSub.color = subColor;
+                float titleH = Mathf.Round(size * 1.3f), subH = string.IsNullOrEmpty(sub) ? 0f : Mathf.Round(subSize * 1.35f);
+                // 色點在第二行字的前面（10＋間距 5，外圈白 2＋同色 1），和那行字垂直置中
+                float dotW = dot.HasValue && subH > 0f ? DotSize + DotGap : 0f;
+                _bubbleDot.gameObject.SetActive(dotW > 0f);
+                if (dotW > 0f)
                 {
                     _bubbleDotOuter.color = dot.Value;
                     _bubbleDotInner.color = dot.Value;
-                    _bubbleDot.anchoredPosition = new Vector2(12f - 3f, -(7f + (titleH - DotSize) / 2f - 3f));
+                    _bubbleDot.anchoredPosition = new Vector2(12f - 3f, -(7f + titleH + (subH - DotSize) / 2f - 3f));
                 }
-                _bubbleTitle.rectTransform.anchoredPosition = new Vector2(12f + dotW, -7f);
-                float textW = Mathf.Max(dotW + TextW(_bubbleTitle, title), string.IsNullOrEmpty(sub) ? 0f : TextW(_bubbleSub, sub));
+                _bubbleTitle.rectTransform.anchoredPosition = new Vector2(12f, -7f);
+                float textW = Mathf.Max(TextW(_bubbleTitle, title), string.IsNullOrEmpty(sub) ? 0f : dotW + TextW(_bubbleSub, sub));
                 float bw = Mathf.Ceil(textW) + 24f, bh = 7f + titleH + subH + 7f;
                 _bubble.sizeDelta = new Vector2(bw, bh);
-                _bubbleTitle.rectTransform.sizeDelta = new Vector2(bw - 24f - dotW, titleH);
-                _bubbleSub.rectTransform.anchoredPosition = new Vector2(12f, -(7f + titleH));
-                _bubbleSub.rectTransform.sizeDelta = new Vector2(bw - 24f, subH);
+                _bubbleTitle.rectTransform.sizeDelta = new Vector2(bw - 24f, titleH);
+                _bubbleSub.rectTransform.anchoredPosition = new Vector2(12f + dotW, -(7f + titleH));
+                _bubbleSub.rectTransform.sizeDelta = new Vector2(bw - 24f - dotW, subH);
                 _bubbleSub.gameObject.SetActive(subH > 0f);
                 _bubblePop = 0f; // 出現、換話都彈一下（0.3 秒 c5Pop）
                 _bubble.gameObject.SetActive(true);
@@ -340,7 +353,7 @@ namespace BlockPet.Hand
             _design = design;
             BuildBubble();
             ShowReaction(r);
-            UpdateBubble(_reactTitle, _reactSub, _reactColor, _reactDot, 19f, DefaultPetRect);
+            UpdateBubble(_reactTitle, _reactSub, _reactColor, _reactSubColor, _reactDot.HasValue ? 12f : 11f, _reactDot, 19f, DefaultPetRect);
             _bubblePop = -1f;
             _bubble.localScale = Vector3.one;
             _bubbleGroup.alpha = 1f;

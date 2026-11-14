@@ -97,5 +97,22 @@
    "rgba(255,180,163,0.45)",
    "rgba(232,107,79,0.18)"
   ]
+ },
+ "put_away": {
+  "gesture": "場上家具往下拖到下方面板放開",
+  "tap_threshold_px": 8,
+  "panel_hit": "家具中心進入面板範圍（設計稿 y > 622，即面板頂端）",
+  "while_dragging": {
+   "panel_bg": "#F1F7EA",
+   "panel_shadow": "0 -6px 22px rgba(60,110,40,0.35)",
+   "item_scale_normal": 1.08,
+   "item_scale_over_panel": 0.6,
+   "over_panel_box": "2.5 虛線 #6FA45F、底 rgba(227,238,217,0.92)、字「放開就收起來」16 Black #3F6E33＋往下箭頭"
+  },
+  "on_drop_panel": "收進「還沒擺出來的家具」，釋放格子",
+  "on_drop_elsewhere": "回原位",
+  "effects": "收起來的家具不算家具效果",
+  "all_can_put_away": true,
+  "put_all_away": false
  }
 }

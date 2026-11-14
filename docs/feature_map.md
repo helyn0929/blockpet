@@ -124,7 +124,7 @@
 
 ### 佈置家具（設計文件 5.28 佈置營地：斜角格子）
 - Scene：Feed.unity（`RoomEditorController` 掛在 HomePage；畫面執行時建立，sortingOrder 12）；入口是右上選單「佈置」（`MenuToggle`）和商店「去擺放」
-- 操作：按住家具拖（面板卡片往上拖到營地），吸附格子，白框放得下、紅框放不下；也能點家具再點綠格
+- 操作：按住家具拖（面板卡片往上拖到營地），吸附格子，白框放得下、紅框放不下；也能點家具再點綠格；場上家具往下拖到面板＝收起來（`DecorationManager.PutAway`）；家具效果要用 `DecorationManager.CountOnCamp`（收起來的不算）
 - 佈置時收起狀態欄、選單、照片貼紙、底部按鈕：`Assets/Data/DecorModeSettings.asset`
 - 主要 Prefab：`Assets/Art/UI/Mainroom_UI/DecorationObject.prefab`
 - 主要腳本：`Scripts/Decoration/DecorationManager.cs`（`PlaceOnGrid`／`MoveOnGrid`、編輯鎖）、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/Decoration/DecorationLayout.cs`（家具在格子上的位置、大小、前後、影子）、`Scripts/UI/Home/RoomEditorController.cs`（佈置畫面、拖曳與點選流程）、`Scripts/UI/TopBar/DecorModeSettings.cs`

@@ -18,6 +18,9 @@ namespace BlockPet.UI.Home
     /// - 拖曳（2026-11-08 使用者要求，比設計的「點綠色格子」直觀）：按住場上的家具拖，或把面板裡的卡片往上拖到營地；
     ///   一路吸附在格子上，底座白框＝放得下、紅框＝放不下；放開在放得下的地方就移過去，否則回原位。
     /// - 也能用點的：點一件家具 → 浮起發黃光、上方小標；放得下的格子閃綠色（1.4 秒）；點綠色格子 → 半透明預覽＋白框再移過去。
+    /// - 收起來（5.28 ④-5，2026-11-09；decorate_spec.json put_away）：場上的家具往下拖到「還沒擺出來的家具」面板；
+    ///   移動不到 8 算點一下。拖曳中放大 1.08 倍、面板淡綠＋綠色陰影；家具中心進到面板 → 縮到 0.6 倍、綠色虛線框「放開就收起來」；
+    ///   在面板放開＝收起來（DecorationManager.PutAway，格子空出來、存檔），在別處放開＝回原位。不做「全部收起來」。
     /// - 按「完成」→ 回到平常的營地。
     /// 編輯鎖、Firebase 讀寫在 DecorationManager；格子規則在 GridMath；格子表 CampGrid（Resources/Camp）。
     /// </summary>
@@ -28,7 +31,8 @@ namespace BlockPet.UI.Home
         const float CardW = 80f, CardH = 92f, CardGap = 10f;
         const float PreviewSeconds = 0.35f, OkPulse = 1.4f;
         const int DimOrder = -30000, TileOrder = -29000, LiftOrder = 5000;
-        const float TapMovePx = 14f;
+        const float TapMovePx = 8f;          // 移動不到 8（設計 px）就當作點一下（5.28 ④-5 put_away.tap_threshold_px）
+        const float DragScale = 1.08f, PutAwayScale = 0.6f;
         const float CardDragLift = 40f; // 從卡片拖出來時家具畫在手指上方多少（設計 px），手指不會擋住
 
         static readonly Color Ink = new Color(0x3A / 255f, 0x2E / 255f, 0x22 / 255f);
@@ -36,6 +40,12 @@ namespace BlockPet.UI.Home
         static readonly Color Paper = new Color(0xFF / 255f, 0xF8 / 255f, 0xEC / 255f);
         static readonly Color Green = new Color(0x6F / 255f, 0xA4 / 255f, 0x5F / 255f);
         static readonly Color GreenEdge = new Color(0x4A / 255f, 0x7A / 255f, 0x3F / 255f);
+        // 收起來（decorate_spec.json put_away）：拖曳時面板淡綠＋綠色陰影；進入面板時綠色虛線框「放開就收起來」
+        static readonly Color PanelDrag = new Color(0xF1 / 255f, 0xF7 / 255f, 0xEA / 255f);
+        static readonly Color PanelDragShadow = new Color(60f / 255f, 110f / 255f, 40f / 255f, 0.35f);
+        static readonly Color PutAwayFill = new Color(227f / 255f, 238f / 255f, 217f / 255f, 0.92f);
+        static readonly Color PutAwayLine = new Color(0x6F / 255f, 0xA4 / 255f, 0x5F / 255f);
+        static readonly Color PutAwayText = new Color(0x3F / 255f, 0x6E / 255f, 0x33 / 255f);
 
         [SerializeField] Camera worldCamera;
 
@@ -63,7 +73,10 @@ namespace BlockPet.UI.Home
         DecorationItem _queuedItem; // 商店「去擺放」：拿到編輯鎖後直接選這件
 
         // 按下／拖曳
-        bool _down, _dragging, _dragFits, _dragOverPanel;
+        bool _down, _dragging, _dragFits, _dragOverPanel, _draggingPlaced;
+        Image _panelBg, _panelShadow, _dragUi;
+        Color _panelBgColor = Color.white;
+        RectTransform _putAwayBox;
         Vector2 _downPos;
         DecorationObject _downDecor;  // 按下時點到的場上家具
         int _downCard = -1;           // 按下時點到的卡片
@@ -319,7 +332,7 @@ namespace BlockPet.UI.Home
             if (held && !_dragging)
             {
                 var delta = screen - _downPos;
-                if (delta.magnitude > TapMovePx * _lastK)
+                if (delta.magnitude > TapMovePx * _lastK * Mathf.Max(0.01f, _canvas.scaleFactor)) // 設計 px → 螢幕像素
                 {
                     // 場上的家具：往哪拖都算；卡片：往上拖才算（左右滑是捲動面板）
                     if (_downDecor != null) BeginDragPlaced(_downDecor, screen);
@@ -366,6 +379,7 @@ namespace BlockPet.UI.Home
         {
             if (_selDecorId != o.DecorId) SelectPlaced(o);
             _dragging = true;
+            _draggingPlaced = true;
             _grabOffset = DecorationLayout.CenterWorld(_selItem, o.Anchor, _grid) - ScreenToWorld(_downPos);
             UpdateDrag(screen);
         }
@@ -374,28 +388,85 @@ namespace BlockPet.UI.Home
         {
             if (_selCard != index) SelectCard(index);
             _dragging = true;
+            _draggingPlaced = false;
             _grabOffset = new Vector3(0f, CardDragLift * _grid.WorldPerPx, 0f);
             if (_scroll != null) { _scroll.StopMovement(); _scroll.enabled = false; } // 拖出來時面板不要跟著捲
             UpdateDrag(screen);
         }
 
-        /// <summary>跟著手指：底座中心吸附到最近的一格；放不放得下用底座框的顏色表示。</summary>
+        /// <summary>
+        /// 跟著手指：底座中心吸附到最近的一格；放不放得下用底座框的顏色表示。
+        /// 場上的家具：拖曳中放大 1.08 倍、畫在最上層；家具中心進到下方面板 → 縮到 0.6 倍、面板出現「放開就收起來」（5.28 ④-5）。
+        /// </summary>
         void UpdateDrag(Vector2 screen)
         {
             if (_selItem == null) { CancelDrag(); return; }
-            _dragOverPanel = OverPanel(screen);
             var center = ScreenToWorld(screen) + _grabOffset;
+            bool placed = TryGetSpawned(_selDecorId, out var o);
+            // 場上的家具看「家具中心」有沒有進面板；從卡片拖出來的看手指
+            _dragOverPanel = placed ? OverPanel(worldCamera.WorldToScreenPoint(center)) : OverPanel(screen);
             _dragAnchor = GridMath.AnchorAt(_grid.ToDesign(center), W(_selItem), D(_selItem), Vector2.zero);
             _dragFits = !_dragOverPanel && Fits(_selItem, _dragAnchor, _selDecorId);
 
-            if (TryGetSpawned(_selDecorId, out var o))
+            if (placed)
             {
-                DecorationLayout.ApplyAt(o, _selItem, _grid, _dragAnchor);
-                o.transform.position += new Vector3(0f, 6f * _grid.WorldPerPx, 0f); // 拿起來時浮一點
-                o.Renderer.sortingOrder += LiftOrder;
+                o.gameObject.SetActive(true);
+                if (_dragOverPanel)
+                {
+                    // 面板是畫在最上面的介面，場上的家具會被蓋住：換成介面上的圖跟著手指（0.6 倍）
+                    DecorationLayout.ApplyAt(o, _selItem, _grid, o.Anchor);
+                    ShowDragUi(o, center, PutAwayScale);
+                    o.gameObject.SetActive(false);
+                }
+                else
+                {
+                    HideDragUi();
+                    DecorationLayout.ApplyAt(o, _selItem, _grid, _dragAnchor);
+                    o.transform.position += new Vector3(0f, 6f * _grid.WorldPerPx, 0f); // 拿起來時浮一點
+                    ScaleAroundCenter(o, DragScale);
+                    o.Renderer.sortingOrder += LiftOrder;
+                }
+                SetPutAwayLook(true, _dragOverPanel);
             }
             else if (_dragOverPanel) _ghost.enabled = false;
             else ShowGhostAt(_dragAnchor, 0.85f);
+        }
+
+        /// <summary>以圖的中心放大／縮小（不改底座位置的算法，只改看起來的大小）。</summary>
+        static void ScaleAroundCenter(DecorationObject o, float f)
+        {
+            var r = o.Renderer;
+            if (r == null) return;
+            var c = r.bounds.center;
+            var t = o.transform;
+            t.position = c + (t.position - c) * f;
+            t.localScale *= f;
+        }
+
+        /// <summary>拖到面板上時，家具的圖畫在介面上（中心在 center、大小＝場上大小 × scale）。</summary>
+        void ShowDragUi(DecorationObject o, Vector3 center, float scale)
+        {
+            var r = o.Renderer;
+            if (_dragUi == null || r == null || r.sprite == null || worldCamera == null) return;
+            var b = r.bounds;
+            Vector2 a = worldCamera.WorldToScreenPoint(b.min), z = worldCamera.WorldToScreenPoint(b.max);
+            float px = _canvas.scaleFactor > 0f ? 1f / _canvas.scaleFactor : 1f;
+            _dragUi.sprite = r.sprite;
+            _dragUi.rectTransform.sizeDelta = new Vector2(Mathf.Abs(z.x - a.x), Mathf.Abs(z.y - a.y)) * px * scale;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, worldCamera.WorldToScreenPoint(center), null, out var local);
+            _dragUi.rectTransform.anchoredPosition = local - _root.rect.min;
+            _dragUi.transform.SetAsLastSibling();
+            _dragUi.enabled = true;
+        }
+
+        void HideDragUi() { if (_dragUi != null) _dragUi.enabled = false; }
+
+        /// <summary>拖場上的家具時：面板淡綠＋綠色陰影；家具進到面板裡時再蓋綠色虛線框「放開就收起來」。</summary>
+        void SetPutAwayLook(bool dragging, bool over)
+        {
+            if (_panelBg != null) _panelBg.color = dragging ? PanelDrag : _panelBgColor;
+            if (_panelShadow != null) _panelShadow.enabled = dragging;
+            if (_putAwayBox != null) _putAwayBox.gameObject.SetActive(dragging && over);
         }
 
         void EndDrag()
@@ -403,7 +474,19 @@ namespace BlockPet.UI.Home
             _dragging = false;
             _down = false;
             if (_scroll != null) _scroll.enabled = true;
+            bool wasPlaced = _draggingPlaced;
+            _draggingPlaced = false;
+            SetPutAwayLook(false, false);
+            HideDragUi();
             if (_selItem == null) return;
+            // 場上的家具在面板上放開：收起來（格子空出來、存檔，營地成員都看得到）
+            if (wasPlaced && _dragOverPanel && _selDecorId != null)
+            {
+                string id = _selDecorId;
+                Deselect();
+                DM?.PutAway(id, ok => { if (!ok) Toast("沒有存到，請檢查網路"); });
+                return;
+            }
             bool moved = !(TryGetSpawned(_selDecorId, out var o) && o.Anchor == _dragAnchor);
             if (_dragFits && moved)
             {
@@ -422,6 +505,9 @@ namespace BlockPet.UI.Home
             if (!_dragging) return;
             _dragging = false;
             _down = false;
+            _draggingPlaced = false;
+            SetPutAwayLook(false, false);
+            HideDragUi();
             if (_scroll != null) _scroll.enabled = true;
             if (TryGetSpawned(_selDecorId, out var o)) DecorationLayout.Apply(o, _selItem, _grid);
             if (_ghost != null) _ghost.enabled = false;
@@ -621,7 +707,12 @@ namespace BlockPet.UI.Home
 
             // 下方面板：deco_panel 高 150；「還沒擺出來的家具」；卡片 deco_card 左右滑，往上拖到營地就擺出來
             _panel = Anchored(_root, "Panel", new Vector2(0.5f, 0f), DesignW, PanelH);
-            Fill(_panel, _skin?.panel, true, Paper, 24).raycastTarget = true;
+            // 陰影只在拖場上家具時出現（綠色，0 -6px 22px）；陰影要在底圖下面，所以底圖放在後面的子物件
+            _panelShadow = UIShapes.AddShadow(_panel, PanelDragShadow, 24, 22, -6);
+            _panelShadow.enabled = false;
+            _panelBg = Fill(Place(_panel, "Bg", 0, 0, DesignW, PanelH), _skin?.panel, true, Paper, 24);
+            _panelBg.raycastTarget = true;
+            _panelBgColor = _panelBg.color;
             Label(_panel, 16, 12, 260, 20, "還沒擺出來的家具", 13, Ink, TextAlignmentOptions.Left);
             var view = Place(_panel, "Cards", 0, 38, DesignW, CardH + 10f);
             view.gameObject.AddComponent<RectMask2D>();
@@ -630,6 +721,23 @@ namespace BlockPet.UI.Home
             _scroll = view.gameObject.AddComponent<ScrollRect>();
             _scroll.content = _cards; _scroll.viewport = view; _scroll.vertical = false; _scroll.movementType = ScrollRect.MovementType.Elastic;
             _emptyText = Label(_panel, 0, 70, DesignW, 20, "家具都擺出來了！去商店可以買新的", 12, Sub, TextAlignmentOptions.Center);
+
+            // 拖到面板上：綠色虛線框（2.5 #6FA45F、底 rgba(227,238,217,0.92)）＋往下箭頭「放開就收起來」16 Black #3F6E33
+            _putAwayBox = Place(_panel, "PutAway", 10, 10, DesignW - 20f, PanelH - 20f);
+            UIShapes.AddRounded(_putAwayBox.gameObject, PutAwayFill, 18).raycastTarget = false;
+            UIShapes.AddRing(Place(_putAwayBox, "Line", 0, 0, DesignW - 20f, PanelH - 20f).gameObject, PutAwayLine, 18).raycastTarget = false;
+            Label(_putAwayBox, 0, 0, DesignW - 20f, PanelH - 20f, "↓  放開就收起來", 16, PutAwayText, TextAlignmentOptions.Center);
+            _putAwayBox.gameObject.SetActive(false);
+
+            // 拖到面板上時家具的圖（介面最上層）
+            var dragRt = new GameObject("DragItem", typeof(RectTransform)).GetComponent<RectTransform>();
+            dragRt.SetParent(_root, false);
+            dragRt.anchorMin = dragRt.anchorMax = Vector2.zero;
+            dragRt.pivot = new Vector2(0.5f, 0.5f);
+            _dragUi = dragRt.gameObject.AddComponent<Image>();
+            _dragUi.preserveAspect = true;
+            _dragUi.raycastTarget = false;
+            _dragUi.enabled = false;
 
             // 選到的家具上方小標（deco_tag_dark，11 Black #FFF8EC）
             _tag = Place(_root, "Tag", 0, 0, 160, 26);

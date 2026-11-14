@@ -799,6 +799,9 @@ namespace BlockPet.UI.Dex
             // 從營地進化後跳出來：只蓋在營地上，不顯示圖鑑主頁；在圖鑑裡收到就蓋在主頁上
             if (!gameObject.activeSelf) SetHomeVisible(false);
             gameObject.SetActive(true);
+            // 先打開（透明）再建：文字要在啟用狀態才量得到寬度，不然標籤、金幣膠囊的底框會比字短（2026-11-14 修）
+            _newGroup.alpha = 0f;
+            _newLayer.gameObject.SetActive(true);
             Clear(_newDesign);
 
             // 光芒 300 圓，(45, 150)，12 秒一圈

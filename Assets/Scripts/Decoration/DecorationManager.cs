@@ -321,6 +321,35 @@ namespace BlockPet.Decoration
             });
         }
 
+        /// <summary>
+        /// 收起來（設計文件 5.28 ④-5，2026-11-09）：家具從場上收回「還沒擺出來的家具」——拿掉格子座標（gi、gj），
+        /// 佔的格子空出來；資料還在（買過的家具不會不見），營地成員收到 ChildChanged 一起看到。本地先收好。
+        /// </summary>
+        public void PutAway(string decorId, Action<bool> onDone)
+        {
+            if (!_spawned.TryGetValue(decorId, out var obj)) { onDone?.Invoke(false); return; }
+            obj.SetGrid(false, default);
+            DecorationLayout.Apply(obj, database.GetById(obj.ItemId), Grid); // 沒有格子座標：藏起來
+            OnLayoutChanged?.Invoke();
+            var data = new Dictionary<string, object> { { "gi", null }, { "gj", null } };
+            _decorRef.Child(decorId).UpdateChildrenAsync(data).ContinueWith(task =>
+            {
+                bool ok = !task.IsFaulted && !task.IsCanceled;
+                lock (_mainQueue) _mainQueue.Enqueue(() => onDone?.Invoke(ok));
+            });
+        }
+
+        /// <summary>
+        /// 這件家具現在擺在營地上幾個（有格子座標的才算）。家具效果（5.18 家具愛好、照片畫架的大照片等）一律用這個判斷：
+        /// 收起來的家具不算，擺出來才有效（5.28 ④-5）。
+        /// </summary>
+        public int CountOnCamp(string itemId)
+        {
+            int n = 0;
+            foreach (var kv in _spawned) if (kv.Value != null && kv.Value.HasGrid && kv.Value.ItemId == itemId) n++;
+            return n;
+        }
+
         public string LocalUserId => _localUserId;
 
         // ─── Move ──────────────────────────────────────────────────────

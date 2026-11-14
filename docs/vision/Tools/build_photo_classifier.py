@@ -28,7 +28,9 @@ JSON_OUT = os.path.join(ROOT, "Assets", "Resources", "Vision", "photo_categories
 # 每類幾句英文描述（CLIP 是用英文訓練的），向量取平均。分錯就在這裡加句子。
 # 2026-10-29：運動戶外併入自然，多一類「寵物」（家裡養的貓狗等；野生動物仍算自然）。
 # 改了類別或句子要把 VERSION 加一：遊戲會把舊版本辨識過的照片重新辨識。
-VERSION = "2"
+# 2026-11-09：文字很多的照片（文件、筆記、白板、螢幕、招牌）原本沒有類別可放，中文字常被當成「麵或飯」→ 美食；
+#   使用者決定算「生活人物」，所以生活人物多幾句描述文字的句子（版本 3）。
+VERSION = "3"
 CATEGORIES = [
     ("美食", ["a photo of food", "a photo of a meal on a plate", "a photo of a drink or a cup of coffee",
              "a photo of dessert, cake or snacks", "a photo of a dish at a restaurant", "a photo of noodles or rice",
@@ -46,7 +48,12 @@ CATEGORIES = [
              "a photo of architecture"]),
     ("生活人物", ["a photo of a person", "a selfie", "a photo of friends or family together",
                "a photo of everyday life at home", "a photo of a baby or children",
-               "a photo of a room interior"]),
+               "a photo of a room interior",
+               # 文字很多的照片（2026-11-09）
+               "a photo of a document or a page of text", "a photo of handwritten notes",
+               "a photo of a whiteboard with writing", "a photo of a computer or phone screen",
+               "a photo of a sign with words", "a photo of a page in a book",
+               "a photo of a receipt or printed paper"]),
     ("寵物", ["a photo of a pet", "a photo of a pet dog", "a photo of a pet cat", "a photo of a puppy or a kitten",
              "a photo of a person holding a cat or a dog", "a photo of a pet rabbit or hamster",
              "a photo of a pet bird or fish"]),

@@ -286,6 +286,9 @@ namespace BlockPet.UI.Market
             foreach (var c in _cards) Destroy(c.rt.gameObject);
             _cards.Clear();
             var list = MarketCatalog.InTab(tab);
+            // 家具左上紅色愛心＝這隻寵物現在喜歡（5.18 ⑤；進化後依主色會換）
+            var likes = PetFurnitureVisits.CurrentLikes();
+            foreach (var e in list) if (e.tab == MarketTab.Furniture) e.petLikes = BlockPet.Feed.FurnitureLikeRules.Likes(likes, e.id);
             for (int i = 0; i < list.Count; i++) _cards.Add(BuildCard(list[i], i));
 
             int slots = MarketCatalog.Slots(_owned);

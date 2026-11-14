@@ -46,6 +46,12 @@ public class AIController : MonoBehaviour, IEditModeFreezable
     /// <summary>昏倒時停住不動（規格 3.2 暫用值），醒來再繼續走。</summary>
     public void SetStill(bool still) => _still = still;
 
+    /// <summary>
+    /// 閒晃結束時先問一下要不要做別的事（例如走去喜歡的家具，PetFurnitureVisits）：回傳 true＝這次不自己亂走，
+    /// 對方會在下一幀用 GoTo 接手。
+    /// </summary>
+    public System.Func<bool> TryDirectedIdle;
+
     void Awake()
     {
         _sr = GetComponent<SpriteRenderer>();
@@ -153,6 +159,7 @@ public class AIController : MonoBehaviour, IEditModeFreezable
         int lvl = Mathf.Clamp(heartLevel, 1, 5) - 1;
         yield return new WaitForSeconds(Random.Range(IdleMin[lvl], IdleMax[lvl]));
         while (_still) yield return null; // 昏倒中：不找新的目的地
+        if (TryDirectedIdle != null && TryDirectedIdle()) yield break;
 
         Vector2 candidate = (Vector2)_startPos + Random.insideUnitCircle * wanderRadius;
         if (walkableBounds != null)

@@ -38,6 +38,10 @@ public class iOSPostBuildSigning
         foreach (string t in new[] { mainTarget, frameworkTarget })
             proj.SetBuildProperty(t, "ENABLE_USER_SCRIPT_SANDBOXING", "NO");
 
+        // ── 系統框架 ─────────────────────────────────────────────────
+        // 寄明信片的人臉偵測（BlockPetFaceDetect.mm）用 Vision；只 #import 不會自動連結（Undefined symbol VNDetectFaceRectanglesRequest）
+        proj.AddFrameworkToProject(frameworkTarget, "Vision.framework", false);
+
         proj.WriteToFile(pbxPath);
 
         // ── Google Sign-In URL scheme (REVERSED_CLIENT_ID) ───────────

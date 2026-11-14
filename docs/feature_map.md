@@ -124,7 +124,7 @@
 
 ### 佈置家具（設計文件 5.28 佈置營地：斜角格子）
 - Scene：Feed.unity（`RoomEditorController` 掛在 HomePage；畫面執行時建立，sortingOrder 12）；入口是右上選單「佈置」（`MenuToggle`）和商店「去擺放」
-- 操作：按住家具拖（面板卡片往上拖到營地），吸附格子，白框放得下、紅框放不下；也能點家具再點綠格
+- 操作：按住家具拖（面板卡片往上拖到營地），吸附格子，白框放得下、紅框放不下；也能點家具再點綠格；場上家具往下拖到面板＝收起來（`DecorationManager.PutAway`）；家具效果要用 `DecorationManager.CountOnCamp`（收起來的不算）
 - 佈置時收起狀態欄、選單、照片貼紙、底部按鈕：`Assets/Data/DecorModeSettings.asset`
 - 主要 Prefab：`Assets/Art/UI/Mainroom_UI/DecorationObject.prefab`
 - 主要腳本：`Scripts/Decoration/DecorationManager.cs`（`PlaceOnGrid`／`MoveOnGrid`、編輯鎖）、`Scripts/Decoration/DecorationObject.cs`、`Scripts/Decoration/DecorationDatabase.cs`、`Scripts/Decoration/DecorationLayout.cs`（家具在格子上的位置、大小、前後、影子）、`Scripts/UI/Home/RoomEditorController.cs`（佈置畫面、拖曳與點選流程）、`Scripts/UI/TopBar/DecorModeSettings.cs`
@@ -160,6 +160,14 @@
 - 人臉偵測：`Scripts/Postcard/FaceDetector.cs`＋`Assets/Plugins/iOS/BlockPetFaceDetect.mm`（Vision）＋`Assets/Plugins/Android/BlockPetFaceDetect.java`（ML Kit，依賴 `Assets/Editor/Postcard/PostcardDependencies.xml`）；國家 `Scripts/Postcard/DeviceRegion.cs`
 - 首頁：`Scripts/UI/Travel/TravelHomeOverlay.cs`（出門木牌、客人、收到明信片／寵物回家帶回風景明信片的彈出，風景明信片 `PostcardArt.RenderScenery`）
 - 推播還沒做（App 內通知）；測試用選單 BlockPet/Debug/寄明信片；地圖截圖 BlockPet/Travel/Snapshot Map
+
+### 進化與家具愛好（設計文件 5.17、5.18 ⑤，2026-11-14）
+- 規則：`Scripts/Economy/EvolutionRules.cs`（調色盤、三種型、主色副色、80% 預告句）、`Scripts/Economy/FurnitureLikeRules.cs`（喜歡哪些家具、什麼時候走過去）；測試 `EvolutionRulesTests.cs`、`FurnitureLikeRulesTests.cs`
+- 規則表：`Assets/Resources/Pets/furniture_likes.json`（品種 → 主色／rainbow／juvenile → 家具、互動方式、比重；走過去的機率、停留、冷卻）
+- 資料：`Rooms/{room}/evolution`（`Scripts/FirebaseManager.Evolution.cs`，交易寫入：誰先點誰決定）
+- 畫面：`Scripts/UI/Home/EvolutionFlow.cs`（點寵物／進化條進化、動畫、補播、80% 剪影；執行時自動建立）、`Scripts/UI/Home/EvolvedLook.cs`（進化後上主色，暫用）、`Scripts/Hand/HandController.Pet.cs`（「可以進化了！」、預告句、家具旁的泡泡）、`Scripts/UI/TopBar/EvoBarView.cs`（進化後「成長紀錄」）
+- 走去喜歡的家具：`Scripts/Decoration/PetFurnitureVisits.cs`（掛在寵物上，用 `AIController.TryDirectedIdle`）；商店紅愛心在 `MarketScreenController`
+- 測試用：Editor 選單 BlockPet/Debug/進化（`Assets/Editor/Pets/EvolutionDebugMenu.cs`：模擬 80%、滿 100 張三種型、清掉進化結果）
 
 ### 頁面切換
 - Scene：Feed.unity

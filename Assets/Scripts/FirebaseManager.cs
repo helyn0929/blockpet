@@ -1868,6 +1868,7 @@ public partial class FirebaseManager : MonoBehaviour
         // desktop SDK 對已監聽的路徑再讀一次會觸發 persistent_connection.cc listens_.find 斷言。
         _petRef.ValueChanged += HandlePetStateChanged;
         StartMetaListening();
+        StartEvolutionListening();
     }
 
     // ─── 目前空間的名字（寵物名字、空間名稱）：空間資訊改名後首頁、聊天室、轉盤立刻更新 ───
@@ -2425,6 +2426,7 @@ public partial class FirebaseManager : MonoBehaviour
     void StopPetListening()
     {
         StopMetaListening();
+        StopEvolutionListening();
         if (_petRef != null)
             _petRef.ValueChanged -= HandlePetStateChanged;
         _petRef = null;

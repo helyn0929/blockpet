@@ -33,14 +33,64 @@ public class PetCollectionManager : MonoBehaviour
     public int StartingPhotoCount => startingPhotoCount;
 
     /// <summary>目前寵物的收集進度（0～100），給新版頂部狀態欄的進化條用。</summary>
-    public float ProgressPercent => TargetAmount > 0 ? Mathf.Clamp(100f * CurrentProgress / TargetAmount, 0f, 100f) : 0f;
+    public float ProgressPercent => DebugPalette != null ? Mathf.Clamp(Sum(DebugPalette), 0, 100)
+        : TargetAmount > 0 ? Mathf.Clamp(100f * CurrentProgress / TargetAmount, 0f, 100f) : 0f;
+
+    // ─── 進化（設計文件 5.17 ④-2，2026-11-14）────────────────────────
+
+    /// <summary>（測試用，BlockPet/Debug/進化）假的五色張數：設了就用它當進化條和進化判定，不存檔、只在這台手機。</summary>
+    public static int[] DebugPalette;
+    /// <summary>（測試用）假的最後餵的類別；-1＝取張數最多的那類。</summary>
+    public static int DebugLastFed = -1;
+
+    static int Sum(int[] p) { int s = 0; if (p != null) foreach (var v in p) s += Mathf.Max(0, v); return s; }
+
+    System.Collections.Generic.List<string> PhotoCategories()
+    {
+        var list = new System.Collections.Generic.List<string>();
+        var photos = SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null;
+        if (photos != null) foreach (var p in photos) list.Add(p?.category);
+        return list;
+    }
+
+    /// <summary>這隻寵物已經餵了幾張（最多 100，進化條的長度）。</summary>
+    public int FedCount => DebugPalette != null ? Mathf.Min(EvolveTarget, Sum(DebugPalette)) : Mathf.Min(EvolveTarget, CurrentProgress);
+
+    /// <summary>進化調色盤：前 100 張各類幾張（順序同 PetPreferences.Categories）。</summary>
+    public int[] Palette() => DebugPalette != null ? (int[])DebugPalette.Clone()
+        : BlockPet.Feed.EvolutionRules.Palette(PhotoCategories(), startingPhotoCount);
+
+    /// <summary>算進調色盤的最後一張是哪一類（主色一樣多時用）。</summary>
+    public int LastFed()
+    {
+        if (DebugPalette == null) return BlockPet.Feed.EvolutionRules.LastFedCategory(PhotoCategories(), startingPhotoCount);
+        if (DebugLastFed >= 0) return DebugLastFed;
+        int best = 0;
+        for (int i = 1; i < DebugPalette.Length; i++) if (DebugPalette[i] > DebugPalette[best]) best = i;
+        return best;
+    }
+
+    /// <summary>這隻寵物進化過了沒（營地共用的 Rooms/{營地}/evolution）。</summary>
+    public static bool IsEvolved => FirebaseManager.Instance != null && FirebaseManager.Instance.CurrentEvolution != null;
 
     /// <summary>
     /// 進化條各色段（0～100，加起來＝ProgressPercent）：目前這隻寵物開始後餵的照片，依辨識類別分段。
     /// categories 是色段順序；辨識前的舊照片沒有類別，算在第一段（和以前整段一色一樣）。
     /// </summary>
-    public float[] EnergyByCategory(System.Collections.Generic.IList<string> categories) =>
-        EnergyFor(SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null, startingPhotoCount, currentPetIndex, categories);
+    public float[] EnergyByCategory(System.Collections.Generic.IList<string> categories)
+    {
+        if (DebugPalette != null)
+        {
+            var r = new float[categories.Count];
+            for (int i = 0; i < categories.Count; i++)
+            {
+                int k = System.Array.IndexOf(BlockPet.Feed.PetPreferences.Categories, categories[i]);
+                r[i] = k >= 0 && k < DebugPalette.Length ? DebugPalette[k] : 0f;
+            }
+            return r;
+        }
+        return EnergyFor(SaveManager.Instance != null ? SaveManager.Instance.data?.photos : null, startingPhotoCount, currentPetIndex, categories);
+    }
 
     /// <summary>任一空間的進化條色段（選擇空間轉盤用）：照片清單、這隻寵物從第幾張開始算、寵物種類。</summary>
     public static float[] EnergyFor(System.Collections.Generic.IList<PhotoMeta> photos, int startingPhotoCount, int petIndex,

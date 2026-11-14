@@ -40,7 +40,7 @@ namespace BlockPet.Hand
         // 設計稿寵物 (128, 430) 134×124；找不到寵物時泡泡放這裡
         static readonly Rect DefaultPetRect = new Rect(128f - DesignW / 2f, DesignH - 430f - 124f, 134f, 124f);
 
-        enum Say { None, Hungry, Full, Reaction, Clean }
+        enum Say { None, Hungry, Full, Reaction, Clean, Evolve, Preview }
 
         RectTransform _petHit;
         RectTransform _bubble;
@@ -114,6 +114,7 @@ namespace BlockPet.Hand
         {
             if (_dealt || _selected != null) return;
             if (!BlockPet.Feed.FeedGate.Check()) return; // 昏倒：打開復活視窗
+            if (CanEvolveNow()) { BlockPet.UI.Home.EvolutionFlow.Request(); return; } // 進化優先（5.25 ①、5.17 ④-2）
             if (PhotoCooldown.IsActive)
             {
                 SayFor(Say.Full, FullHold);
@@ -122,6 +123,13 @@ namespace BlockPet.Hand
             // 進化優先（5.25 ①）：進化系統還沒做，之後在這裡先進化
             if (_say == Say.Full) _say = Say.None;
             Deal();
+        }
+
+        /// <summary>滿 100 張、還沒進化：點寵物＝進化。</summary>
+        static bool CanEvolveNow()
+        {
+            var pcm = PetCollectionManager.Instance;
+            return pcm != null && !PetCollectionManager.IsEvolved && BlockPet.Feed.EvolutionRules.CanEvolve(pcm.FedCount);
         }
 
         void SayFor(Say say, float seconds)
@@ -210,8 +218,15 @@ namespace BlockPet.Hand
             bool alive = _health == null || BlockPet.Feed.EconomyRules.CanFeed(_health.Hearts);
             bool hungry = petVisible && alive && !cooling && !_dealt;
 
-            // 泡泡要說什麼：反應 > 乾淨了 > 飽飽的 > 好餓
-            Say say = _say != Say.None ? _say : (hungry ? Say.Hungry : Say.None);
+            // 泡泡要說什麼：反應 > 乾淨了 > 飽飽的 > 可以進化了 > 進化預告（80%，取代「好餓」那句）> 好餓
+            var pcm = PetCollectionManager.Instance;
+            bool evolveReady = alive && CanEvolveNow();
+            bool preview = alive && pcm != null && !PetCollectionManager.IsEvolved && BlockPet.Feed.EvolutionRules.ShowPreview(pcm.FedCount);
+            Say say = _say != Say.None ? _say
+                : evolveReady ? Say.Evolve
+                : preview ? Say.Preview
+                : (hungry ? Say.Hungry : Say.None);
+            if (BlockPet.UI.Home.EvolutionFlow.Playing) say = Say.None;
             string title = null, sub = null;
             Color color = Ink, subColor = Muted;
             Color? dot = null;
@@ -224,6 +239,16 @@ namespace BlockPet.Hand
                     break;
                 case Say.Clean: title = "乾淨了！"; sub = "大家的照片都看過囉"; color = CleanGreen; size = 19f; break;
                 case Say.Full: title = "飽飽的～"; sub = "等一下再餵我"; break;
+                case Say.Evolve: title = "可以進化了！"; sub = "點我進化"; break; // 【暫定】5.17 ④-2
+                case Say.Preview:
+                    title = BlockPet.Feed.EvolutionRules.PreviewLine(pcm.Palette(), pcm.LastFed());
+                    if (hungry)
+                    {
+                        string wantNow = BlockPet.Feed.TodayWant.Current();
+                        sub = string.IsNullOrEmpty(wantNow) ? "點我餵食" : $"點我餵食・想吃{wantNow}";
+                    }
+                    size = 15f;
+                    break;
                 case Say.Hungry:
                     string want = BlockPet.Feed.TodayWant.Current();
                     title = "好餓…";
@@ -235,7 +260,7 @@ namespace BlockPet.Hand
 
             // 餓了左右輕晃；沒命中的反應歪頭；其他時候停
             if (say == Say.Reaction && _reactTilt && petVisible) Wobble(tilt: true);
-            else if (hungry && say == Say.Hungry) Wobble(tilt: false);
+            else if (hungry && (say == Say.Hungry || say == Say.Preview)) Wobble(tilt: false);
             else StopWobble();
         }
 

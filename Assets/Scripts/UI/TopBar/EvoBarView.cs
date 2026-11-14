@@ -29,7 +29,18 @@ namespace BlockPet.UI.TopBar
         bool _dead;
 
         public float TotalEnergy { get; private set; }
-        public bool IsReady => !_dead && TotalEnergy >= 100f;
+        public bool IsReady => !_dead && TotalEnergy >= 100f && !Evolved;
+
+        /// <summary>寵物進化過了沒（EvolutionFlow 設定）。進化後不再「可進化」，文字改「成長紀錄」（設計文件 5.17 ⑥）。</summary>
+        public static Func<bool> IsEvolved;
+        static bool Evolved => IsEvolved != null && IsEvolved();
+
+        /// <summary>進化狀態變了：重畫金框和文字。</summary>
+        public void Refresh()
+        {
+            RefreshColors();
+            RefreshText();
+        }
 
         /// <summary>依 config.segments 的順序傳入各類能量（0～100）。</summary>
         public void SetEnergies(float[] energies, bool animate = true)
@@ -89,7 +100,12 @@ namespace BlockPet.UI.TopBar
         void RefreshText()
         {
             if (evoText == null || config == null) return;
-            if (IsReady)
+            if (Evolved)
+            {
+                evoText.text = "成長紀錄";
+                evoText.color = config.textColor;
+            }
+            else if (IsReady)
             {
                 evoText.text = config.readyText;
                 evoText.color = config.readyTextColor;

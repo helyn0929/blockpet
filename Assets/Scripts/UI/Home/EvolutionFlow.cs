@@ -135,6 +135,7 @@ namespace BlockPet.UI.Home
         {
             var pet = AIController.Instance;
             if (pet == null) return;
+            if (pet.GetComponent<BlockPet.Decoration.PetFurnitureVisits>() == null) pet.gameObject.AddComponent<BlockPet.Decoration.PetFurnitureVisits>();
             var look = pet.GetComponent<EvolvedLook>();
             if (look == null) look = pet.gameObject.AddComponent<EvolvedLook>();
             // 動畫播完才換樣子（播的時候寵物還是原本的樣子）

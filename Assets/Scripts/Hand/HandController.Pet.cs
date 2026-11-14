@@ -40,7 +40,7 @@ namespace BlockPet.Hand
         // 設計稿寵物 (128, 430) 134×124；找不到寵物時泡泡放這裡
         static readonly Rect DefaultPetRect = new Rect(128f - DesignW / 2f, DesignH - 430f - 124f, 134f, 124f);
 
-        enum Say { None, Hungry, Full, Reaction, Clean, Evolve, Preview }
+        enum Say { None, Hungry, Full, Reaction, Clean, Evolve, Preview, Like }
 
         RectTransform _petHit;
         RectTransform _bubble;
@@ -123,6 +123,16 @@ namespace BlockPet.Hand
             // 進化優先（5.25 ①）：進化系統還沒做，之後在這裡先進化
             if (_say == Say.Full) _say = Say.None;
             Deal();
+        }
+
+        string _likeTitle;
+
+        /// <summary>寵物在喜歡的家具旁邊（5.18 ⑤，動畫待美術）：看「♥」、睡「Zz…」、坐「♪」。</summary>
+        public void SayLike(string action, float seconds)
+        {
+            _likeTitle = action == "sleep" ? "Zz…" : action == "sit" ? "♪" : "♥";
+            SayFor(Say.Like, seconds);
+            _shownBubble = null;
         }
 
         /// <summary>滿 100 張、還沒進化：點寵物＝進化。</summary>
@@ -240,6 +250,7 @@ namespace BlockPet.Hand
                 case Say.Clean: title = "乾淨了！"; sub = "大家的照片都看過囉"; color = CleanGreen; size = 19f; break;
                 case Say.Full: title = "飽飽的～"; sub = "等一下再餵我"; break;
                 case Say.Evolve: title = "可以進化了！"; sub = "點我進化"; break; // 【暫定】5.17 ④-2
+                case Say.Like: title = _likeTitle; break;
                 case Say.Preview:
                     title = BlockPet.Feed.EvolutionRules.PreviewLine(pcm.Palette(), pcm.LastFed());
                     if (hungry)
